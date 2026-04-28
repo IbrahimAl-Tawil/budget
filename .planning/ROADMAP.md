@@ -45,7 +45,12 @@ Plans:
   4. A subscription that increases in price between billing cycles is flagged visibly in the subscriptions tab
   5. A subscription with no matching transactions in the past 60 days is flagged as potentially unused
   6. Subscription amounts auto-deduct from their linked category's monthly budget
-**Plans**: TBD
+**Plans:** 3 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — Schema + data layer: goal priority, subscription intelligence fields, computation modules
+- [ ] 02-02-PLAN.md — Smart goals: priority weights API/UI and surplus allocation workflow
+- [ ] 02-03-PLAN.md — Subscription intelligence: flag display, budget impact, subscriptions API
 
 ### Phase 3: Notification Center
 **Goal**: Users see timely, actionable alerts inside the app — no checking required
@@ -78,6 +83,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Connected Data Engine | 0/2 | Planning complete | - |
-| 2. Smart Goals and Subscriptions | 0/TBD | Not started | - |
+| 2. Smart Goals and Subscriptions | 0/3 | Planning complete | - |
 | 3. Notification Center | 0/TBD | Not started | - |
 | 4. Financial Intelligence | 0/TBD | Not started | - |
