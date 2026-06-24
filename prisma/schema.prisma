@@ -1,0 +1,191 @@
+datasource db {
+  provider = "sqlite"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id             String   @id @default(cuid())
+  name           String
+  email          String   @unique
+  passwordHash   String
+  monthlyIncome  Float?
+  currency       String   @default("CAD")
+  budgetTarget   Float?
+  onboardingDone Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  accounts         Account[]
+  transactions     Transaction[]
+  categories       Category[]
+  goals            Goal[]
+  subscriptions    Subscription[]
+  bills            Bill[]
+  budgets          Budget[]
+  insights         Insight[]
+  bankStatements   BankStatement[]
+  goalAllocations  GoalAllocation[]
+}
+
+model Account {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  type      String
+  number    String?
+  balance   Float
+  gradient  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+}
+
+model Category {
+  id        String  @id @default(cuid())
+  userId    String
+  name      String
+  icon      String?
+  color     String?
+  isDefault Boolean @default(false)
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions  Transaction[]
+  budgets       Budget[]
+  subscriptions Subscription[]
+
+  @@unique([userId, name])
+}
+
+model Transaction {
+  id            String   @id @default(cuid())
+  userId        String
+  accountId     String?
+  categoryId    String?
+  name          String
+  amount        Float
+  date          DateTime
+  icon          String?
+  color         String?
+  isRecurring   Boolean  @default(false)
+  recurringFlag String?
+  source        String   @default("manual")
+  statementId   String?
+  createdAt     DateTime @default(now())
+
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account   Account?       @relation(fields: [accountId], references: [id])
+  category  Category?      @relation(fields: [categoryId], references: [id])
+  statement BankStatement? @relation(fields: [statementId], references: [id])
+}
+
+model Goal {
+  id        String    @id @default(cuid())
+  userId    String
+  name      String
+  emoji     String?
+  saved     Float     @default(0)
+  target    Float
+  priority  Float     @default(0)
+  color     String?
+  deadline  DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  allocations GoalAllocation[]
+}
+
+model GoalAllocation {
+  id        String   @id @default(cuid())
+  userId    String
+  goalId    String
+  month     Int
+  year      Int
+  amount    Float
+  status    String   @default("pending")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goal Goal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, goalId, month, year])
+}
+
+model Subscription {
+  id                  String    @id @default(cuid())
+  userId              String
+  categoryId          String?
+  name                String
+  amount              Float
+  previousAmount      Float?
+  cycle               String
+  icon                String?
+  color               String?
+  isActive            Boolean   @default(true)
+  detectedAt          DateTime?
+  lastTransactionDate DateTime?
+  confirmedByUser     Boolean   @default(false)
+  createdAt           DateTime  @default(now())
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category Category? @relation(fields: [categoryId], references: [id])
+}
+
+model Bill {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  amount    Float
+  dueDate   DateTime
+  isUrgent  Boolean  @default(false)
+  isPaid    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Budget {
+  id         String @id @default(cuid())
+  userId     String
+  categoryId String
+  amount     Float
+  month      Int
+  year       Int
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id])
+
+  @@unique([userId, categoryId, month, year])
+}
+
+model Insight {
+  id        String   @id @default(cuid())
+  userId    String
+  tag       String
+  body      String
+  tagColor  String?
+  tagBg     String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model BankStatement {
+  id         String   @id @default(cuid())
+  userId     String
+  filename   String
+  fileType   String
+  status     String   @default("pending")
+  txCount    Int      @default(0)
+  uploadedAt DateTime @default(now())
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+}
