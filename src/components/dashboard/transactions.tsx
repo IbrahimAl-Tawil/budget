@@ -8,6 +8,10 @@ import { TxRow } from "./tx-row";
 import { EditTransactionModal } from "./edit-tx-modal";
 import { Search, Upload } from "lucide-react";
 
+const STAT_DIVIDER = "oklch(90% 0.006 80)";
+const TX_DIVIDER = "oklch(94% 0.004 80)";
+const ovLabelCls = "text-[11px] font-medium tracking-[0.07em] uppercase text-muted-text";
+
 interface TransactionsProps {
   data: { transactions: TransactionView[]; total: number; totalPages: number };
   spending: SpendCategory[];
@@ -48,9 +52,53 @@ export function Transactions({ data, spending, onImport, onRefresh, month, year 
   );
 
   return (
-    <div className="tab-content grid grid-cols-[1.5fr_1fr] gap-3.5">
+    <div className="tab-content flex flex-col gap-10 sm:gap-14 w-full max-w-[1080px] mx-auto">
+      {/* ── This Month + By Category · summary band ──────────────────── */}
+      <GlassCard className="p-8 sm:p-10">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <div>
+            <div className={ovLabelCls}>This Month</div>
+            <div className="flex items-baseline gap-6 sm:gap-8 mt-4">
+              <div>
+                <div className="text-[11px] text-muted-text mb-1.5">Income</div>
+                <div className="font-serif text-[30px] sm:text-[34px] tracking-[-0.03em] leading-none text-sage tabular-nums">
+                  +{fmt(income)}
+                </div>
+              </div>
+              <div className="w-px h-11 self-center" style={{ background: STAT_DIVIDER }} />
+              <div>
+                <div className="text-[11px] text-muted-text mb-1.5">Spent</div>
+                <div className="font-serif text-[30px] sm:text-[34px] tracking-[-0.03em] leading-none tabular-nums">
+                  -{fmt(spent)}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="lg:border-l lg:pl-6" style={{ borderColor: STAT_DIVIDER }}>
+            <div className={ovLabelCls}>By Category</div>
+            <div className="mt-4">
+              {spending.length > 0 ? (
+                spending.slice(0, 6).map((c) => (
+                  <div key={c.name} className="flex items-center justify-between mb-2.5">
+                    <div className="flex items-center gap-2 text-[13px]">
+                      <div className="w-[9px] h-[9px] rounded-full shrink-0" style={{ background: c.color }} />
+                      <span>{c.name}</span>
+                    </div>
+                    <span className="text-[13px] font-semibold tabular-nums">{fmt(c.amount)}</span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-muted-text">No data</p>
+              )}
+            </div>
+          </div>
+        </div>
+      </GlassCard>
+
+      {/* ── All Transactions · wide ledger ───────────────────────────── */}
       <GlassCard>
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex justify-between items-center mb-5 gap-3 flex-wrap">
           <CardLabel>All Transactions ({total})</CardLabel>
           <div className="flex items-center gap-2">
             <button
@@ -70,16 +118,21 @@ export function Transactions({ data, spending, onImport, onRefresh, month, year 
             </div>
           </div>
         </div>
-        <div className="overflow-y-auto max-h-[calc(100vh-260px)] custom-scrollbar">
-          <div className="flex flex-col gap-0.5">
-            {transactions.length > 0 ? (
-              transactions.map((tx) => (
-                <TxRow key={tx.id} tx={tx} onDoubleClick={setEditTx} />
-              ))
-            ) : (
-              <p className="text-sm text-muted-text text-center py-8">No transactions found</p>
-            )}
-          </div>
+        <div className="overflow-y-auto max-h-[480px] custom-scrollbar -mx-3">
+          {transactions.length > 0 ? (
+            transactions.map((tx, i, arr) => (
+              <div
+                key={tx.id}
+                style={{
+                  borderBottom: i < arr.length - 1 ? `1px solid ${TX_DIVIDER}` : "none",
+                }}
+              >
+                <TxRow tx={tx} onDoubleClick={setEditTx} />
+              </div>
+            ))
+          ) : (
+            <p className="text-sm text-muted-text text-center py-8">No transactions found</p>
+          )}
         </div>
         {totalPages > 1 && (
           <div className="flex justify-center gap-2 mt-4">
@@ -103,39 +156,6 @@ export function Transactions({ data, spending, onImport, onRefresh, month, year 
           </div>
         )}
       </GlassCard>
-
-      <div className="flex flex-col gap-3.5">
-        <GlassCard>
-          <CardLabel>This Month</CardLabel>
-          <div className="flex gap-4 mt-1">
-            <div>
-              <div className="text-[11px] text-muted-text">Income</div>
-              <div className="font-serif text-[22px] text-sage tracking-[-0.02em]">+{fmt(income)}</div>
-            </div>
-            <div className="w-px bg-bulga-border" />
-            <div>
-              <div className="text-[11px] text-muted-text">Spent</div>
-              <div className="font-serif text-[22px] tracking-[-0.02em]">-{fmt(spent)}</div>
-            </div>
-          </div>
-        </GlassCard>
-        <GlassCard className="flex-1">
-          <CardLabel>By Category</CardLabel>
-          {spending.length > 0 ? (
-            spending.slice(0, 6).map((c) => (
-              <div key={c.name} className="flex items-center justify-between mb-2.5">
-                <div className="flex items-center gap-2 text-[13px]">
-                  <div className="w-[9px] h-[9px] rounded-full shrink-0" style={{ background: c.color }} />
-                  <span>{c.name}</span>
-                </div>
-                <span className="text-[13px] font-semibold">{fmt(c.amount)}</span>
-              </div>
-            ))
-          ) : (
-            <p className="text-sm text-muted-text mt-2">No data</p>
-          )}
-        </GlassCard>
-      </div>
 
       <EditTransactionModal
         open={!!editTx}

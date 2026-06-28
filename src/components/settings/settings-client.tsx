@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { GlassCard, CardLabel } from "@/components/dashboard/glass-card";
+import { GlassCard } from "@/components/dashboard/glass-card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { signOut } from "next-auth/react";
@@ -17,6 +17,10 @@ interface SettingsProps {
     budgetTarget: number;
   };
 }
+
+const sectionHeadingCls = "font-serif text-[22px] sm:text-[26px] tracking-[-0.02em]";
+const fieldLabelCls = "block text-[11px] font-semibold tracking-[0.09em] uppercase text-muted-text mb-1.5";
+const fieldInputCls = "h-10 rounded-xl bg-white/70 border-[oklch(90%_0.006_80)]";
 
 export function SettingsClient({ user }: SettingsProps) {
   const router = useRouter();
@@ -58,29 +62,25 @@ export function SettingsClient({ user }: SettingsProps) {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="flex flex-col gap-10 sm:gap-14 w-full">
       {/* Profile */}
       <GlassCard className="hover:translate-y-0">
-        <CardLabel>Profile</CardLabel>
-        <div className="space-y-4 mt-3">
+        <div className={sectionHeadingCls}>Profile</div>
+        <div className="space-y-5 mt-5">
           <div>
-            <label className="block text-[11px] font-semibold tracking-[0.09em] uppercase text-neutral-400 mb-1.5">
-              Name
-            </label>
+            <label className={fieldLabelCls}>Name</label>
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="h-10 rounded-xl bg-neutral-50 border-black/[0.06]"
+              className={fieldInputCls}
             />
           </div>
           <div>
-            <label className="block text-[11px] font-semibold tracking-[0.09em] uppercase text-neutral-400 mb-1.5">
-              Email
-            </label>
+            <label className={fieldLabelCls}>Email</label>
             <Input
               value={user.email}
               disabled
-              className="h-10 rounded-xl bg-neutral-50 border-black/[0.06] opacity-60"
+              className={`${fieldInputCls} opacity-60`}
             />
           </div>
         </div>
@@ -88,40 +88,34 @@ export function SettingsClient({ user }: SettingsProps) {
 
       {/* Financial */}
       <GlassCard className="hover:translate-y-0">
-        <CardLabel>Financial Settings</CardLabel>
-        <div className="space-y-4 mt-3">
-          <div className="grid grid-cols-2 gap-4">
+        <div className={sectionHeadingCls}>Financial Settings</div>
+        <div className="space-y-5 mt-5">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             <div>
-              <label className="block text-[11px] font-semibold tracking-[0.09em] uppercase text-neutral-400 mb-1.5">
-                Monthly Income
-              </label>
+              <label className={fieldLabelCls}>Monthly Income</label>
               <Input
                 type="number"
                 value={monthlyIncome}
                 onChange={(e) => setMonthlyIncome(e.target.value)}
-                className="h-10 rounded-xl bg-neutral-50 border-black/[0.06]"
+                className={fieldInputCls}
               />
             </div>
             <div>
-              <label className="block text-[11px] font-semibold tracking-[0.09em] uppercase text-neutral-400 mb-1.5">
-                Budget Target
-              </label>
+              <label className={fieldLabelCls}>Budget Target</label>
               <Input
                 type="number"
                 value={budgetTarget}
                 onChange={(e) => setBudgetTarget(e.target.value)}
-                className="h-10 rounded-xl bg-neutral-50 border-black/[0.06]"
+                className={fieldInputCls}
               />
             </div>
           </div>
           <div>
-            <label className="block text-[11px] font-semibold tracking-[0.09em] uppercase text-neutral-400 mb-1.5">
-              Currency
-            </label>
+            <label className={fieldLabelCls}>Currency</label>
             <select
               value={currency}
               onChange={(e) => setCurrency(e.target.value)}
-              className="w-full h-10 rounded-xl bg-neutral-50 border border-black/[0.06] px-3 text-sm font-sans outline-none"
+              className="w-full h-10 rounded-xl bg-white/70 border border-[oklch(90%_0.006_80)] px-3 text-sm font-sans outline-none"
             >
               <option value="CAD">CAD</option>
               <option value="USD">USD</option>
@@ -133,36 +127,38 @@ export function SettingsClient({ user }: SettingsProps) {
       </GlassCard>
 
       {/* Actions */}
-      <div className="flex gap-3">
-        <Button
-          onClick={handleSave}
-          disabled={saving}
-          className="flex-1 h-11 rounded-xl bg-sage text-white font-semibold text-sm hover:opacity-90"
-        >
-          <Save className="w-4 h-4 mr-2" />
-          {saving ? "Saving..." : "Save Changes"}
-        </Button>
-        <Button
-          onClick={() => signOut({ callbackUrl: "/login" })}
-          variant="outline"
-          className="h-11 rounded-xl border-black/[0.06] px-5 text-sm font-medium text-neutral-400"
-        >
-          <LogOut className="w-4 h-4 mr-2" />
-          Sign Out
-        </Button>
-      </div>
+      <div className="flex flex-col gap-3">
+        <div className="flex gap-3">
+          <Button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex-1 h-11 rounded-xl bg-sage text-white font-semibold text-sm hover:opacity-90"
+          >
+            <Save className="w-4 h-4 mr-2" />
+            {saving ? "Saving..." : "Save Changes"}
+          </Button>
+          <Button
+            onClick={() => signOut({ callbackUrl: "/login" })}
+            variant="outline"
+            className="h-11 rounded-xl border-[oklch(90%_0.006_80)] px-5 text-sm font-medium text-muted-text"
+          >
+            <LogOut className="w-4 h-4 mr-2" />
+            Sign Out
+          </Button>
+        </div>
 
-      {success && (
-        <p className="text-sm text-sage font-medium text-center">{success}</p>
-      )}
-      {error && (
-        <p className="text-sm text-terra font-medium text-center">{error}</p>
-      )}
+        {success && (
+          <p className="text-sm text-sage font-medium text-center">{success}</p>
+        )}
+        {error && (
+          <p className="text-sm text-terra font-medium text-center">{error}</p>
+        )}
+      </div>
 
       {/* Danger Zone */}
       <GlassCard className="hover:translate-y-0 border-terra/20">
-        <CardLabel>Danger Zone</CardLabel>
-        <p className="text-sm text-neutral-400 mt-2 mb-4">
+        <div className={sectionHeadingCls}>Danger Zone</div>
+        <p className="text-sm text-muted-text mt-2 mb-4">
           Export your data or permanently delete your account.
         </p>
         <div className="flex gap-3">
@@ -179,7 +175,7 @@ export function SettingsClient({ user }: SettingsProps) {
                 a.click();
               }
             }}
-            className="h-9 rounded-xl border-black/[0.06] px-4 text-xs font-medium"
+            className="h-9 rounded-xl border-[oklch(90%_0.006_80)] px-4 text-xs font-medium"
           >
             Export Data
           </Button>

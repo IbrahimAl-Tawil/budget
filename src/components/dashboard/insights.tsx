@@ -24,13 +24,15 @@ export function Insights({ data }: { data: InsightView[] }) {
   };
 
   return (
-    <div className="tab-content grid grid-cols-2 gap-3.5">
-      {/* AI Overview banner */}
-      <GlassCard className="col-span-2 hover:translate-y-0">
-        <div className="flex justify-between items-start">
+    <div className="tab-content flex flex-col gap-10 sm:gap-14 w-full max-w-[1080px] mx-auto">
+      {/* ── HERO · AI Overview ───────────────────────────────────────── */}
+      <GlassCard className="p-8 sm:p-12 hover:translate-y-0">
+        <div className="flex justify-between items-start gap-6 flex-wrap">
           <div>
-            <div className="text-[11px] font-bold tracking-[0.1em] uppercase text-sage mb-3">AI Overview</div>
-            <div className="font-serif text-[28px] text-bulga-text tracking-[-0.02em] leading-[1.15] max-w-[700px]">
+            <div className="text-[11px] font-medium tracking-[0.07em] uppercase text-sage mb-4">
+              AI Overview
+            </div>
+            <div className="font-serif text-[clamp(1.75rem,4vw,2.5rem)] tracking-[-0.025em] leading-[1.12] text-bulga-text max-w-[640px]">
               {insights.length > 0
                 ? "Here are your latest financial insights powered by AI."
                 : "Generate AI-powered insights about your spending patterns, savings opportunities, and financial trends."}
@@ -52,27 +54,34 @@ export function Insights({ data }: { data: InsightView[] }) {
       </GlassCard>
 
       {insights.length > 0 ? (
-        insights.map((ins) => (
-          <GlassCard key={ins.id} className="hover:translate-y-0">
-            <span
-              className="text-[10px] font-bold tracking-[0.08em] uppercase px-2.5 py-1 rounded-full inline-block mb-2.5 bg-[oklch(100%_0_0/0.1)] text-bulga-text"
-            >
-              {ins.tag}
-            </span>
-            <p className="text-sm leading-relaxed text-muted-text">
-              {ins.body}
-            </p>
-          </GlassCard>
-        ))
-      ) : (
-        <div className="col-span-2">
-          <GlassCard className="text-center py-8">
-            <CardLabel>No insights yet</CardLabel>
-            <p className="text-sm text-muted-text mt-2">
-              Click &quot;Generate Insights&quot; above to get AI-powered analysis of your finances.
-            </p>
-          </GlassCard>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          {insights.map((ins) => (
+            <GlassCard key={ins.id} className="hover:translate-y-0">
+              <div className="flex items-center gap-2">
+                <div
+                  className="w-[5px] h-[5px] rounded-full shrink-0"
+                  style={{ background: ins.tagColor }}
+                />
+                <span
+                  className="text-[10px] font-semibold uppercase tracking-[0.08em]"
+                  style={{ color: ins.tagColor }}
+                >
+                  {ins.tag}
+                </span>
+              </div>
+              <p className="text-[14px] sm:text-[15px] leading-[1.6] text-muted-text mt-3">
+                {ins.body}
+              </p>
+            </GlassCard>
+          ))}
         </div>
+      ) : (
+        <GlassCard className="text-center py-8 hover:translate-y-0">
+          <CardLabel>No insights yet</CardLabel>
+          <p className="text-sm text-muted-text mt-2">
+            Click &quot;Generate Insights&quot; above to get AI-powered analysis of your finances.
+          </p>
+        </GlassCard>
       )}
     </div>
   );

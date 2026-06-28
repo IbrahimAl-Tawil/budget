@@ -55,17 +55,17 @@ export default function RegisterPage() {
 
   return (
     <>
-      <div className="text-center mb-8">
-        <a href="/" className="font-serif text-3xl tracking-[-0.02em] text-bulga-text">
+      <div className="text-center">
+        <a href="/" className="font-serif text-[clamp(2.5rem,8vw,3.25rem)] tracking-[-0.035em] leading-[0.92] text-bulga-text">
           Bulg<em className="not-italic text-sage">a</em>
         </a>
-        <p className="text-neutral-400 text-sm mt-2">Create your account to get started</p>
+        <p className="text-[13px] mt-3 text-muted-text">Create your account to get started</p>
       </div>
 
-      <GlassCard className="hover:translate-y-0">
+      <GlassCard className="p-8 sm:p-10 hover:translate-y-0">
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label htmlFor="name" className="block text-[11px] font-semibold tracking-[0.09em] uppercase text-neutral-400 mb-1.5">
+            <label htmlFor="name" className="block text-[11px] font-semibold tracking-[0.09em] uppercase text-muted-text mb-1.5">
               Name
             </label>
             <Input
@@ -80,7 +80,7 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label htmlFor="email" className="block text-[11px] font-semibold tracking-[0.09em] uppercase text-neutral-400 mb-1.5">
+            <label htmlFor="email" className="block text-[11px] font-semibold tracking-[0.09em] uppercase text-muted-text mb-1.5">
               Email
             </label>
             <Input
@@ -95,7 +95,7 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-[11px] font-semibold tracking-[0.09em] uppercase text-neutral-400 mb-1.5">
+            <label htmlFor="password" className="block text-[11px] font-semibold tracking-[0.09em] uppercase text-muted-text mb-1.5">
               Password
             </label>
             <Input
@@ -123,7 +123,7 @@ export default function RegisterPage() {
           </Button>
         </form>
 
-        <p className="text-center text-sm text-neutral-400 mt-5">
+        <p className="text-center text-sm text-muted-text mt-6">
           Already have an account?{" "}
           <a href="/login" className="text-sage font-semibold hover:underline">
             Sign in
