@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
-import { GlassCard } from "@/components/dashboard/primitives/glass-card";
+import { Card } from "@/components/bulga/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,6 +18,7 @@ import {
   Brain,
   PenLine,
   Check,
+  ChevronDown,
 } from "lucide-react";
 import { ACCOUNT_TYPES, CURRENCIES } from "@/lib/constants";
 
@@ -38,6 +39,43 @@ const AUTO_STEPS = [
   { label: "Analyzing", icon: Brain },
   { label: "Review", icon: ClipboardCheck },
 ];
+
+// Full-size fields use the shared system class (one source of truth). The
+// compact variant keeps the same look at a smaller scale for dense rows.
+const FIELD_CLASS = "bk-field";
+const FIELD_SM_CLASS =
+  "w-full h-9 rounded-xl border border-[var(--color-bk-line)] bg-[oklch(98%_0.004_90)] px-3 text-sm text-[var(--color-bk-ink)] placeholder:text-[var(--color-bk-faint)] outline-none transition-colors focus:border-[var(--color-primary)]";
+const LABEL_CLASS =
+  "block text-[11px] font-semibold tracking-[0.09em] uppercase text-[var(--color-bk-faint)] mb-1.5";
+const HEADING_CLASS =
+  "text-2xl sm:text-[28px] font-semibold tracking-[-0.02em] leading-[1.05] text-[var(--color-bk-ink)] mb-2";
+
+// On-brand select for the wizard: strips the native OS dropdown and overlays
+// the shared chevron, while preserving each call site's own size/padding so
+// the dense rows keep their compact scale. `compact` shrinks the chevron + its
+// inset for the h-8/h-9 inline rows.
+function WizardSelect({
+  className = "",
+  compact,
+  children,
+  ...props
+}: React.ComponentProps<"select"> & { compact?: boolean }) {
+  return (
+    <div className={`relative ${className.includes("flex-1") ? "flex-1" : ""}`}>
+      <select
+        {...props}
+        className={`${className} appearance-none ${compact ? "pr-7" : "pr-10"}`}
+      >
+        {children}
+      </select>
+      <ChevronDown
+        className={`absolute top-1/2 -translate-y-1/2 pointer-events-none text-[var(--color-bk-muted)] ${
+          compact ? "right-2 w-3.5 h-3.5" : "right-4 w-4 h-4"
+        }`}
+      />
+    </div>
+  );
+}
 
 export function OnboardingWizard({ userName }: { userName: string }) {
   const { update } = useSession();
@@ -246,21 +284,21 @@ export function OnboardingWizard({ userName }: { userName: string }) {
   if (mode === "choose") {
     return (
       <>
-        <GlassCard className="hover:translate-y-0">
-          <h2 className="font-serif text-2xl sm:text-[28px] tracking-[-0.02em] leading-[1.05] mb-2">Welcome, {userName.split(" ")[0]}!</h2>
-          <p className="text-sm text-muted-text mb-6">How would you like to set up your budget?</p>
+        <Card className="p-8">
+          <h2 className={HEADING_CLASS}>Welcome, {userName.split(" ")[0]}!</h2>
+          <p className="text-sm text-[var(--color-bk-muted)] mb-6">How would you like to set up your budget?</p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <button
               onClick={() => setMode("auto")}
-              className="flex flex-col items-center gap-3 p-7 rounded-2xl border-2 border-[oklch(90%_0.006_80)] bg-[oklch(100%_0_0/0.4)] hover:border-sage hover:-translate-y-1 transition-all text-center group"
+              className="flex flex-col items-center gap-3 p-7 rounded-2xl border border-[var(--color-bk-line)] bg-[oklch(98%_0.004_90)] hover:border-[var(--color-primary)] transition-colors text-center group"
             >
-              <div className="w-12 h-12 rounded-full bg-sage-light flex items-center justify-center group-hover:scale-110 transition-transform">
-                <Brain className="w-6 h-6 text-sage" />
+              <div className="w-12 h-12 rounded-full bg-[var(--color-sage-light)] flex items-center justify-center group-hover:scale-110 transition-transform">
+                <Brain className="w-6 h-6 text-[var(--color-primary)]" />
               </div>
               <div>
-                <div className="text-sm font-semibold text-bulga-text">Automatic</div>
-                <div className="text-[11px] text-muted-text mt-1 leading-relaxed">
+                <div className="text-sm font-semibold tracking-[-0.02em] text-[var(--color-bk-ink)]">Automatic</div>
+                <div className="text-[11px] text-[var(--color-bk-muted)] mt-1 leading-relaxed">
                   Upload bank statements and let AI extract everything
                 </div>
               </div>
@@ -268,20 +306,20 @@ export function OnboardingWizard({ userName }: { userName: string }) {
 
             <button
               onClick={() => setMode("manual")}
-              className="flex flex-col items-center gap-3 p-7 rounded-2xl border-2 border-[oklch(90%_0.006_80)] bg-[oklch(100%_0_0/0.4)] hover:border-sage hover:-translate-y-1 transition-all text-center group"
+              className="flex flex-col items-center gap-3 p-7 rounded-2xl border border-[var(--color-bk-line)] bg-[oklch(98%_0.004_90)] hover:border-[var(--color-primary)] transition-colors text-center group"
             >
-              <div className="w-12 h-12 rounded-full bg-slate-light flex items-center justify-center group-hover:scale-110 transition-transform">
-                <PenLine className="w-6 h-6 text-slate-brand" />
+              <div className="w-12 h-12 rounded-full bg-[var(--color-slate-light)] flex items-center justify-center group-hover:scale-110 transition-transform">
+                <PenLine className="w-6 h-6 text-[var(--color-slate-brand)]" />
               </div>
               <div>
-                <div className="text-sm font-semibold text-bulga-text">Manual</div>
-                <div className="text-[11px] text-muted-text mt-1 leading-relaxed">
+                <div className="text-sm font-semibold tracking-[-0.02em] text-[var(--color-bk-ink)]">Manual</div>
+                <div className="text-[11px] text-[var(--color-bk-muted)] mt-1 leading-relaxed">
                   Enter your income, accounts, and expenses by hand
                 </div>
               </div>
             </button>
           </div>
-        </GlassCard>
+        </Card>
       </>
     );
   }
@@ -297,7 +335,7 @@ export function OnboardingWizard({ userName }: { userName: string }) {
       <div className="flex items-center justify-center gap-2 mb-8 sm:mb-10">
         <button
           onClick={() => { setMode("choose"); setStep(0); }}
-          className="text-xs text-muted-text hover:text-bulga-text mr-2"
+          className="text-xs text-[var(--color-bk-muted)] hover:text-[var(--color-bk-ink)] mr-2"
         >
           ← Change mode
         </button>
@@ -305,12 +343,12 @@ export function OnboardingWizard({ userName }: { userName: string }) {
           <button
             key={s.label}
             onClick={() => i < step && setStep(i)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
               i === step
-                ? "bg-bulga-text text-white"
+                ? "bg-[var(--color-primary)] text-white"
                 : i < step
-                ? "text-sage cursor-pointer"
-                : "text-muted-text"
+                ? "text-[var(--color-primary)] cursor-pointer"
+                : "text-[var(--color-bk-muted)]"
             }`}
           >
             <s.icon className="w-3 h-3" />
@@ -319,7 +357,7 @@ export function OnboardingWizard({ userName }: { userName: string }) {
         ))}
       </div>
 
-      <GlassCard className="hover:translate-y-0">
+      <Card className="p-8">
         {/* ====== MANUAL MODE ====== */}
         {mode === "manual" && (
           <>
@@ -327,18 +365,18 @@ export function OnboardingWizard({ userName }: { userName: string }) {
             {step === 0 && (
               <div className="space-y-6 sm:space-y-7" key="income">
                 <div>
-                  <h2 className="font-serif text-2xl sm:text-[28px] tracking-[-0.02em] leading-[1.05] mb-2">Monthly Income</h2>
-                  <p className="text-sm text-muted-text">What&apos;s your monthly take-home income?</p>
+                  <h2 className={HEADING_CLASS}>Monthly Income</h2>
+                  <p className="text-sm text-[var(--color-bk-muted)]">What&apos;s your monthly take-home income?</p>
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold tracking-[0.09em] uppercase text-muted-text mb-1.5">Monthly Income</label>
-                  <Input type="number" value={monthlyIncome} onChange={(e) => setMonthlyIncome(e.target.value)} placeholder="5000" min="0" step="100" className="h-10 rounded-xl bg-[oklch(100%_0_0/0.4)] border-[oklch(90%_0.006_80)]" />
+                  <label className={LABEL_CLASS}>Monthly Income</label>
+                  <Input type="number" value={monthlyIncome} onChange={(e) => setMonthlyIncome(e.target.value)} placeholder="5000" min="0" step="100" className={FIELD_CLASS} />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold tracking-[0.09em] uppercase text-muted-text mb-1.5">Currency</label>
-                  <select value={currency} onChange={(e) => setCurrency(e.target.value)} className="w-full h-10 rounded-xl bg-[oklch(100%_0_0/0.4)] border border-[oklch(90%_0.006_80)] px-3 text-sm font-sans outline-none">
+                  <label className={LABEL_CLASS}>Currency</label>
+                  <WizardSelect value={currency} onChange={(e) => setCurrency(e.target.value)} className={`w-full ${FIELD_CLASS}`}>
                     {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                  </select>
+                  </WizardSelect>
                 </div>
               </div>
             )}
@@ -347,14 +385,14 @@ export function OnboardingWizard({ userName }: { userName: string }) {
             {step === 1 && (
               <div className="space-y-6 sm:space-y-7" key="budget">
                 <div>
-                  <h2 className="font-serif text-2xl sm:text-[28px] tracking-[-0.02em] leading-[1.05] mb-2">Savings Goal</h2>
-                  <p className="text-sm text-muted-text">How much do you want to save each month?</p>
+                  <h2 className={HEADING_CLASS}>Savings Goal</h2>
+                  <p className="text-sm text-[var(--color-bk-muted)]">How much do you want to save each month?</p>
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold tracking-[0.09em] uppercase text-muted-text mb-1.5">Monthly Savings</label>
-                  <Input type="number" value={monthlySavings} onChange={(e) => setMonthlySavings(e.target.value)} placeholder={monthlyIncome ? String(Math.round(Number(monthlyIncome) * 0.2)) : "1000"} min="0" step="100" className="h-10 rounded-xl bg-[oklch(100%_0_0/0.4)] border-[oklch(90%_0.006_80)]" />
+                  <label className={LABEL_CLASS}>Monthly Savings</label>
+                  <Input type="number" value={monthlySavings} onChange={(e) => setMonthlySavings(e.target.value)} placeholder={monthlyIncome ? String(Math.round(Number(monthlyIncome) * 0.2)) : "1000"} min="0" step="100" className={FIELD_CLASS} />
                   {monthlyIncome && Number(monthlySavings) > 0 && (
-                    <p className="text-xs text-muted-text mt-1.5">
+                    <p className="text-xs text-[var(--color-bk-muted)] mt-1.5">
                       That&apos;s {Math.round((Number(monthlySavings) / Number(monthlyIncome)) * 100)}% of your income — leaving {fmtCurrency(Number(monthlyIncome) - Number(monthlySavings))}/mo to spend
                     </p>
                   )}
@@ -366,30 +404,30 @@ export function OnboardingWizard({ userName }: { userName: string }) {
             {step === 2 && (
               <div className="space-y-6 sm:space-y-7" key="accounts">
                 <div>
-                  <h2 className="font-serif text-2xl sm:text-[28px] tracking-[-0.02em] leading-[1.05] mb-2">Your Accounts</h2>
-                  <p className="text-sm text-muted-text">Add your bank accounts and credit cards.</p>
+                  <h2 className={HEADING_CLASS}>Your Accounts</h2>
+                  <p className="text-sm text-[var(--color-bk-muted)]">Add your bank accounts and credit cards.</p>
                 </div>
-                <div className="space-y-3 max-h-[300px] overflow-y-auto custom-scrollbar pr-1">
+                <div className="space-y-3 max-h-[300px] overflow-y-auto bk-scroll pr-1">
                   {accounts.map((acc, i) => (
-                    <div key={i} className="flex gap-2 items-start p-3 rounded-xl bg-[oklch(100%_0_0/0.4)] border border-[oklch(90%_0.006_80)]">
+                    <div key={i} className="flex gap-2 items-start p-3 rounded-xl bg-[oklch(98%_0.004_90)] border border-[var(--color-bk-line)]">
                       <div className="flex-1 space-y-2">
-                        <Input value={acc.name} onChange={(e) => updateAccount(i, "name", e.target.value)} placeholder="Account name" className="h-8 rounded-lg bg-transparent border-[oklch(90%_0.006_80)] text-sm" />
+                        <Input value={acc.name} onChange={(e) => updateAccount(i, "name", e.target.value)} placeholder="Account name" className="h-9 rounded-lg border border-[var(--color-bk-line)] bg-[var(--color-bk-surface)] px-3 text-sm text-[var(--color-bk-ink)] placeholder:text-[var(--color-bk-faint)] outline-none focus:border-[var(--color-primary)]" />
                         <div className="flex gap-2">
-                          <select value={acc.type} onChange={(e) => updateAccount(i, "type", e.target.value)} className="flex-1 h-8 rounded-lg bg-transparent border border-[oklch(90%_0.006_80)] px-2 text-sm font-sans outline-none">
+                          <WizardSelect compact value={acc.type} onChange={(e) => updateAccount(i, "type", e.target.value)} className="flex-1 h-9 rounded-lg border border-[var(--color-bk-line)] bg-[var(--color-bk-surface)] px-3 text-sm text-[var(--color-bk-ink)] outline-none focus:border-[var(--color-primary)]">
                             {ACCOUNT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-                          </select>
-                          <Input type="number" value={acc.balance} onChange={(e) => updateAccount(i, "balance", e.target.value)} placeholder="Balance" className="flex-1 h-8 rounded-lg bg-transparent border-[oklch(90%_0.006_80)] text-sm" />
+                          </WizardSelect>
+                          <Input type="number" value={acc.balance} onChange={(e) => updateAccount(i, "balance", e.target.value)} placeholder="Balance" className="flex-1 h-9 rounded-lg border border-[var(--color-bk-line)] bg-[var(--color-bk-surface)] px-3 text-sm text-[var(--color-bk-ink)] placeholder:text-[var(--color-bk-faint)] outline-none focus:border-[var(--color-primary)]" />
                         </div>
                       </div>
                       {accounts.length > 1 && (
-                        <button onClick={() => removeAccount(i)} className="mt-1 text-muted-text hover:text-terra transition-colors">
+                        <button onClick={() => removeAccount(i)} className="mt-1 text-[var(--color-bk-muted)] hover:text-[var(--color-bk-clay)] transition-colors">
                           <X className="w-4 h-4" />
                         </button>
                       )}
                     </div>
                   ))}
                 </div>
-                <button onClick={addAccount} className="flex items-center gap-1.5 text-sm text-sage font-medium hover:underline">
+                <button onClick={addAccount} className="flex items-center gap-1.5 text-sm text-[var(--color-primary)] font-semibold hover:underline">
                   <Plus className="w-3.5 h-3.5" /> Add another account
                 </button>
               </div>
@@ -399,32 +437,32 @@ export function OnboardingWizard({ userName }: { userName: string }) {
             {step === 3 && (
               <div className="space-y-6 sm:space-y-7" key="recurring">
                 <div>
-                  <h2 className="font-serif text-2xl sm:text-[28px] tracking-[-0.02em] leading-[1.05] mb-2">Recurring Expenses</h2>
-                  <p className="text-sm text-muted-text">Add known recurring expenses like rent, subscriptions, and insurance.</p>
+                  <h2 className={HEADING_CLASS}>Recurring Expenses</h2>
+                  <p className="text-sm text-[var(--color-bk-muted)]">Add known recurring expenses like rent, subscriptions, and insurance.</p>
                 </div>
-                <div className="space-y-3 max-h-[300px] overflow-y-auto custom-scrollbar pr-1">
+                <div className="space-y-3 max-h-[300px] overflow-y-auto bk-scroll pr-1">
                   {recurring.map((rec, i) => (
-                    <div key={i} className="flex gap-2 items-start p-3 rounded-xl bg-[oklch(100%_0_0/0.4)] border border-[oklch(90%_0.006_80)]">
+                    <div key={i} className="flex gap-2 items-start p-3 rounded-xl bg-[oklch(98%_0.004_90)] border border-[var(--color-bk-line)]">
                       <div className="flex-1 space-y-2">
-                        <Input value={rec.name} onChange={(e) => updateRecurring(i, "name", e.target.value)} placeholder="e.g. Rent, Netflix" className="h-8 rounded-lg bg-transparent border-[oklch(90%_0.006_80)] text-sm" />
+                        <Input value={rec.name} onChange={(e) => updateRecurring(i, "name", e.target.value)} placeholder="e.g. Rent, Netflix" className="h-9 rounded-lg border border-[var(--color-bk-line)] bg-[var(--color-bk-surface)] px-3 text-sm text-[var(--color-bk-ink)] placeholder:text-[var(--color-bk-faint)] outline-none focus:border-[var(--color-primary)]" />
                         <div className="flex gap-2">
-                          <Input type="number" value={rec.amount} onChange={(e) => updateRecurring(i, "amount", e.target.value)} placeholder="Amount" className="flex-1 h-8 rounded-lg bg-transparent border-[oklch(90%_0.006_80)] text-sm" />
-                          <select value={rec.cycle} onChange={(e) => updateRecurring(i, "cycle", e.target.value)} className="flex-1 h-8 rounded-lg bg-transparent border border-[oklch(90%_0.006_80)] px-2 text-sm font-sans outline-none">
+                          <Input type="number" value={rec.amount} onChange={(e) => updateRecurring(i, "amount", e.target.value)} placeholder="Amount" className="flex-1 h-9 rounded-lg border border-[var(--color-bk-line)] bg-[var(--color-bk-surface)] px-3 text-sm text-[var(--color-bk-ink)] placeholder:text-[var(--color-bk-faint)] outline-none focus:border-[var(--color-primary)]" />
+                          <WizardSelect compact value={rec.cycle} onChange={(e) => updateRecurring(i, "cycle", e.target.value)} className="flex-1 h-9 rounded-lg border border-[var(--color-bk-line)] bg-[var(--color-bk-surface)] px-3 text-sm text-[var(--color-bk-ink)] outline-none focus:border-[var(--color-primary)]">
                             <option value="Monthly">Monthly</option>
                             <option value="Annual">Annual</option>
                             <option value="Weekly">Weekly</option>
-                          </select>
+                          </WizardSelect>
                         </div>
                       </div>
                       {recurring.length > 1 && (
-                        <button onClick={() => removeRecurring(i)} className="mt-1 text-muted-text hover:text-terra transition-colors">
+                        <button onClick={() => removeRecurring(i)} className="mt-1 text-[var(--color-bk-muted)] hover:text-[var(--color-bk-clay)] transition-colors">
                           <X className="w-4 h-4" />
                         </button>
                       )}
                     </div>
                   ))}
                 </div>
-                <button onClick={addRecurring} className="flex items-center gap-1.5 text-sm text-sage font-medium hover:underline">
+                <button onClick={addRecurring} className="flex items-center gap-1.5 text-sm text-[var(--color-primary)] font-semibold hover:underline">
                   <Plus className="w-3.5 h-3.5" /> Add another expense
                 </button>
               </div>
@@ -453,28 +491,28 @@ export function OnboardingWizard({ userName }: { userName: string }) {
             {step === 0 && (
               <div className="space-y-6 sm:space-y-7" key="upload">
                 <div>
-                  <h2 className="font-serif text-2xl sm:text-[28px] tracking-[-0.02em] leading-[1.05] mb-2">Upload Statements</h2>
-                  <p className="text-sm text-muted-text">
+                  <h2 className={HEADING_CLASS}>Upload Statements</h2>
+                  <p className="text-sm text-[var(--color-bk-muted)]">
                     Drop your bank statements (CSV or PDF). Upload as many as you like — AI will extract accounts, recurring expenses, and categorize transactions.
                   </p>
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold tracking-[0.09em] uppercase text-muted-text mb-1.5">Currency</label>
-                  <select value={currency} onChange={(e) => setCurrency(e.target.value)} className="w-full h-10 rounded-xl bg-[oklch(100%_0_0/0.4)] border border-[oklch(90%_0.006_80)] px-3 text-sm font-sans outline-none">
+                  <label className={LABEL_CLASS}>Currency</label>
+                  <WizardSelect value={currency} onChange={(e) => setCurrency(e.target.value)} className={`w-full ${FIELD_CLASS}`}>
                     {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                  </select>
+                  </WizardSelect>
                 </div>
 
                 <div
                   onDrop={handleDrop}
                   onDragOver={(e) => e.preventDefault()}
-                  className="border-2 border-dashed border-[oklch(90%_0.006_80)] rounded-2xl p-8 text-center cursor-pointer hover:border-sage transition-colors"
+                  className="border border-dashed border-[var(--color-bk-line)] rounded-2xl p-8 text-center cursor-pointer hover:border-[var(--color-primary)] transition-colors"
                   onClick={() => document.getElementById("auto-file-input")?.click()}
                 >
-                  <Upload className="w-8 h-8 mx-auto text-muted-text mb-3" />
-                  <p className="text-sm font-medium text-bulga-text">Drop CSV or PDF files here</p>
-                  <p className="text-xs text-muted-text mt-1">or click to browse — upload multiple files</p>
+                  <Upload className="w-8 h-8 mx-auto text-[var(--color-bk-muted)] mb-3" />
+                  <p className="text-sm font-semibold text-[var(--color-bk-ink)]">Drop CSV or PDF files here</p>
+                  <p className="text-xs text-[var(--color-bk-muted)] mt-1">or click to browse — upload multiple files</p>
                   <input
                     id="auto-file-input"
                     type="file"
@@ -488,11 +526,11 @@ export function OnboardingWizard({ userName }: { userName: string }) {
                 {files.length > 0 && (
                   <div className="space-y-2">
                     {files.map((f, i) => (
-                      <div key={i} className="flex items-center gap-2 p-2.5 rounded-xl bg-[oklch(100%_0_0/0.4)] border border-[oklch(90%_0.006_80)]">
-                        <FileText className="w-4 h-4 text-sage shrink-0" />
-                        <span className="text-sm flex-1 truncate">{f.name}</span>
-                        <span className="text-xs text-muted-text">{(f.size / 1024).toFixed(1)} KB</span>
-                        <button onClick={() => removeFile(i)} className="text-muted-text hover:text-terra">
+                      <div key={i} className="flex items-center gap-2 p-2.5 rounded-xl bg-[oklch(98%_0.004_90)] border border-[var(--color-bk-line)]">
+                        <FileText className="w-4 h-4 text-[var(--color-primary)] shrink-0" />
+                        <span className="text-sm flex-1 truncate text-[var(--color-bk-ink)]">{f.name}</span>
+                        <span className="text-xs text-[var(--color-bk-muted)]">{(f.size / 1024).toFixed(1)} KB</span>
+                        <button onClick={() => removeFile(i)} className="text-[var(--color-bk-muted)] hover:text-[var(--color-bk-clay)]">
                           <X className="w-3.5 h-3.5" />
                         </button>
                       </div>
@@ -500,16 +538,16 @@ export function OnboardingWizard({ userName }: { userName: string }) {
                   </div>
                 )}
 
-                {error && <p className="text-sm text-terra font-medium">{error}</p>}
+                {error && <p className="text-sm text-[var(--color-bk-clay)] font-medium">{error}</p>}
               </div>
             )}
 
             {/* Step 2: Analyzing */}
             {step === 1 && (
               <div className="flex flex-col items-center justify-center py-12" key="analyzing">
-                <Loader2 className="w-10 h-10 text-sage animate-spin mb-4" />
-                <h2 className="font-serif text-2xl sm:text-[28px] tracking-[-0.02em] leading-[1.05] mb-2">Analyzing your statements...</h2>
-                <p className="text-sm text-muted-text text-center max-w-sm">
+                <Loader2 className="w-10 h-10 text-[var(--color-primary)] animate-spin mb-4" />
+                <h2 className={`${HEADING_CLASS} text-center`}>Analyzing your statements...</h2>
+                <p className="text-sm text-[var(--color-bk-muted)] text-center max-w-sm">
                   AI is reading {files.length} file{files.length > 1 ? "s" : ""} to extract your accounts, recurring expenses, income, and transactions. This may take a minute.
                 </p>
               </div>
@@ -519,9 +557,9 @@ export function OnboardingWizard({ userName }: { userName: string }) {
             {step === 2 && autoAnalysis && (
               <div className="space-y-6 sm:space-y-7" key="auto-review">
                 <div>
-                  <h2 className="font-serif text-2xl sm:text-[28px] tracking-[-0.02em] leading-[1.05] mb-2">Here&apos;s what we found</h2>
-                  <p className="text-sm text-muted-text">
-                    <Check className="w-3.5 h-3.5 inline text-sage mr-1" />
+                  <h2 className={HEADING_CLASS}>Here&apos;s what we found</h2>
+                  <p className="text-sm text-[var(--color-bk-muted)]">
+                    <Check className="w-3.5 h-3.5 inline text-[var(--color-primary)] mr-1" />
                     {autoAnalysis.transactionCount} transactions from {autoAnalysis.fileCount} file{autoAnalysis.fileCount > 1 ? "s" : ""}. Review and edit below.
                   </p>
                 </div>
@@ -529,66 +567,66 @@ export function OnboardingWizard({ userName }: { userName: string }) {
                 {/* Editable income & budget */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[11px] font-semibold tracking-[0.09em] uppercase text-muted-text mb-1.5">Monthly Income</label>
-                    <Input type="number" value={monthlyIncome} onChange={(e) => setMonthlyIncome(e.target.value)} className="h-9 rounded-xl bg-[oklch(100%_0_0/0.4)] border-[oklch(90%_0.006_80)] text-sm" />
+                    <label className={LABEL_CLASS}>Monthly Income</label>
+                    <Input type="number" value={monthlyIncome} onChange={(e) => setMonthlyIncome(e.target.value)} className={FIELD_SM_CLASS} />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold tracking-[0.09em] uppercase text-muted-text mb-1.5">Monthly Savings</label>
-                    <Input type="number" value={monthlySavings} onChange={(e) => setMonthlySavings(e.target.value)} className="h-9 rounded-xl bg-[oklch(100%_0_0/0.4)] border-[oklch(90%_0.006_80)] text-sm" />
+                    <label className={LABEL_CLASS}>Monthly Savings</label>
+                    <Input type="number" value={monthlySavings} onChange={(e) => setMonthlySavings(e.target.value)} className={FIELD_SM_CLASS} />
                   </div>
                 </div>
 
                 {/* Accounts */}
                 <div>
-                  <div className="text-[11px] font-semibold tracking-[0.09em] uppercase text-muted-text mb-2">
+                  <div className="text-[11px] font-semibold tracking-[0.09em] uppercase text-[var(--color-bk-faint)] mb-2">
                     Accounts ({accounts.filter((a) => a.name).length})
                   </div>
-                  <div className="space-y-2 max-h-[160px] overflow-y-auto custom-scrollbar pr-1">
+                  <div className="space-y-2 max-h-[160px] overflow-y-auto bk-scroll pr-1">
                     {accounts.map((acc, i) => (
-                      <div key={i} className="flex gap-2 items-center p-2.5 rounded-xl bg-[oklch(100%_0_0/0.4)] border border-[oklch(90%_0.006_80)]">
-                        <Input value={acc.name} onChange={(e) => updateAccount(i, "name", e.target.value)} className="flex-1 h-7 rounded-lg bg-transparent border-[oklch(90%_0.006_80)] text-xs" />
-                        <select value={acc.type} onChange={(e) => updateAccount(i, "type", e.target.value)} className="h-7 rounded-lg bg-transparent border border-[oklch(90%_0.006_80)] px-1.5 text-xs font-sans outline-none">
+                      <div key={i} className="flex gap-2 items-center p-2.5 rounded-xl bg-[oklch(98%_0.004_90)] border border-[var(--color-bk-line)]">
+                        <Input value={acc.name} onChange={(e) => updateAccount(i, "name", e.target.value)} className="flex-1 h-8 rounded-lg border border-[var(--color-bk-line)] bg-[var(--color-bk-surface)] px-2.5 text-xs text-[var(--color-bk-ink)] placeholder:text-[var(--color-bk-faint)] outline-none focus:border-[var(--color-primary)]" />
+                        <WizardSelect compact value={acc.type} onChange={(e) => updateAccount(i, "type", e.target.value)} className="h-8 rounded-lg border border-[var(--color-bk-line)] bg-[var(--color-bk-surface)] px-1.5 text-xs text-[var(--color-bk-ink)] outline-none focus:border-[var(--color-primary)]">
                           {ACCOUNT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-                        </select>
-                        <Input type="number" value={acc.balance} onChange={(e) => updateAccount(i, "balance", e.target.value)} placeholder="Balance" className="w-24 h-7 rounded-lg bg-transparent border-[oklch(90%_0.006_80)] text-xs" />
+                        </WizardSelect>
+                        <Input type="number" value={acc.balance} onChange={(e) => updateAccount(i, "balance", e.target.value)} placeholder="Balance" className="w-24 h-8 rounded-lg border border-[var(--color-bk-line)] bg-[var(--color-bk-surface)] px-2.5 text-xs text-[var(--color-bk-ink)] placeholder:text-[var(--color-bk-faint)] outline-none focus:border-[var(--color-primary)]" />
                         {accounts.length > 1 && (
-                          <button onClick={() => removeAccount(i)} className="text-muted-text hover:text-terra"><X className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => removeAccount(i)} className="text-[var(--color-bk-muted)] hover:text-[var(--color-bk-clay)]"><X className="w-3.5 h-3.5" /></button>
                         )}
                       </div>
                     ))}
                   </div>
-                  <button onClick={addAccount} className="flex items-center gap-1 text-xs text-sage font-medium hover:underline mt-1.5">
+                  <button onClick={addAccount} className="flex items-center gap-1 text-xs text-[var(--color-primary)] font-semibold hover:underline mt-1.5">
                     <Plus className="w-3 h-3" /> Add
                   </button>
                 </div>
 
                 {/* Recurring */}
                 <div>
-                  <div className="text-[11px] font-semibold tracking-[0.09em] uppercase text-muted-text mb-2">
+                  <div className="text-[11px] font-semibold tracking-[0.09em] uppercase text-[var(--color-bk-faint)] mb-2">
                     Recurring Expenses ({recurring.filter((r) => r.name).length})
                   </div>
-                  <div className="space-y-2 max-h-[160px] overflow-y-auto custom-scrollbar pr-1">
+                  <div className="space-y-2 max-h-[160px] overflow-y-auto bk-scroll pr-1">
                     {recurring.map((rec, i) => (
-                      <div key={i} className="flex gap-2 items-center p-2.5 rounded-xl bg-[oklch(100%_0_0/0.4)] border border-[oklch(90%_0.006_80)]">
-                        <Input value={rec.name} onChange={(e) => updateRecurring(i, "name", e.target.value)} className="flex-1 h-7 rounded-lg bg-transparent border-[oklch(90%_0.006_80)] text-xs" />
-                        <Input type="number" value={rec.amount} onChange={(e) => updateRecurring(i, "amount", e.target.value)} placeholder="$" className="w-20 h-7 rounded-lg bg-transparent border-[oklch(90%_0.006_80)] text-xs" />
-                        <select value={rec.cycle} onChange={(e) => updateRecurring(i, "cycle", e.target.value)} className="h-7 rounded-lg bg-transparent border border-[oklch(90%_0.006_80)] px-1.5 text-xs font-sans outline-none">
+                      <div key={i} className="flex gap-2 items-center p-2.5 rounded-xl bg-[oklch(98%_0.004_90)] border border-[var(--color-bk-line)]">
+                        <Input value={rec.name} onChange={(e) => updateRecurring(i, "name", e.target.value)} className="flex-1 h-8 rounded-lg border border-[var(--color-bk-line)] bg-[var(--color-bk-surface)] px-2.5 text-xs text-[var(--color-bk-ink)] placeholder:text-[var(--color-bk-faint)] outline-none focus:border-[var(--color-primary)]" />
+                        <Input type="number" value={rec.amount} onChange={(e) => updateRecurring(i, "amount", e.target.value)} placeholder="$" className="w-20 h-8 rounded-lg border border-[var(--color-bk-line)] bg-[var(--color-bk-surface)] px-2.5 text-xs text-[var(--color-bk-ink)] placeholder:text-[var(--color-bk-faint)] outline-none focus:border-[var(--color-primary)]" />
+                        <WizardSelect compact value={rec.cycle} onChange={(e) => updateRecurring(i, "cycle", e.target.value)} className="h-8 rounded-lg border border-[var(--color-bk-line)] bg-[var(--color-bk-surface)] px-1.5 text-xs text-[var(--color-bk-ink)] outline-none focus:border-[var(--color-primary)]">
                           <option value="Monthly">Monthly</option>
                           <option value="Annual">Annual</option>
                           <option value="Weekly">Weekly</option>
-                        </select>
+                        </WizardSelect>
                         {recurring.length > 1 && (
-                          <button onClick={() => removeRecurring(i)} className="text-muted-text hover:text-terra"><X className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => removeRecurring(i)} className="text-[var(--color-bk-muted)] hover:text-[var(--color-bk-clay)]"><X className="w-3.5 h-3.5" /></button>
                         )}
                       </div>
                     ))}
                   </div>
-                  <button onClick={addRecurring} className="flex items-center gap-1 text-xs text-sage font-medium hover:underline mt-1.5">
+                  <button onClick={addRecurring} className="flex items-center gap-1 text-xs text-[var(--color-primary)] font-semibold hover:underline mt-1.5">
                     <Plus className="w-3 h-3" /> Add
                   </button>
                 </div>
 
-                {error && <p className="text-sm text-terra font-medium">{error}</p>}
+                {error && <p className="text-sm text-[var(--color-bk-clay)] font-medium">{error}</p>}
               </div>
             )}
           </>
@@ -599,7 +637,7 @@ export function OnboardingWizard({ userName }: { userName: string }) {
           {step > 0 && !(mode === "auto" && step === 1) ? (
             <Button
               onClick={() => setStep(step - 1)}
-              className="h-10 px-5 rounded-xl bg-[oklch(100%_0_0/0.4)] text-bulga-text border border-[oklch(90%_0.006_80)] font-medium text-sm hover:bg-[oklch(100%_0_0/0.4)]"
+              className="h-11 px-6 rounded-full border border-[var(--color-bk-line)] bg-transparent text-[var(--color-bk-muted)] font-semibold text-sm hover:bg-transparent"
             >
               Back
             </Button>
@@ -611,7 +649,7 @@ export function OnboardingWizard({ userName }: { userName: string }) {
             <Button
               onClick={handleAutoAnalyze}
               disabled={files.length === 0}
-              className="h-10 px-5 rounded-xl bg-sage text-white font-semibold text-sm hover:opacity-90 transition-opacity"
+              className="h-11 px-6 rounded-full bg-[var(--color-primary)] text-white font-semibold text-sm hover:opacity-90 transition-opacity"
             >
               <Brain className="w-4 h-4 mr-2" />
               Analyze {files.length} file{files.length !== 1 ? "s" : ""}
@@ -622,7 +660,7 @@ export function OnboardingWizard({ userName }: { userName: string }) {
             <Button
               onClick={() => setStep(step + 1)}
               disabled={!canAdvance()}
-              className="h-10 px-5 rounded-xl bg-bulga-text text-white font-semibold text-sm hover:opacity-90 transition-opacity"
+              className="h-11 px-6 rounded-full bg-[var(--color-primary)] text-white font-semibold text-sm hover:opacity-90 transition-opacity"
             >
               Continue
             </Button>
@@ -630,13 +668,13 @@ export function OnboardingWizard({ userName }: { userName: string }) {
             <Button
               onClick={handleSubmit}
               disabled={loading}
-              className="h-10 px-5 rounded-xl bg-sage text-white font-semibold text-sm hover:opacity-90 transition-opacity"
+              className="h-11 px-6 rounded-full bg-[var(--color-primary)] text-white font-semibold text-sm hover:opacity-90 transition-opacity"
             >
               {loading ? "Setting up..." : "Get Started"}
             </Button>
           )}
         </div>
-      </GlassCard>
+      </Card>
     </>
   );
 }
@@ -652,46 +690,46 @@ function ReviewStep({
   return (
     <div className="space-y-6 sm:space-y-7" key="review">
       <div>
-        <h2 className="font-serif text-2xl sm:text-[28px] tracking-[-0.02em] leading-[1.05] mb-2">Looking Good!</h2>
-        <p className="text-sm text-muted-text">Here&apos;s a summary. You can go back to edit anything.</p>
+        <h2 className={HEADING_CLASS}>Looking Good!</h2>
+        <p className="text-sm text-[var(--color-bk-muted)]">Here&apos;s a summary. You can go back to edit anything.</p>
       </div>
       <div className="space-y-3">
-        <div className="p-3 rounded-xl bg-[oklch(100%_0_0/0.4)] border border-[oklch(90%_0.006_80)]">
-          <div className="text-[11px] font-semibold tracking-[0.09em] uppercase text-muted-text mb-1">Monthly Income</div>
-          <div className="font-serif text-lg">{fmtCurrency(monthlyIncome)} {currency}</div>
+        <div className="p-3 rounded-xl bg-[oklch(98%_0.004_90)] border border-[var(--color-bk-line)]">
+          <div className="text-[11px] font-semibold tracking-[0.09em] uppercase text-[var(--color-bk-faint)] mb-1">Monthly Income</div>
+          <div className="bk-num text-lg text-[var(--color-bk-ink)]">{fmtCurrency(monthlyIncome)} {currency}</div>
         </div>
-        <div className="p-3 rounded-xl bg-[oklch(100%_0_0/0.4)] border border-[oklch(90%_0.006_80)]">
-          <div className="text-[11px] font-semibold tracking-[0.09em] uppercase text-muted-text mb-1">Monthly Savings</div>
-          <div className="font-serif text-lg">{fmtCurrency(monthlySavings)}/mo <span className="text-sm text-muted-text font-sans font-normal">({Math.round((Number(monthlySavings) / Number(monthlyIncome)) * 100) || 0}% of income)</span></div>
+        <div className="p-3 rounded-xl bg-[oklch(98%_0.004_90)] border border-[var(--color-bk-line)]">
+          <div className="text-[11px] font-semibold tracking-[0.09em] uppercase text-[var(--color-bk-faint)] mb-1">Monthly Savings</div>
+          <div className="bk-num text-lg text-[var(--color-bk-ink)]">{fmtCurrency(monthlySavings)}/mo <span className="text-sm text-[var(--color-bk-muted)] font-sans font-normal">({Math.round((Number(monthlySavings) / Number(monthlyIncome)) * 100) || 0}% of income)</span></div>
         </div>
-        <div className="p-3 rounded-xl bg-[oklch(100%_0_0/0.4)] border border-[oklch(90%_0.006_80)]">
-          <div className="text-[11px] font-semibold tracking-[0.09em] uppercase text-muted-text mb-1">Spending Budget</div>
-          <div className="font-serif text-lg">{fmtCurrency(budgetTarget)}/mo</div>
+        <div className="p-3 rounded-xl bg-[oklch(98%_0.004_90)] border border-[var(--color-bk-line)]">
+          <div className="text-[11px] font-semibold tracking-[0.09em] uppercase text-[var(--color-bk-faint)] mb-1">Spending Budget</div>
+          <div className="bk-num text-lg text-[var(--color-bk-ink)]">{fmtCurrency(budgetTarget)}/mo</div>
         </div>
         {accounts.some((a) => a.name) && (
-          <div className="p-3 rounded-xl bg-[oklch(100%_0_0/0.4)] border border-[oklch(90%_0.006_80)]">
-            <div className="text-[11px] font-semibold tracking-[0.09em] uppercase text-muted-text mb-1">Accounts ({accounts.filter((a) => a.name).length})</div>
+          <div className="p-3 rounded-xl bg-[oklch(98%_0.004_90)] border border-[var(--color-bk-line)]">
+            <div className="text-[11px] font-semibold tracking-[0.09em] uppercase text-[var(--color-bk-faint)] mb-1">Accounts ({accounts.filter((a) => a.name).length})</div>
             {accounts.filter((a) => a.name).map((a, i) => (
-              <div key={i} className="flex justify-between text-sm py-0.5">
-                <span>{a.name} <span className="text-muted-text">· {a.type}</span></span>
+              <div key={i} className="flex justify-between text-sm py-0.5 text-[var(--color-bk-ink)]">
+                <span>{a.name} <span className="text-[var(--color-bk-muted)]">· {a.type}</span></span>
                 <span className="font-medium">{fmtCurrency(a.balance)}</span>
               </div>
             ))}
           </div>
         )}
         {recurring.some((r) => r.name) && (
-          <div className="p-3 rounded-xl bg-[oklch(100%_0_0/0.4)] border border-[oklch(90%_0.006_80)]">
-            <div className="text-[11px] font-semibold tracking-[0.09em] uppercase text-muted-text mb-1">Recurring Expenses ({recurring.filter((r) => r.name).length})</div>
+          <div className="p-3 rounded-xl bg-[oklch(98%_0.004_90)] border border-[var(--color-bk-line)]">
+            <div className="text-[11px] font-semibold tracking-[0.09em] uppercase text-[var(--color-bk-faint)] mb-1">Recurring Expenses ({recurring.filter((r) => r.name).length})</div>
             {recurring.filter((r) => r.name).map((r, i) => (
-              <div key={i} className="flex justify-between text-sm py-0.5">
-                <span>{r.name} <span className="text-muted-text">· {r.cycle}</span></span>
+              <div key={i} className="flex justify-between text-sm py-0.5 text-[var(--color-bk-ink)]">
+                <span>{r.name} <span className="text-[var(--color-bk-muted)]">· {r.cycle}</span></span>
                 <span className="font-medium">{fmtCurrency(r.amount)}</span>
               </div>
             ))}
           </div>
         )}
       </div>
-      {error && <p className="text-sm text-terra font-medium">{error}</p>}
+      {error && <p className="text-sm text-[var(--color-bk-clay)] font-medium">{error}</p>}
     </div>
   );
 }

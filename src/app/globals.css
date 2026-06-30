@@ -7,24 +7,28 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
-  --font-serif: var(--font-serif);
   --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-serif);
 
-  /* Bulga palette */
-  --color-sage: oklch(60% 0.09 155);
-  --color-sage-light: oklch(93% 0.04 155);
-  --color-slate-brand: oklch(50% 0.07 245);
-  --color-slate-light: oklch(91% 0.04 245);
-  --color-terra: oklch(63% 0.1 38);
-  --color-terra-light: oklch(92% 0.05 38);
-  --color-muted-text: oklch(52% 0.014 260);
-  --color-bulga-bg: oklch(84% 0.01 75);
-  --color-bulga-text: oklch(16% 0.012 260);
-  --color-glass: oklch(100% 0 0 / 0.08);
-  --color-glass2: oklch(100% 0 0 / 0.05);
-  --color-bulga-border: oklch(100% 0 0 / 0.2);
+  /* ── Bulga design system ── */
+  --font-ui: var(--font-ui);     /* Hanken Grotesk — interface & data */
+  --font-num: var(--font-num);   /* Newsreader — display & figures */
+
+  /* Static brand tokens (the accent + its derived tones are injected at
+     runtime by the theme helper as CSS vars on the shell, since they are
+     hue-derived and user-switchable). These are the non-accent neutrals. */
+  --color-bk-canvas: oklch(96.5% 0.006 90);   /* page background */
+  --color-bk-surface: oklch(99.2% 0.003 95);  /* cards */
+  --color-bk-ink: oklch(24% 0.012 70);         /* primary text */
+  --color-bk-muted: oklch(52% 0.012 80);       /* secondary text */
+  --color-bk-faint: oklch(56% 0.012 80);       /* tertiary text */
+  --color-bk-line: oklch(92% 0.006 85);        /* card borders */
+  --color-bk-line-soft: oklch(94.5% 0.004 85); /* inner dividers */
+  --color-bk-track: oklch(94% 0.005 85);       /* progress track */
+  --color-bk-sidebar: oklch(96.5% 0.006 90);   /* rail — matches the page canvas */
+  --color-bk-sidebar-line: oklch(92% 0.006 85);
+  --color-bk-rail-icon: oklch(48% 0.012 80);   /* resting rail icon */
+  --color-bk-clay: oklch(52% 0.14 33);         /* alert */
+  --color-bk-clay-tint: oklch(95% 0.04 38);
 
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -65,30 +69,33 @@
 }
 
 :root {
-  --background: oklch(0.84 0.01 75);
-  --foreground: oklch(0.16 0.012 260);
-  --card: oklch(1 0 0 / 0.08);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0 / 0.08);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(1 0 0 / 0.1);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(1 0 0 / 0.08);
-  --muted-foreground: oklch(0.62 0.01 260);
-  --accent: oklch(1 0 0 / 0.1);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(1 0 0 / 0.18);
-  --input: oklch(1 0 0 / 0.1);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.60 0.09 155);
-  --chart-2: oklch(0.50 0.07 245);
-  --chart-3: oklch(0.63 0.1 38);
-  --chart-4: oklch(0.58 0.09 290);
-  --chart-5: oklch(0.62 0.09 210);
-  --radius: 0.625rem;
+  /* ── Bulga design system — drives shadcn/base-ui ui/ primitives ──
+     Every <Button>/<Input>/<Badge>/<Select> reads these tokens, so the whole
+     primitive layer stays on-brand and future devs keep building on it. */
+  --background: oklch(96.5% 0.006 90);          /* warm canvas */
+  --foreground: oklch(24% 0.012 70);            /* ink */
+  --card: oklch(99.2% 0.003 95);                /* surface */
+  --card-foreground: oklch(24% 0.012 70);
+  --popover: oklch(99.2% 0.003 95);
+  --popover-foreground: oklch(24% 0.012 70);
+  --primary: oklch(48% 0.115 158);              /* evergreen accent */
+  --primary-foreground: oklch(99% 0 0);
+  --secondary: oklch(98% 0.004 90);             /* quiet fill */
+  --secondary-foreground: oklch(28% 0.012 80);
+  --muted: oklch(95% 0.005 85);
+  --muted-foreground: oklch(52% 0.012 80);
+  --accent: oklch(95.5% 0.03 158);              /* soft accent tint */
+  --accent-foreground: oklch(38% 0.092 158);
+  --destructive: oklch(52% 0.14 33);            /* clay */
+  --border: oklch(91% 0.006 85);
+  --input: oklch(91% 0.006 85);
+  --ring: oklch(48% 0.115 158);                 /* accent focus ring */
+  --chart-1: oklch(48% 0.115 158);
+  --chart-2: oklch(52% 0.11 232);
+  --chart-3: oklch(57% 0.14 30);
+  --chart-4: oklch(50% 0.13 300);
+  --chart-5: oklch(54% 0.1 70);
+  --radius: 0.75rem;                            /* soft corners */
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
@@ -104,89 +111,99 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground font-sans;
+    @apply bg-background text-foreground;
+    font-family: var(--font-ui), system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
   html {
-    @apply font-sans;
+    font-family: var(--font-ui), system-ui, sans-serif;
   }
 }
 
-/* ── Bulga custom styles ── */
+/* ══ Bulga design system ══ */
 
-/* Dot grid background */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background-image: radial-gradient(circle, oklch(50% 0.01 75 / 0.12) 1px, transparent 1px);
-  background-size: 28px 28px;
+/* Figures & display use Newsreader with tabular, lining numerals */
+.bk-num {
+  font-family: var(--font-num), Georgia, serif;
+  font-feature-settings: "tnum" 1, "lnum" 1;
 }
 
-/* Background orbs */
-.bg-orb {
-  position: fixed;
-  border-radius: 50%;
-  pointer-events: none;
-  z-index: 0;
-  filter: blur(100px);
-  opacity: 0.28;
-  animation: orb-drift 18s ease-in-out infinite alternate;
+/* The one system field — every modal input/select shares this. No per-modal
+   overrides: change the field look here and it changes everywhere. Defined as
+   Tailwind v4 @utility classes so `.bk-field-select` can @apply `bk-field`. */
+@utility bk-field {
+  @apply w-full h-11 rounded-xl border border-[var(--color-bk-line)] bg-[oklch(98%_0.004_90)] px-4 text-sm text-[var(--color-bk-ink)] placeholder:text-[var(--color-bk-faint)] outline-none transition-colors focus:border-[var(--color-primary)];
 }
-.bg-orb-1 {
-  width: 700px;
-  height: 700px;
-  background: oklch(93% 0.04 155);
-  top: -200px;
-  right: -100px;
+/* Same field, for <select>: strips platform chrome and leaves room on the
+   right for the shared <ChevronDown> overlay. Wrap in a relative div + icon. */
+@utility bk-field-select {
+  @apply bk-field pr-10 appearance-none;
 }
-.bg-orb-2 {
-  width: 500px;
-  height: 500px;
-  background: oklch(92% 0.05 38);
-  bottom: -150px;
-  left: -100px;
-  animation-delay: -9s;
-}
-@keyframes orb-drift {
-  from { transform: translate(0, 0); }
-  to { transform: translate(40px, -40px); }
+/* Native date input, themed to brand: tint the calendar picker indicator to
+   the accent and give it a pointer cursor so it reads as on-brand, not OS. */
+@utility bk-field-date {
+  &::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    opacity: 0.55;
+    /* recolor the (black) calendar glyph toward the ink/accent neutral */
+    filter: invert(28%) sepia(8%) saturate(420%) hue-rotate(70deg);
+    transition: opacity 0.14s;
+  }
+  &:hover::-webkit-calendar-picker-indicator { opacity: 0.85; }
 }
 
-/* Tab entrance animation */
-@keyframes tabIn {
+/* Screen enter — calm fade-up, respects reduced motion */
+@keyframes bkIn {
   from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  to { opacity: 1; transform: none; }
 }
-.tab-content {
-  animation: tabIn 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
-}
+.bk-enter { animation: bkIn 0.5s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
 
-/* Glass card hover — only on pointer devices */
-@media (hover: hover) {
-  .glass-card-hover:hover {
-    transform: translateY(-2px);
-    background: oklch(100% 0 0 / 0.46);
-    box-shadow:
-      0 2px 0 oklch(100% 0 0 / 0.8) inset,
-      0 16px 48px oklch(16% 0.02 260 / 0.13),
-      0 4px 12px oklch(16% 0.02 260 / 0.08);
-  }
+/* Spinner — for in-progress actions (e.g. generating insights) */
+@keyframes bkSpin { to { transform: rotate(360deg); } }
+.bk-spin { animation: bkSpin 0.8s linear infinite; transform-origin: center; }
+
+/* Sidebar icon-rail buttons — hover only when not the active (filled) item.
+   Soft grey wash + ink, matching the Settings tab rail's hover state. */
+.bk-rail-btn:not([aria-current="page"]):hover {
+  background: var(--color-bk-line-soft);
+  color: var(--color-bk-ink) !important;
 }
 
-/* Custom scrollbar */
-.custom-scrollbar::-webkit-scrollbar { width: 4px; }
-.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-.custom-scrollbar::-webkit-scrollbar-thumb { background: oklch(100% 0 0 / 0.15); border-radius: 4px; }
-.custom-scrollbar { scrollbar-width: thin; scrollbar-color: oklch(100% 0 0 / 0.15) transparent; }
+/* Slim, warm-neutral scrollbar */
+.bk-scroll::-webkit-scrollbar { width: 9px; height: 9px; }
+.bk-scroll::-webkit-scrollbar-thumb {
+  background: oklch(86% 0.006 85);
+  border-radius: 9px;
+  border: 2px solid var(--color-bk-canvas);
+}
+.bk-scroll::-webkit-scrollbar-track { background: transparent; }
 
-/* Hide scrollbar for mobile tab nav */
-.scrollbar-hide::-webkit-scrollbar { display: none; }
-.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+/* Topbar Add menu rows */
+.bk-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 11px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--color-bk-ink);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.14s;
+}
+.bk-menu-item:hover {
+  background: oklch(96% 0.005 90);
+}
 
-/* Mobile-specific adjustments */
-@media (max-width: 639px) {
-  .bg-orb-1 { width: 400px; height: 400px; top: -150px; right: -80px; }
-  .bg-orb-2 { width: 300px; height: 300px; bottom: -100px; left: -80px; }
+@media (prefers-reduced-motion: reduce) {
+  .bk-enter { animation: none; }
+  .bk-spin { animation-duration: 1.4s; }
 }

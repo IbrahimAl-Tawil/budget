@@ -1,0 +1,269 @@
+"use client";
+
+// Bulga ACCOUNTS page.
+//
+// Net-worth hero + accounts grouped by derived section (Cash & savings /
+// Investments / Credit), wired to real AccountView data passed in as props.
+
+import { Plus } from "lucide-react";
+
+import type { AccountView } from "@/lib/types";
+import { fmt } from "@/lib/format";
+import { tintFor, type BulgaTheme } from "@/components/bulga/theme";
+
+interface BulgaAccountsProps {
+  accounts: AccountView[];
+  netWorth: number;
+  accent: string;
+  theme: BulgaTheme;
+  currency?: string;
+  onAdd?: () => void;
+  onEdit?: (a: AccountView) => void;
+}
+
+type GroupKey = "cash" | "invest" | "credit";
+
+const GROUP_LABELS: Record<GroupKey, string> = {
+  cash: "Cash & savings",
+  invest: "Investments",
+  credit: "Credit",
+};
+
+// Render order — groups appear top-to-bottom in this sequence.
+const GROUP_ORDER: GroupKey[] = ["cash", "invest", "credit"];
+
+// Avatar tint keys, chosen so the group's accounts read as a coherent family.
+const GROUP_TINT_KEY: Record<GroupKey, string> = {
+  cash: "Bills",
+  invest: "Subscriptions",
+  credit: "Entertainment",
+};
+
+/** Derive the section a free-string account type belongs to. */
+function groupOf(type: string): GroupKey {
+  const t = type.trim().toLowerCase();
+  if (t === "tfsa" || t === "rrsp" || t === "fhsa" || t === "investment") return "invest";
+  if (t === "credit card") return "credit";
+  // Chequing, Savings, Other-cash, and anything unknown fall into cash.
+  return "cash";
+}
+
+/** Treat an account's bg as a usable CSS color (not empty / placeholder). */
+function usableColor(bg: string | undefined): bg is string {
+  if (!bg) return false;
+  const v = bg.trim();
+  return v.length > 0 && v.toLowerCase() !== "transparent" && v.toLowerCase() !== "none";
+}
+
+function initialOf(name: string): string {
+  const letters = name.replace(/[^A-Za-z]/g, "");
+  return (letters[0] ?? name[0] ?? "?").toUpperCase();
+}
+
+export function BulgaAccounts({ accounts, netWorth, accent, theme, currency = "CAD", onAdd, onEdit }: BulgaAccountsProps) {
+  // Bucket the accounts, preserving their incoming order within each group.
+  const buckets: Record<GroupKey, AccountView[]> = { cash: [], invest: [], credit: [] };
+  for (const a of accounts) buckets[groupOf(a.type)].push(a);
+
+  const groups = GROUP_ORDER.filter((key) => buckets[key].length > 0).map((key) => {
+    const items = buckets[key];
+    const total = items.reduce((sum, a) => sum + a.balance, 0);
+    return { key, label: GROUP_LABELS[key], items, total };
+  });
+
+  return (
+    <div className="bk-enter" style={{ maxWidth: 1000, margin: "0 auto" }}>
+      {/* net worth hero */}
+      <section
+        style={{
+          padding: "0 4px 32px",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+        }}
+      >
+        <div>
+          <div
+            style={{
+              fontSize: 12,
+              fontWeight: 600,
+              letterSpacing: "0.07em",
+              textTransform: "uppercase",
+              color: "var(--color-bk-muted)",
+            }}
+          >
+            Net worth · {accounts.length} {accounts.length === 1 ? "account" : "accounts"}
+          </div>
+          <div
+            className="bk-num"
+            style={{
+              fontSize: "clamp(44px, 5.5vw, 60px)",
+              fontWeight: 500,
+              letterSpacing: "-0.03em",
+              lineHeight: 1,
+              marginTop: 12,
+            }}
+          >
+            {fmt(netWorth, currency)}
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => onAdd?.()}
+          aria-label="Add account"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 7,
+            height: 39,
+            padding: "0 18px",
+            borderRadius: 9999,
+            border: "1px dashed var(--color-bk-line)",
+            background: "transparent",
+            fontSize: 13.5,
+            fontWeight: 600,
+            color: "var(--color-bk-muted)",
+            cursor: "pointer",
+            flexShrink: 0,
+            transition: "border-color .15s, color .15s",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = "var(--color-primary)";
+            e.currentTarget.style.color = "var(--color-primary)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = "var(--color-bk-line)";
+            e.currentTarget.style.color = "var(--color-bk-muted)";
+          }}
+        >
+          <Plus size={16} strokeWidth={2} aria-hidden="true" />
+          Add account
+        </button>
+      </section>
+
+      {/* groups */}
+      {groups.map((grp) => {
+        const totalNegative = grp.total < 0;
+        return (
+          <div key={grp.key} style={{ marginBottom: 26 }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "baseline",
+                padding: "0 4px 12px",
+              }}
+            >
+              <h3
+                style={{
+                  margin: 0,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  letterSpacing: "0.04em",
+                  textTransform: "uppercase",
+                  color: "oklch(48% 0.012 80)",
+                }}
+              >
+                {grp.label}
+              </h3>
+              <span className="bk-num" style={{ fontSize: 14, color: "oklch(48% 0.012 80)" }}>
+                {(totalNegative ? "−" : "") + fmt(grp.total, currency)}
+              </span>
+            </div>
+
+            <div
+              style={{
+                background: "var(--color-bk-surface)",
+                border: "1px solid var(--color-bk-line)",
+                borderRadius: 20,
+                overflow: "hidden",
+              }}
+            >
+              {grp.items.map((a, i) => {
+                const negative = a.balance < 0;
+                const fallback = tintFor(GROUP_TINT_KEY[grp.key]);
+                const tileBg = usableColor(a.bg) ? a.bg : fallback[0];
+                const tileInk = usableColor(a.bg) ? "#fff" : fallback[1];
+                return (
+                  <div
+                    key={a.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => onEdit?.(a)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        onEdit?.(a);
+                      }
+                    }}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 15,
+                      padding: "18px 22px",
+                      borderTop: i === 0 ? "none" : "1px solid var(--color-bk-line-soft)",
+                      transition: "background .15s",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 44,
+                        height: 44,
+                        borderRadius: 13,
+                        background: tileBg,
+                        color: tileInk,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: 15,
+                        fontWeight: 700,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {initialOf(a.name)}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 14.5, fontWeight: 600 }}>{a.name}</div>
+                      {(() => {
+                        // Join only the parts that exist, so an account with no
+                        // number never shows a dangling "· " separator.
+                        const meta = [a.num, a.change].filter((p) => p && p.trim()).join(" · ");
+                        return meta ? (
+                          <div style={{ fontSize: 12.5, color: "var(--color-bk-muted)" }}>{meta}</div>
+                        ) : null;
+                      })()}
+                    </div>
+                    <div
+                      className="bk-num"
+                      style={{
+                        fontSize: 18,
+                        fontWeight: 500,
+                        color: negative ? theme.clay : "var(--color-bk-ink)",
+                      }}
+                    >
+                      {(negative ? "−" : "") + fmt(a.balance, currency)}
+                    </div>
+                    <svg
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="oklch(70% 0.01 80)"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="m9 6 6 6-6 6" />
+                    </svg>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}

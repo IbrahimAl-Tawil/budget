@@ -67,9 +67,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.id = user.id as string;
         token.onboardingDone = user.onboardingDone ?? false;
       }
-      // Allow updating the token when session is updated (e.g. after onboarding)
+      // Allow updating the token when session is updated (e.g. after onboarding,
+      // or when the user renames themselves in Settings)
       if (trigger === "update" && session) {
         token.onboardingDone = session.onboardingDone ?? token.onboardingDone;
+        if (session.name) token.name = session.name;
       }
       return token;
     },

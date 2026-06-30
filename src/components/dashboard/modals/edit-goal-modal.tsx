@@ -8,6 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { EmojiPicker } from "@/components/bulga/emoji-picker";
 import { Trash2 } from "lucide-react";
 import type { GoalView } from "@/lib/types";
 
@@ -114,56 +115,50 @@ export function EditGoalModal({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="bg-[oklch(100%_0_0/0.62)] backdrop-blur-[40px] backdrop-saturate-[2] border border-[oklch(100%_0_0/0.6)] rounded-3xl p-8 max-w-[420px] shadow-[0_2px_0_oklch(100%_0_0/0.8)_inset,0_32px_80px_oklch(16%_0.02_260/0.2),0_4px_16px_oklch(16%_0.02_260/0.08)]">
+      <DialogContent className="max-w-[480px] p-9">
         <DialogHeader>
-          <DialogTitle className="font-serif text-2xl tracking-[-0.02em]">Edit Goal</DialogTitle>
+          <DialogTitle className="text-2xl font-semibold tracking-[-0.02em] text-[var(--color-bk-ink)]">Edit Goal</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 mt-2">
           <div className="flex gap-3">
             <div className="w-16">
-              <label className="block text-xs font-semibold text-muted-text tracking-[0.06em] uppercase mb-2">Emoji</label>
-              <input
-                value={emoji}
-                onChange={(e) => setEmoji(e.target.value)}
-                placeholder="🎯"
-                className="w-full px-3 py-3 rounded-xl border-[1.5px] border-[oklch(28%_0.012_260/0.14)] bg-[oklch(100%_0_0/0.55)] font-sans text-lg text-center text-bulga-text placeholder:text-muted-text outline-none transition-colors focus:border-sage focus:bg-[oklch(100%_0_0/0.7)]"
-              />
+              <EmojiPicker value={emoji} onChange={setEmoji} />
             </div>
             <div className="flex-1">
-              <label className="block text-xs font-semibold text-muted-text tracking-[0.06em] uppercase mb-2">Goal Name</label>
+              <label className="block text-[11px] font-semibold tracking-[0.09em] uppercase text-[var(--color-bk-faint)] mb-1.5">Goal Name</label>
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Vacation Fund"
-                className="w-full px-4 py-3 rounded-xl border-[1.5px] border-[oklch(28%_0.012_260/0.14)] bg-[oklch(100%_0_0/0.55)] font-sans text-sm text-bulga-text placeholder:text-muted-text outline-none transition-colors focus:border-sage focus:bg-[oklch(100%_0_0/0.7)]"
+                className="bk-field"
               />
             </div>
           </div>
           <div className="flex gap-3">
             <div className="flex-1">
-              <label className="block text-xs font-semibold text-muted-text tracking-[0.06em] uppercase mb-2">Target Amount</label>
+              <label className="block text-[11px] font-semibold tracking-[0.09em] uppercase text-[var(--color-bk-faint)] mb-1.5">Target Amount</label>
               <input
                 type="number"
                 value={target}
                 onChange={(e) => setTarget(e.target.value)}
                 placeholder="10000"
-                className="w-full px-4 py-3 rounded-xl border-[1.5px] border-[oklch(28%_0.012_260/0.14)] bg-[oklch(100%_0_0/0.55)] font-sans text-sm text-bulga-text placeholder:text-muted-text outline-none transition-colors focus:border-sage focus:bg-[oklch(100%_0_0/0.7)]"
+                className="bk-field"
               />
             </div>
             <div className="flex-1">
-              <label className="block text-xs font-semibold text-muted-text tracking-[0.06em] uppercase mb-2">Already Saved</label>
+              <label className="block text-[11px] font-semibold tracking-[0.09em] uppercase text-[var(--color-bk-faint)] mb-1.5">Already Saved</label>
               <input
                 type="number"
                 value={saved}
                 onChange={(e) => setSaved(e.target.value)}
                 placeholder="0"
-                className="w-full px-4 py-3 rounded-xl border-[1.5px] border-[oklch(28%_0.012_260/0.14)] bg-[oklch(100%_0_0/0.55)] font-sans text-sm text-bulga-text placeholder:text-muted-text outline-none transition-colors focus:border-sage focus:bg-[oklch(100%_0_0/0.7)]"
+                className="bk-field"
               />
             </div>
           </div>
           <div className="flex gap-3">
             <div className="flex-1">
-              <label className="block text-xs font-semibold text-muted-text tracking-[0.06em] uppercase mb-2">Priority Weight (%)</label>
+              <label className="block text-[11px] font-semibold tracking-[0.09em] uppercase text-[var(--color-bk-faint)] mb-1.5">Priority Weight (%)</label>
               <input
                 type="number"
                 min="0"
@@ -171,21 +166,21 @@ export function EditGoalModal({
                 value={priority}
                 onChange={(e) => setPriority(e.target.value)}
                 placeholder="0 = equal split"
-                className="w-full px-4 py-3 rounded-xl border-[1.5px] border-[oklch(28%_0.012_260/0.14)] bg-[oklch(100%_0_0/0.55)] font-sans text-sm text-bulga-text placeholder:text-muted-text outline-none transition-colors focus:border-sage focus:bg-[oklch(100%_0_0/0.7)]"
+                className="bk-field"
               />
             </div>
             <div className="flex-1">
-              <label className="block text-xs font-semibold text-muted-text tracking-[0.06em] uppercase mb-2">Deadline</label>
+              <label className="block text-[11px] font-semibold tracking-[0.09em] uppercase text-[var(--color-bk-faint)] mb-1.5">Deadline</label>
               <input
                 type="date"
                 value={deadline}
                 onChange={(e) => setDeadline(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border-[1.5px] border-[oklch(28%_0.012_260/0.14)] bg-[oklch(100%_0_0/0.55)] font-sans text-sm text-bulga-text placeholder:text-muted-text outline-none transition-colors focus:border-sage focus:bg-[oklch(100%_0_0/0.7)]"
+                className="bk-field bk-field-date"
               />
             </div>
           </div>
         </div>
-        {error && <p className="text-sm text-terra font-medium mt-2">{error}</p>}
+        {error && <p className="text-sm text-[var(--color-bk-clay)] font-medium mt-2">{error}</p>}
         <div className="flex items-center gap-2.5 mt-6">
           <button
             type="button"
@@ -193,10 +188,10 @@ export function EditGoalModal({
             disabled={isPending}
             aria-label={confirmDelete ? "Confirm delete goal" : "Delete goal"}
             aria-pressed={confirmDelete}
-            className={`h-11 rounded-xl flex items-center justify-center shrink-0 min-w-0 cursor-pointer text-sm font-semibold text-white transition-[width,padding,gap,background-color] duration-300 ease-[cubic-bezier(0.25,0.46,0.45,0.94)] disabled:opacity-50 ${
+            className={`h-11 rounded-full flex items-center justify-center shrink-0 min-w-0 cursor-pointer text-sm font-semibold text-white transition-[width,padding,gap,background-color] duration-300 ease-[cubic-bezier(0.25,0.46,0.45,0.94)] disabled:opacity-50 ${
               confirmDelete
-                ? "w-[148px] gap-1.5 px-3 bg-terra hover:bg-[oklch(58%_0.12_38)]"
-                : "w-11 gap-0 px-0 bg-[oklch(60%_0.16_25)] hover:bg-terra"
+                ? "w-[148px] gap-1.5 px-3 bg-[var(--color-bk-clay)] hover:opacity-90"
+                : "w-11 gap-0 px-0 bg-[var(--color-bk-clay)] hover:opacity-90"
             }`}
           >
             <Trash2 className="w-4 h-4 shrink-0" />
@@ -211,7 +206,7 @@ export function EditGoalModal({
           <Button
             onClick={handleSave}
             disabled={isPending || confirmDelete}
-            className="ml-auto h-11 px-6 rounded-xl bg-bulga-text text-white font-sans text-sm font-semibold hover:opacity-85 disabled:opacity-50"
+            className="ml-auto h-11 px-6 rounded-full bg-[var(--color-primary)] text-white text-sm font-semibold hover:opacity-90 disabled:opacity-50"
           >
             {isPending ? "Saving..." : "Save Changes"}
           </Button>

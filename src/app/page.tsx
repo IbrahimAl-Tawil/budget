@@ -1,61 +1,69 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { ArrowRight, PieChart, Upload, Brain, Shield } from "lucide-react";
+import { ArrowRight, ListChecks, Wallet, Target, Sparkles } from "lucide-react";
+import { LogoMark, Wordmark } from "@/components/bulga/logo";
 
 export default async function LandingPage() {
   const session = await auth();
 
-  // If already logged in, go straight to dashboard
+  // If already logged in, go straight to the right place.
   if (session?.user?.onboardingDone) redirect("/dashboard");
   if (session && !session.user.onboardingDone) redirect("/onboarding");
 
-  return (
-    <div className="relative z-[1] min-h-screen flex flex-col">
+  const features = [
+    { icon: Wallet, title: "Everything in one place", desc: "Accounts, cards, and investments — one calm balance." },
+    { icon: ListChecks, title: "Spending, made plain", desc: "See where every dollar went without the spreadsheet." },
+    { icon: Target, title: "Goals with intent", desc: "Save toward what matters and watch it get closer." },
+    { icon: Sparkles, title: "Insights that help", desc: "Quiet nudges from your own numbers — never lectures." },
+  ];
 
+  return (
+    <div className="min-h-screen flex flex-col bg-[var(--color-bk-canvas)] text-[var(--color-bk-ink)]">
       {/* Nav */}
-      <nav className="flex items-center justify-between px-7 py-5 shrink-0">
-        <span className="font-serif text-xl tracking-[-0.02em] text-bulga-text">
-          Bulg<em className="not-italic text-sage">a</em>
-        </span>
-        <div className="flex items-center gap-3">
+      <nav className="flex items-center justify-between px-7 py-6 shrink-0 max-w-[1100px] mx-auto w-full">
+        <Wordmark size={30} />
+        <div className="flex items-center gap-2">
           <Link
             href="/login"
-            className="text-[13px] font-semibold text-neutral-400 px-4 py-2 rounded-full hover:text-bulga-text transition-colors"
+            className="text-[13px] font-semibold text-[var(--color-bk-muted)] px-4 py-2 rounded-full hover:text-[var(--color-bk-ink)] transition-colors"
           >
-            Sign In
+            Sign in
           </Link>
           <Link
             href="/register"
-            className="text-[13px] font-semibold text-white bg-bulga-text px-5 py-2 rounded-full hover:opacity-90 transition-opacity"
+            className="text-[13px] font-semibold text-white bg-[var(--color-primary)] px-5 py-2 rounded-full hover:brightness-[1.06] transition-[filter]"
           >
-            Get Started
+            Get started
           </Link>
         </div>
       </nav>
 
       {/* Hero */}
-      <main className="flex-1 flex flex-col items-center justify-center px-7 pb-20 text-center">
+      <main className="flex-1 flex flex-col items-center justify-center px-7 pb-24 text-center">
         <div className="max-w-2xl">
-          <h1 className="font-serif text-[56px] tracking-[-0.03em] leading-[1.1] text-bulga-text mb-5">
-            Your finances,
+          <h1
+            className="text-[clamp(40px,6vw,64px)] tracking-[-0.03em] leading-[1.05] text-balance mb-5"
+            style={{ fontFamily: "var(--font-num), Georgia, serif", fontWeight: 500 }}
+          >
+            Your money,
             <br />
-            <span className="text-sage">beautifully clear</span>
+            <span className="text-[var(--color-primary)]">in balance.</span>
           </h1>
-          <p className="text-lg text-neutral-400 leading-relaxed max-w-lg mx-auto mb-8">
-            Import bank statements, let AI categorize your spending, track
-            budgets and goals — all in one minimalist dashboard.
+          <p className="text-[17px] text-[var(--color-bk-muted)] leading-relaxed max-w-md mx-auto mb-9">
+            Calm, confident budgeting that does the math so you don&apos;t have
+            to. Import statements, track spending, reach your goals.
           </p>
-          <div className="flex items-center justify-center gap-4">
+          <div className="flex items-center justify-center gap-3">
             <Link
               href="/register"
-              className="inline-flex items-center gap-2 text-sm font-semibold text-white bg-bulga-text px-6 py-3 rounded-full hover:opacity-90 transition-opacity"
+              className="inline-flex items-center gap-2 text-sm font-semibold text-white bg-[var(--color-primary)] px-6 py-3 rounded-full hover:brightness-[1.06] transition-[filter] shadow-[0_1px_2px_oklch(40%_0.1_158/0.3)]"
             >
               Start for free <ArrowRight className="w-4 h-4" />
             </Link>
             <Link
               href="/login"
-              className="inline-flex items-center gap-2 text-sm font-semibold text-bulga-text border border-black/[0.06] px-6 py-3 rounded-full hover:bg-neutral-50 transition-colors"
+              className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--color-bk-ink)] border border-[var(--color-bk-line)] px-6 py-3 rounded-full hover:bg-[var(--color-bk-surface)] transition-colors"
             >
               Sign in
             </Link>
@@ -63,38 +71,19 @@ export default async function LandingPage() {
         </div>
 
         {/* Features */}
-        <div className="grid grid-cols-4 gap-4 mt-20 max-w-3xl w-full">
-          {[
-            {
-              icon: Upload,
-              title: "Import Statements",
-              desc: "Upload CSV or PDF bank statements",
-            },
-            {
-              icon: Brain,
-              title: "AI Categorization",
-              desc: "Transactions sorted automatically",
-            },
-            {
-              icon: PieChart,
-              title: "Budget Tracking",
-              desc: "See where every dollar goes",
-            },
-            {
-              icon: Shield,
-              title: "Private & Local",
-              desc: "Your data stays on your machine",
-            },
-          ].map((f) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-20 max-w-4xl w-full">
+          {features.map((f) => (
             <div
               key={f.title}
-              className="border border-black/[0.06] rounded-2xl p-5 text-left transition-all hover:-translate-y-1 hover:shadow-[0_12px_48px_oklch(16%_0.02_260/0.1)]"
+              className="border border-[var(--color-bk-line)] bg-[var(--color-bk-surface)] rounded-[20px] p-6 text-left transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_32px_oklch(20%_0.02_80/0.08)]"
             >
-              <f.icon className="w-5 h-5 text-sage mb-3" />
-              <div className="text-[13px] font-semibold text-bulga-text mb-1">
+              <div className="w-9 h-9 rounded-[11px] bg-[var(--accent)] flex items-center justify-center mb-4">
+                <f.icon className="w-[18px] h-[18px] text-[var(--color-primary)]" strokeWidth={1.9} />
+              </div>
+              <div className="text-[14px] font-semibold text-[var(--color-bk-ink)] mb-1.5">
                 {f.title}
               </div>
-              <div className="text-[11px] text-neutral-400 leading-relaxed">
+              <div className="text-[12.5px] text-[var(--color-bk-muted)] leading-relaxed">
                 {f.desc}
               </div>
             </div>
@@ -103,8 +92,9 @@ export default async function LandingPage() {
       </main>
 
       {/* Footer */}
-      <footer className="text-center py-5 text-[11px] text-neutral-400">
-        Bulga &mdash; Personal budgeting, simplified.
+      <footer className="flex items-center justify-center gap-2 py-6 text-[12px] text-[var(--color-bk-faint)]">
+        <LogoMark size={16} />
+        Bulga — personal budgeting, in balance.
       </footer>
     </div>
   );

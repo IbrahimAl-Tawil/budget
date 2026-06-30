@@ -53,7 +53,7 @@ function DialogContent({
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-2xl bg-glass backdrop-blur-[40px] backdrop-saturate-[1.8] border border-bulga-border p-4 text-sm text-popover-foreground shadow-[0_24px_80px_oklch(16%_0.02_260/0.14),0_0_1px_oklch(100%_0_0/0.15)_inset] duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-5 rounded-[24px] border border-[var(--color-bk-line)] bg-[var(--color-bk-surface)] p-8 text-sm text-[var(--color-bk-ink)] shadow-[0_24px_64px_oklch(20%_0.02_80/0.16),0_2px_8px_oklch(20%_0.02_80/0.06)] duration-100 outline-none sm:max-w-[460px] data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           className
         )}
         {...props}
@@ -122,7 +122,7 @@ function DialogTitle({ className, ...props }: DialogPrimitive.Title.Props) {
     <DialogPrimitive.Title
       data-slot="dialog-title"
       className={cn(
-        "font-heading text-base leading-none font-medium",
+        "text-base leading-none font-semibold tracking-[-0.02em]",
         className
       )}
       {...props}

@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { signIn } from "next-auth/react";
-import { GlassCard } from "@/components/dashboard/primitives/glass-card";
-import { Input } from "@/components/ui/input";
+import { Card } from "@/components/bulga/card";
+import { Wordmark } from "@/components/bulga/logo";
+import { Field, TextInput, PasswordInput } from "@/components/bulga/form";
 import { Button } from "@/components/ui/button";
 
 export default function LoginPage() {
@@ -42,65 +44,61 @@ export default function LoginPage() {
 
   return (
     <>
-      <div className="text-center">
-        <a href="/" className="font-serif text-[clamp(2.5rem,8vw,3.25rem)] tracking-[-0.035em] leading-[0.92] text-bulga-text">
-          Bulg<em className="not-italic text-sage">a</em>
-        </a>
-        <p className="text-[13px] mt-3 text-muted-text">Sign in to your budget dashboard</p>
+      <div className="flex flex-col items-center gap-3 text-center">
+        <Link href="/" aria-label="Bulga home">
+          <Wordmark size={34} />
+        </Link>
+        <p className="text-[13px] text-[var(--color-bk-muted)]">
+          Sign in to your budget dashboard
+        </p>
       </div>
 
-      <GlassCard className="p-8 sm:p-10 hover:translate-y-0">
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label htmlFor="email" className="block text-[11px] font-semibold tracking-[0.09em] uppercase text-muted-text mb-1.5">
-              Email
-            </label>
-            <Input
+      <Card className="p-8">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+          <Field label="Email" htmlFor="email">
+            <TextInput
               id="email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
               required
-              className="h-10 rounded-xl bg-neutral-50 border-black/[0.06]"
             />
-          </div>
+          </Field>
 
-          <div>
-            <label htmlFor="password" className="block text-[11px] font-semibold tracking-[0.09em] uppercase text-muted-text mb-1.5">
-              Password
-            </label>
-            <Input
+          <Field label="Password" htmlFor="password">
+            <PasswordInput
               id="password"
-              type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               required
-              className="h-10 rounded-xl bg-neutral-50 border-black/[0.06]"
             />
-          </div>
+          </Field>
 
           {error && (
-            <p className="text-sm text-terra font-medium">{error}</p>
+            <p className="text-sm font-medium text-[var(--color-bk-clay)]">{error}</p>
           )}
 
           <Button
             type="submit"
             disabled={loading}
-            className="w-full h-11 rounded-xl bg-bulga-text text-white font-semibold text-sm hover:opacity-90 transition-opacity"
+            className="w-full h-11 rounded-full text-sm font-semibold"
           >
-            {loading ? "Signing in..." : "Sign In"}
+            {loading ? "Signing in…" : "Sign in"}
           </Button>
         </form>
 
-        <p className="text-center text-sm text-muted-text mt-6">
+        <p className="text-center text-sm text-[var(--color-bk-muted)] mt-6">
           Don&apos;t have an account?{" "}
-          <a href="/register" className="text-sage font-semibold hover:underline">
+          <Link
+            href="/register"
+            className="font-semibold text-[var(--color-primary)] hover:underline"
+          >
             Sign up
-          </a>
+          </Link>
         </p>
-      </GlassCard>
+      </Card>
     </>
   );
 }

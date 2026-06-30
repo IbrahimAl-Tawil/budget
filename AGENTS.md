@@ -10,47 +10,71 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 ## Project structure
 
-This is a budgeting app: Next.js 16 (App Router, Turbopack) · Prisma 7 + SQLite · NextAuth (credentials) · Anthropic SDK. `@/*` maps to `src/*`.
+Budgeting app: Next.js 16 (App Router, Turbopack) · Prisma 7 + SQLite · NextAuth (credentials) · Anthropic SDK. `@/*` maps to `src/*`. The product is **Bulga** — that is the only brand name in the system (no other names anywhere).
 
 ```
 src/
   proxy.ts                  # Next 16 middleware — auth + onboarding redirects (see above)
   app/
-    layout.tsx              # root layout: fonts + <Providers>
+    layout.tsx              # root layout: Newsreader + Hanken fonts + <Providers>
     page.tsx                # landing (server component, redirects if logged in)
-    globals.css             # design tokens + Bulga custom styles
-    (auth)/                 # route group: shared centered layout for login + register
-      login/  register/
-    dashboard/  onboarding/  settings/   # one page.tsx each
+    icon.svg                # favicon — the Bulga "B" mark
+    globals.css             # design tokens (@theme + :root) and Bulga utility classes
+    (auth)/ login/ register/ # auth route group (clean centered layout, no orbs)
+    dashboard/ onboarding/ settings/   # one page.tsx each (server: fetch + guard)
     api/**/route.ts         # REST handlers (auth via lib/api-auth)
   components/
-    ui/                     # @base-ui primitives (button, input, dialog, …). NO feature logic.
+    bulga/                  # THE design system + app shell (all "use client")
+      bulga-shell.tsx       # app shell: light icon-rail sidebar + topbar + page switch + all modals
+      logo.tsx              # <LogoMark> (B monogram tile) + <Wordmark> (mark + "Bulga")
+      card.tsx              # <Card> (surface card) + <CardLabel> (uppercase eyebrow)
+      theme.ts              # accent theming — see Design system below
+      pages/                # overview, transactions, accounts, goals, brand-kit
+    ui/                     # @base-ui primitives (button, input, dialog, badge, select). NO feature logic.
     dashboard/
-      dashboard-shell.tsx   # client orchestrator (tabs, FAB, modals)
-      charts.tsx  notifications-panel.tsx
-      tabs/                 # one file per dashboard tab (overview, spending, goals, …)
-      modals/               # add-/edit- dialogs + import-modal
-      primitives/           # dashboard-themed reusables: glass-card, tx-icon, tx-row
-    onboarding/  settings/  # feature client components
+      modals/               # add-/edit- transaction·goal·account + import-modal (functional, wired into bulga-shell)
+      notifications-panel.tsx
+    onboarding/ settings/   # feature client components
     providers.tsx           # SessionProvider wrapper
   lib/
     auth.ts                 # NextAuth config (session, used by pages)
     api-auth.ts             # JWT extraction (used by api/ route handlers)
     constants.ts            # shared domain constants (ACCOUNT_TYPES, CURRENCIES)
     types.ts                # central view-model types — define shared types HERE
-    format.ts               # currency/number formatting (client-safe)
+    format.ts               # currency/number formatting (client-safe)  → exports fmt()
     utils.ts                # cn() tailwind helper (client-safe)
-    actions/                # server actions ("use server")
-    ai/                     # Anthropic calls (server-only): categorize, parse-pdf, insights, …
-    db/                     # prisma client + queries + calculations (server-only)
+    actions/ ai/ db/        # server-only: server actions / Anthropic calls / prisma + queries
 ```
+
+## Design system — "Bulga" (READ BEFORE TOUCHING ANY UI)
+
+One cohesive language. Build new UI from these primitives so everything stays on-brand. Source of truth: `src/components/bulga/` + the tokens in `globals.css`.
+
+**Color** — all defined as CSS vars; never hardcode hexes for these:
+- Neutrals (defined in `@theme`; use as e.g. `text-[var(--color-bk-ink)]` or `bg-[var(--color-bk-surface)]`). The full set: `--color-bk-canvas` (warm page bg), `--color-bk-surface` (cards), `--color-bk-ink` (text), `--color-bk-muted` and `--color-bk-faint` (secondary/tertiary), `--color-bk-line` and `--color-bk-line-soft` (borders/dividers), `--color-bk-clay` plus `--color-bk-clay-tint` (alerts).
+- The shadcn `:root` tokens (`--primary`, `--accent`, `--border`, `--ring`, …) are retuned to Bulga, so `<Button>`/`<Input>`/`<Badge>`/`<Select>` are automatically on-brand. `--primary` = the evergreen accent; `--accent` = its soft tint.
+- **Accent is hue-derived.** `theme.ts` exports `deriveTheme(accent)` → `{ accent, accentDeep, accentTint, accentTintBorder, clay, clayTint, ink, muted }`. The whole palette (deep tones, fills, badges, chart, progress) follows ONE accent hue. The Brand-kit page lets the user switch among `SCHEMES` (8 accents); the shell holds accent state and exposes it as `--bk-accent` on its root, passing `accent` + `theme` down to every page. New tinted UI should derive from the active theme, not pick a fixed color.
+- `tintFor(category)` → `[bg, ink]` for transaction/account avatar tiles.
+
+**Type** — two faces only (loaded in `layout.tsx`):
+- `var(--font-num)` = **Newsreader** (serif) — money figures + display headings. Apply the `.bk-num` class on any number/currency (tabular, lining).
+- `var(--font-ui)` = **Hanken Grotesk** — everything else (the body default).
+
+**Shape & motion**: cards `rounded-[20px]`, buttons are **pills** (`rounded-full`), inputs `rounded-xl`. Calm — `.bk-enter` (fade-up on page mount), spring on press, ease on reveal. `.bk-scroll` for slim scrollbars. Respect `prefers-reduced-motion`.
+
+**Logo**: import `LogoMark` / `Wordmark` from `@/components/bulga/logo`. Never re-draw the mark inline. The favicon (`app/icon.svg`) mirrors it.
+
+**Forms** — one system, use it for every form. Build fields from `@/components/bulga/form`: `<Field label error hint optional>` wraps a control and renders the inline error (clay) / hint beneath it; `<TextInput invalid>` and `<SelectInput invalid>` are the controls. They share the `bk-field` / `bk-field-select` Tailwind `@utility` classes in `globals.css` — change field styling in ONE place and it updates everywhere; never re-style inputs per-modal. Validation pattern: a pure `validate(values) → {field: message}` helper (see `account-form.tsx`), set errors on submit, and clear a field's error as the user edits it. For an entity edited in two places (e.g. accounts), extract a shared `<XForm>` so Add and Edit are identical — the modals own only submit/delete + API calls. Inline field errors beat one banner; copy says what to do ("Give the account a name.").
+
+**Money**: format with `fmt()` from `@/lib/format` (or `Intl.NumberFormat('en-CA', {style:'currency', currency})`). Always `Math.round()` a savings rate / percentage before display. **Account balance = stored `account.balance` + sum of its transactions** — `getAccounts`/net-worth must add both (a stored balance alone, with no transactions, must still show).
 
 ### Conventions
 
-- **Files are kebab-case; component exports are PascalCase.** Modals end in `-modal`; spell out the noun (`add-transaction-modal`, not `add-modal`).
-- **Page = fetch + guard; component = render.** Page-level server components do auth guards + data fetching, then hand data to a client shell/component as props. Don't render heavy UI inline in `page.tsx`.
-- **Server/client boundary is sacred.** Client components (`"use client"`) may only import from `lib/types`, `lib/format`, `lib/utils`, `lib/constants`. Never import `lib/db/*`, `lib/ai/*`, or `lib/auth` into a client component — they pull Prisma/Node into the browser bundle.
-- **Layered imports flow one way:** `ui ← primitives ← features`. `ui/` stays generic (no domain logic); dashboard-themed reusables go in `dashboard/primitives/`, not `ui/`.
-- **Use the `@/` alias for cross-folder imports** (`@/components/dashboard/primitives/glass-card`), not deep relative paths. Reserve `./` for same-folder siblings.
-- **No duplicated constants.** Shared lists/enums live in `lib/constants.ts`; shared types in `lib/types.ts`. If you're copy-pasting a constant into a second file, hoist it instead.
-- **`auth.ts` vs `api-auth.ts`:** session-based guards for pages use `auth.ts`; stateless JWT checks in `api/*/route.ts` use `api-auth.ts`.
+- **Files kebab-case; component exports PascalCase.** Modals end in `-modal`, noun spelled out (`add-transaction-modal`).
+- **Page = fetch + guard; component = render.** Server `page.tsx` does `auth()` guards + parallel data fetch, hands data to a client component as props. `dashboard/page.tsx` → `<BulgaShell initialData={...}>`.
+- **Server/client boundary is sacred.** Client components import only from `lib/types`, `lib/format`, `lib/utils`, `lib/constants`, `components/bulga/*`, `components/ui/*`. Never import `lib/db/*`, `lib/ai/*`, or `lib/auth` into a client component.
+- **Layered imports flow one way:** `ui ← bulga (design system) ← feature components`. `ui/` stays generic; brand-specific reusables live in `components/bulga/`.
+- **Use the `@/` alias** for cross-folder imports; reserve `./` for same-folder siblings.
+- **No duplicated constants/types.** Shared lists/enums → `lib/constants.ts`; shared types → `lib/types.ts`.
+- **CRUD pattern**: mutations live in the `dashboard/modals/*` dialogs; `BulgaShell` owns their open/close state and calls `router.refresh()` on success (re-runs the page RSC). Pages emit intent up via `onAdd`/`onEdit` callbacks — they don't host modal state themselves.
+- **`auth.ts` vs `api-auth.ts`:** page session guards use `auth.ts`; API route JWT checks use `api-auth.ts`.

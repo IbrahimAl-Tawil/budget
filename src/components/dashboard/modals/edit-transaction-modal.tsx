@@ -116,109 +116,109 @@ export function EditTransactionModal({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="bg-[oklch(100%_0_0/0.62)] backdrop-blur-[40px] backdrop-saturate-[2] border border-[oklch(100%_0_0/0.6)] rounded-3xl p-8 max-w-[420px] shadow-[0_2px_0_oklch(100%_0_0/0.8)_inset,0_32px_80px_oklch(16%_0.02_260/0.2),0_4px_16px_oklch(16%_0.02_260/0.08)]">
+      <DialogContent className="max-w-[480px] p-9">
         <DialogHeader>
-          <DialogTitle className="font-serif text-2xl tracking-[-0.02em]">
-            Edit Transaction
+          <DialogTitle className="text-2xl font-semibold tracking-[-0.02em] text-[var(--color-bk-ink)]">
+            Edit transaction
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 mt-2">
           <div>
-            <label className="block text-xs font-semibold text-muted-text tracking-[0.06em] uppercase mb-2">
+            <label className="block text-[11px] font-semibold tracking-[0.09em] uppercase text-[var(--color-bk-faint)] mb-1.5">
               Description
             </label>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border-[1.5px] border-[oklch(28%_0.012_260/0.14)] bg-[oklch(100%_0_0/0.55)] font-sans text-sm text-bulga-text placeholder:text-muted-text outline-none transition-colors focus:border-sage focus:bg-[oklch(100%_0_0/0.7)]"
+              className="bk-field"
             />
           </div>
           <div className="flex gap-3">
             <div className="flex-1">
-              <label className="block text-xs font-semibold text-muted-text tracking-[0.06em] uppercase mb-2">
+              <label className="block text-[11px] font-semibold tracking-[0.09em] uppercase text-[var(--color-bk-faint)] mb-1.5">
                 Amount
               </label>
               <input
                 type="number"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border-[1.5px] border-[oklch(28%_0.012_260/0.14)] bg-[oklch(100%_0_0/0.55)] font-sans text-sm text-bulga-text placeholder:text-muted-text outline-none transition-colors focus:border-sage focus:bg-[oklch(100%_0_0/0.7)]"
+                className="bk-field"
               />
             </div>
             <div className="w-32">
-              <label className="block text-xs font-semibold text-muted-text tracking-[0.06em] uppercase mb-2">
+              <label className="block text-[11px] font-semibold tracking-[0.09em] uppercase text-[var(--color-bk-faint)] mb-1.5">
                 Type
               </label>
               <div className="relative">
                 <select
                   value={type}
                   onChange={(e) => setType(e.target.value as "debit" | "credit")}
-                  className="w-full pl-4 pr-10 py-3 rounded-xl border-[1.5px] border-[oklch(28%_0.012_260/0.14)] bg-[oklch(100%_0_0/0.55)] font-sans text-sm text-bulga-text placeholder:text-muted-text outline-none transition-colors focus:border-sage focus:bg-[oklch(100%_0_0/0.7)] appearance-none"
+                  className="bk-field-select"
                 >
                   <option value="debit">Expense</option>
                   <option value="credit">Income</option>
                 </select>
-                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-muted-text" />
+                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-[var(--color-bk-muted)]" />
               </div>
             </div>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-muted-text tracking-[0.06em] uppercase mb-2">
+            <label className="block text-[11px] font-semibold tracking-[0.09em] uppercase text-[var(--color-bk-faint)] mb-1.5">
               Category
             </label>
             <div className="relative">
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="w-full pl-4 pr-10 py-3 rounded-xl border-[1.5px] border-[oklch(28%_0.012_260/0.14)] bg-[oklch(100%_0_0/0.55)] font-sans text-sm text-bulga-text placeholder:text-muted-text outline-none transition-colors focus:border-sage focus:bg-[oklch(100%_0_0/0.7)] appearance-none"
+                className="bk-field-select"
               >
                 {displayCategories.map((c) => (
                   <option key={c}>{c}</option>
                 ))}
               </select>
-              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-muted-text" />
+              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-[var(--color-bk-muted)]" />
             </div>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-muted-text tracking-[0.06em] uppercase mb-2">
+            <label className="block text-[11px] font-semibold tracking-[0.09em] uppercase text-[var(--color-bk-faint)] mb-1.5">
               Date (leave blank to keep current)
             </label>
             <input
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border-[1.5px] border-[oklch(28%_0.012_260/0.14)] bg-[oklch(100%_0_0/0.55)] font-sans text-sm text-bulga-text placeholder:text-muted-text outline-none transition-colors focus:border-sage focus:bg-[oklch(100%_0_0/0.7)]"
+              className="bk-field bk-field-date"
             />
           </div>
         </div>
 
         {error && (
-          <p className="text-sm text-terra font-medium mt-2">{error}</p>
+          <p className="text-sm text-[var(--color-bk-clay)] font-medium mt-2">{error}</p>
         )}
 
-        <div className="flex gap-2.5 mt-6">
+        <div className="flex gap-3 mt-7">
           <Button
             variant="destructive"
             onClick={handleDelete}
             disabled={isPending}
-            className="h-10 px-3 rounded-xl text-sm"
+            className="h-11 px-3 rounded-full text-sm"
           >
             <Trash2 className="w-4 h-4" />
           </Button>
           <Button
             variant="outline"
             onClick={onClose}
-            className="flex-1 py-3 rounded-xl border-[1.5px] border-bulga-border bg-transparent font-sans text-sm font-medium text-muted-text"
+            className="flex-1 h-11 rounded-full border border-[var(--color-bk-line)] bg-transparent text-sm font-medium text-[var(--color-bk-muted)]"
           >
             Cancel
           </Button>
           <Button
             onClick={handleSave}
             disabled={isPending}
-            className="flex-[2] py-3 rounded-xl bg-bulga-text text-white font-sans text-sm font-semibold hover:opacity-85"
+            className="flex-[2] h-11 rounded-full bg-[var(--color-primary)] text-white text-sm font-semibold hover:opacity-90"
           >
-            {isPending ? "Saving..." : "Save Changes"}
+            {isPending ? "Saving..." : "Save changes"}
           </Button>
         </div>
       </DialogContent>

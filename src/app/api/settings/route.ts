@@ -10,7 +10,7 @@ export async function PATCH(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { name, monthlyIncome, currency, budgetTarget } = body;
+    const { name, monthlyIncome, currency, budgetTarget, accent } = body;
 
     await prisma.user.update({
       where: { id: token.id as string },
@@ -19,6 +19,7 @@ export async function PATCH(request: NextRequest) {
         ...(monthlyIncome !== undefined && { monthlyIncome }),
         ...(currency !== undefined && { currency }),
         ...(budgetTarget !== undefined && { budgetTarget }),
+        ...(accent !== undefined && { accent }),
       },
     });
 

@@ -1,7 +1,8 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getDashboardOverview, getSpendingData, getGoals, getTransactions, getSubscriptions, getAccounts, getInsights } from "@/lib/db/queries";
-import { DashboardShell } from "@/components/dashboard/dashboard-shell";
+import { prisma } from "@/lib/db/prisma";
+import { BulgaShell } from "@/components/bulga/bulga-shell";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -15,7 +16,7 @@ export default async function DashboardPage() {
   const userId = session.user.id;
 
   // Fetch all tab data server-side in parallel
-  const [overview, spending, goals, transactions, subscriptions, accounts, insights] = await Promise.all([
+  const [overview, spending, goals, transactions, subscriptions, accounts, insights, prefs] = await Promise.all([
     getDashboardOverview(userId, month, year).catch(() => null),
     getSpendingData(userId, month, year).catch(() => []),
     getGoals(userId).catch(() => []),
@@ -23,10 +24,11 @@ export default async function DashboardPage() {
     getSubscriptions(userId).catch(() => []),
     getAccounts(userId).catch(() => []),
     getInsights(userId).catch(() => []),
+    prisma.user.findUnique({ where: { id: userId }, select: { accent: true } }).catch(() => null),
   ]);
 
   return (
-    <DashboardShell
+    <BulgaShell
       initialData={{
         overview: overview || {
           netWorth: 0, netWorthChange: 0, monthlyIncome: 0, monthlySpend: 0,
@@ -42,6 +44,7 @@ export default async function DashboardPage() {
         subscriptions: subscriptions as never,
         accounts: accounts as never,
         insights: insights as never,
+        accent: prefs?.accent ?? null,
         month,
         year,
       }}

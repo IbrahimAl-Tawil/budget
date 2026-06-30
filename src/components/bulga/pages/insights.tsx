@@ -1,0 +1,174 @@
+"use client";
+
+// Bulga — INSIGHTS page.
+//
+// Rebuilt in the Bulga design system from the pre-redesign AI insights tab.
+// A hero with the "Generate" action (POST /api/insights/generate — rate-limited
+// to one fresh generation per day; a same-day call returns the cached set), then
+// a grid of insight cards. Each insight carries its own tag color/background from
+// the model output; the loading + empty + already-refreshed states are handled
+// inline. This is the page the overview's "See more insights" button opens.
+
+import { useState } from "react";
+import type { InsightView } from "@/lib/types";
+import { type BulgaTheme } from "@/components/bulga/theme";
+
+interface BulgaInsightsProps {
+  insights: InsightView[];
+  accent: string;
+  theme: BulgaTheme;
+}
+
+const CARD: React.CSSProperties = {
+  background: "var(--color-bk-surface)",
+  border: "1px solid var(--color-bk-line)",
+  borderRadius: 20,
+  padding: 24,
+};
+
+export function BulgaInsights({ insights: initial, theme }: BulgaInsightsProps) {
+  const [insights, setInsights] = useState<InsightView[]>(initial);
+  const [generating, setGenerating] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+
+  const generate = async () => {
+    setGenerating(true);
+    setNote(null);
+    try {
+      const res = await fetch("/api/insights/generate", { method: "POST" });
+      if (res.ok) {
+        const result = await res.json();
+        if (result.insights) setInsights(result.insights);
+        if (result.cached) setNote("You've already refreshed today — fresh insights once a day.");
+      } else {
+        setNote("Couldn't generate insights right now. Try again in a moment.");
+      }
+    } catch {
+      setNote("Couldn't reach the insights service. Check your connection and retry.");
+    }
+    setGenerating(false);
+  };
+
+  const hasInsights = insights.length > 0;
+
+  return (
+    <div className="bk-enter" style={{ maxWidth: 1000, margin: "0 auto" }}>
+      {/* ── hero · AI overview + generate ── */}
+      <section
+        style={{
+          ...CARD,
+          padding: "32px 28px",
+          marginBottom: 16,
+          background: theme.accentTint,
+          border: `1px solid ${theme.accentTintBorder}`,
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 24, flexWrap: "wrap" }}>
+          <div style={{ flex: "1 1 320px", minWidth: 0 }}>
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 7,
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                color: theme.accentDeep,
+              }}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1" />
+              </svg>
+              AI overview
+            </div>
+            <p
+              style={{
+                fontFamily: "var(--font-num), serif",
+                fontSize: 24,
+                lineHeight: 1.3,
+                letterSpacing: "-0.01em",
+                margin: "14px 0 0",
+                maxWidth: 560,
+                color: "oklch(28% 0.02 90)",
+              }}
+            >
+              {hasInsights
+                ? "Your latest financial insights, drawn from this month's activity."
+                : "Generate AI-powered insights about your spending patterns, savings opportunities, and trends."}
+            </p>
+          </div>
+          <button
+            onClick={generate}
+            disabled={generating}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              flexShrink: 0,
+              fontFamily: "inherit",
+              border: "none",
+              background: theme.accent,
+              color: "#fff",
+              fontSize: 13.5,
+              fontWeight: 600,
+              padding: "10px 18px",
+              borderRadius: 999,
+              cursor: generating ? "default" : "pointer",
+              opacity: generating ? 0.6 : 1,
+              transition: "opacity .15s",
+            }}
+          >
+            {generating ? (
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" className="bk-spin" aria-hidden="true">
+                <path d="M21 12a9 9 0 1 1-6.2-8.6" />
+              </svg>
+            ) : (
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1" />
+              </svg>
+            )}
+            {generating ? "Generating…" : "Generate insights"}
+          </button>
+        </div>
+        {note && (
+          <p style={{ margin: "14px 0 0", fontSize: 12.5, color: theme.accentDeep }}>{note}</p>
+        )}
+      </section>
+
+      {/* ── insight cards ── */}
+      {hasInsights ? (
+        <section style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          {insights.map((ins) => (
+            <div key={ins.id} style={CARD}>
+              <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                <span style={{ width: 6, height: 6, borderRadius: 999, background: ins.tagColor, flexShrink: 0 }} />
+                <span
+                  style={{
+                    fontSize: 10.5,
+                    fontWeight: 700,
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    color: ins.tagColor,
+                  }}
+                >
+                  {ins.tag}
+                </span>
+              </div>
+              <p style={{ margin: "12px 0 0", fontSize: 14.5, lineHeight: 1.6, color: "var(--color-bk-ink)" }}>
+                {ins.body}
+              </p>
+            </div>
+          ))}
+        </section>
+      ) : (
+        <section style={{ ...CARD, textAlign: "center", padding: "40px 24px" }}>
+          <p style={{ margin: 0, fontSize: 14, color: "var(--color-bk-muted)" }}>
+            No insights yet — hit <strong style={{ color: "var(--color-bk-ink)" }}>Generate insights</strong> above to get an
+            AI-powered read on your finances.
+          </p>
+        </section>
+      )}
+    </div>
+  );
+}

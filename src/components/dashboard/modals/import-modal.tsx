@@ -209,9 +209,9 @@ export function ImportModal({ open, onClose, onImported }: ImportModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
-      <DialogContent className="bg-[oklch(100%_0_0/0.62)] backdrop-blur-[40px] backdrop-saturate-[2] border border-[oklch(100%_0_0/0.6)] rounded-3xl p-8 max-w-[520px] shadow-[0_2px_0_oklch(100%_0_0/0.8)_inset,0_32px_80px_oklch(16%_0.02_260/0.2),0_4px_16px_oklch(16%_0.02_260/0.08)]">
+      <DialogContent className="max-w-[560px] p-9">
         <DialogHeader>
-          <DialogTitle className="font-serif text-2xl tracking-[-0.02em]">
+          <DialogTitle className="text-2xl font-bold tracking-[-0.02em] text-[var(--color-bk-ink)]">
             Import Transactions
           </DialogTitle>
         </DialogHeader>
@@ -222,18 +222,18 @@ export function ImportModal({ open, onClose, onImported }: ImportModalProps) {
             <div
               onDrop={handleDrop}
               onDragOver={(e) => e.preventDefault()}
-              className="border-2 border-dashed border-bulga-border rounded-2xl p-8 text-center cursor-pointer hover:border-sage transition-colors"
+              className="border-2 border-dashed border-[var(--color-bk-line)] rounded-2xl p-8 text-center cursor-pointer hover:border-[var(--color-primary)] transition-colors"
               onClick={() =>
                 document.getElementById("file-input")?.click()
               }
             >
-              <Upload className="w-8 h-8 mx-auto text-muted-text mb-3" />
-              <p className="text-sm font-medium text-bulga-text">
+              <Upload className="w-8 h-8 mx-auto text-[var(--color-bk-muted)] mb-3" />
+              <p className="text-sm font-medium text-[var(--color-bk-ink)]">
                 {files.length
                   ? `${files.length} file${files.length > 1 ? "s" : ""} selected`
                   : "Drop CSV or PDF files here"}
               </p>
-              <p className="text-xs text-muted-text mt-1">
+              <p className="text-xs text-[var(--color-bk-muted)] mt-1">
                 or click to browse — multiple files supported
               </p>
               <input
@@ -246,20 +246,20 @@ export function ImportModal({ open, onClose, onImported }: ImportModalProps) {
               />
             </div>
             {files.length > 0 && (
-              <div className="space-y-1.5 max-h-[140px] overflow-y-auto custom-scrollbar">
+              <div className="space-y-1.5 max-h-[140px] overflow-y-auto bk-scroll">
                 {files.map((f, i) => (
                   <div
                     key={i}
-                    className="flex items-center gap-2 p-2.5 rounded-xl bg-[oklch(100%_0_0/0.4)] border border-[oklch(28%_0.012_260/0.1)]"
+                    className="flex items-center gap-2 p-2.5 rounded-xl bg-[oklch(98%_0.004_90)] border border-[var(--color-bk-line)]"
                   >
-                    <FileText className="w-4 h-4 text-sage shrink-0" />
-                    <span className="text-sm flex-1 truncate max-w-[280px]">{f.name}</span>
-                    <span className="text-xs text-muted-text shrink-0">
+                    <FileText className="w-4 h-4 text-[var(--color-primary)] shrink-0" />
+                    <span className="text-sm flex-1 truncate max-w-[280px] text-[var(--color-bk-ink)]">{f.name}</span>
+                    <span className="text-xs text-[var(--color-bk-muted)] shrink-0">
                       {(f.size / 1024).toFixed(1)} KB
                     </span>
                     <button
                       onClick={(e) => { e.stopPropagation(); removeFile(i); }}
-                      className="text-xs text-muted-text hover:text-terra shrink-0 ml-1"
+                      className="text-xs text-[var(--color-bk-muted)] hover:text-[var(--color-bk-clay)] shrink-0 ml-1"
                     >
                       ✕
                     </button>
@@ -268,12 +268,12 @@ export function ImportModal({ open, onClose, onImported }: ImportModalProps) {
               </div>
             )}
             {error && (
-              <p className="text-sm text-terra font-medium">{error}</p>
+              <p className="text-sm text-[var(--color-bk-clay)] font-medium">{error}</p>
             )}
             <Button
               onClick={handleUpload}
               disabled={!files.length}
-              className="w-full h-11 rounded-xl bg-bulga-text text-white font-semibold text-sm hover:opacity-90"
+              className="w-full h-11 rounded-full bg-[var(--color-primary)] text-white font-semibold text-sm hover:opacity-90"
             >
               Upload & Parse
             </Button>
@@ -283,12 +283,12 @@ export function ImportModal({ open, onClose, onImported }: ImportModalProps) {
         {/* Column Mapping Step */}
         {step === "mapping" && (
           <div className="mt-4 space-y-4">
-            <p className="text-sm text-muted-text">
+            <p className="text-sm text-[var(--color-bk-muted)]">
               Map the columns to the right fields:
             </p>
             {["date", "name", "amount"].map((field) => (
               <div key={field}>
-                <label className="block text-xs font-semibold text-muted-text tracking-[0.06em] uppercase mb-1.5">
+                <label className="block text-[11px] font-semibold tracking-[0.09em] uppercase text-[var(--color-bk-faint)] mb-1.5">
                   {field === "name" ? "Description" : field}
                 </label>
                 <div className="relative">
@@ -300,7 +300,7 @@ export function ImportModal({ open, onClose, onImported }: ImportModalProps) {
                         [field]: Number(e.target.value),
                       }))
                     }
-                    className="w-full pl-4 pr-10 py-2.5 rounded-xl border-[1.5px] border-[oklch(28%_0.012_260/0.14)] bg-[oklch(100%_0_0/0.55)] font-sans text-sm text-bulga-text placeholder:text-muted-text outline-none transition-colors focus:border-sage focus:bg-[oklch(100%_0_0/0.7)] appearance-none"
+                    className="bk-field-select"
                   >
                     {headers.map((h, i) => (
                       <option key={i} value={i}>
@@ -308,17 +308,17 @@ export function ImportModal({ open, onClose, onImported }: ImportModalProps) {
                       </option>
                     ))}
                   </select>
-                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-muted-text" />
+                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-[var(--color-bk-muted)]" />
                 </div>
               </div>
             ))}
 
             {/* Preview */}
             <div className="overflow-x-auto">
-              <p className="text-xs text-muted-text mb-1.5">Preview (first 3 rows):</p>
+              <p className="text-xs text-[var(--color-bk-muted)] mb-1.5">Preview (first 3 rows):</p>
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="text-muted-text">
+                  <tr className="text-[var(--color-bk-muted)]">
                     <th className="text-left py-1">Date</th>
                     <th className="text-left py-1">Description</th>
                     <th className="text-right py-1">Amount</th>
@@ -326,7 +326,7 @@ export function ImportModal({ open, onClose, onImported }: ImportModalProps) {
                 </thead>
                 <tbody>
                   {sampleRows.slice(0, 3).map((row, i) => (
-                    <tr key={i} className="border-t border-bulga-border">
+                    <tr key={i} className="border-t border-[var(--color-bk-line)]">
                       <td className="py-1">{row[columnMap.date]}</td>
                       <td className="py-1">{row[columnMap.name]}</td>
                       <td className="py-1 text-right">
@@ -342,13 +342,13 @@ export function ImportModal({ open, onClose, onImported }: ImportModalProps) {
               <Button
                 variant="outline"
                 onClick={() => setStep("upload")}
-                className="flex-1 py-2.5 rounded-xl border-[1.5px] border-bulga-border bg-transparent text-sm font-medium text-muted-text"
+                className="flex-1 py-2.5 rounded-full border border-[var(--color-bk-line)] bg-transparent text-sm font-medium text-[var(--color-bk-muted)]"
               >
                 Back
               </Button>
               <Button
                 onClick={handleMapping}
-                className="flex-[2] py-2.5 rounded-xl bg-bulga-text text-white text-sm font-semibold hover:opacity-85"
+                className="flex-[2] py-2.5 rounded-full bg-[var(--color-primary)] text-white text-sm font-semibold hover:opacity-90"
               >
                 Parse {allRows.length} Transactions
               </Button>
@@ -359,11 +359,11 @@ export function ImportModal({ open, onClose, onImported }: ImportModalProps) {
         {/* Processing Step */}
         {step === "processing" && (
           <div className="mt-4 flex flex-col items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 text-sage animate-spin mb-4" />
-            <p className="text-sm font-medium text-bulga-text">
+            <Loader2 className="w-8 h-8 text-[var(--color-primary)] animate-spin mb-4" />
+            <p className="text-sm font-medium text-[var(--color-bk-ink)]">
               Processing your statement...
             </p>
-            <p className="text-xs text-muted-text mt-1">
+            <p className="text-xs text-[var(--color-bk-muted)] mt-1">
               AI is categorizing your transactions
             </p>
           </div>
@@ -372,22 +372,22 @@ export function ImportModal({ open, onClose, onImported }: ImportModalProps) {
         {/* Review Step */}
         {step === "review" && (
           <div className="mt-4 space-y-4">
-            <p className="text-sm text-muted-text">
+            <p className="text-sm text-[var(--color-bk-muted)]">
               Found {transactions.length} transactions. Review and confirm:
             </p>
-            <div className="max-h-[300px] overflow-y-auto custom-scrollbar space-y-1">
+            <div className="max-h-[300px] overflow-y-auto bk-scroll space-y-1">
               {transactions.map((tx, i) => (
                 <div
                   key={i}
-                  className="flex items-center justify-between px-3 py-2 rounded-xl bg-[oklch(100%_0_0/0.4)] border border-[oklch(28%_0.012_260/0.1)]"
+                  className="flex items-center justify-between px-3 py-2 rounded-xl bg-[oklch(98%_0.004_90)] border border-[var(--color-bk-line)]"
                 >
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{tx.name}</p>
-                    <p className="text-xs text-muted-text">{tx.date}</p>
+                    <p className="text-sm font-medium truncate text-[var(--color-bk-ink)]">{tx.name}</p>
+                    <p className="text-xs text-[var(--color-bk-muted)]">{tx.date}</p>
                   </div>
                   <span
                     className={`text-sm font-semibold tabular-nums ${
-                      tx.amount >= 0 ? "text-sage" : "text-bulga-text"
+                      tx.amount >= 0 ? "text-[var(--color-primary)]" : "text-[var(--color-bk-ink)]"
                     }`}
                   >
                     {tx.amount >= 0 ? "+" : "-"}$
@@ -397,19 +397,19 @@ export function ImportModal({ open, onClose, onImported }: ImportModalProps) {
               ))}
             </div>
             {error && (
-              <p className="text-sm text-terra font-medium">{error}</p>
+              <p className="text-sm text-[var(--color-bk-clay)] font-medium">{error}</p>
             )}
             <div className="flex gap-2.5">
               <Button
                 variant="outline"
                 onClick={() => setStep("upload")}
-                className="flex-1 py-2.5 rounded-xl border-[1.5px] border-bulga-border bg-transparent text-sm font-medium text-muted-text"
+                className="flex-1 py-2.5 rounded-full border border-[var(--color-bk-line)] bg-transparent text-sm font-medium text-[var(--color-bk-muted)]"
               >
                 Cancel
               </Button>
               <Button
                 onClick={handleConfirm}
-                className="flex-[2] py-2.5 rounded-xl bg-sage text-white text-sm font-semibold hover:opacity-85"
+                className="flex-[2] py-2.5 rounded-full bg-[var(--color-primary)] text-white text-sm font-semibold hover:opacity-90"
               >
                 Import {transactions.length} Transactions
               </Button>
@@ -420,16 +420,16 @@ export function ImportModal({ open, onClose, onImported }: ImportModalProps) {
         {/* Done Step */}
         {step === "done" && (
           <div className="mt-4 flex flex-col items-center justify-center py-12">
-            <div className="w-12 h-12 rounded-full bg-sage-light flex items-center justify-center mb-4">
-              <Check className="w-6 h-6 text-sage" />
+            <div className="w-12 h-12 rounded-full bg-[var(--color-primary)]/12 flex items-center justify-center mb-4">
+              <Check className="w-6 h-6 text-[var(--color-primary)]" />
             </div>
-            <p className="text-lg font-serif text-bulga-text">All done!</p>
-            <p className="text-sm text-muted-text mt-1">
+            <p className="text-lg font-semibold tracking-[-0.02em] text-[var(--color-bk-ink)]">All done!</p>
+            <p className="text-sm text-[var(--color-bk-muted)] mt-1">
               {importCount} transactions imported and categorized
             </p>
             <Button
               onClick={handleClose}
-              className="mt-6 h-10 px-6 rounded-xl bg-bulga-text text-white text-sm font-semibold hover:opacity-90"
+              className="mt-6 h-10 px-6 rounded-full bg-[var(--color-primary)] text-white text-sm font-semibold hover:opacity-90"
             >
               Close
             </Button>

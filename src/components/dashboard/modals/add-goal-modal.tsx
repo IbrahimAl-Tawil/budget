@@ -8,6 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { EmojiPicker } from "@/components/bulga/emoji-picker";
 
 export function AddGoalModal({
   open,
@@ -66,56 +67,50 @@ export function AddGoalModal({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="bg-[oklch(100%_0_0/0.62)] backdrop-blur-[40px] backdrop-saturate-[2] border border-[oklch(100%_0_0/0.6)] rounded-3xl p-8 max-w-[420px] shadow-[0_2px_0_oklch(100%_0_0/0.8)_inset,0_32px_80px_oklch(16%_0.02_260/0.2),0_4px_16px_oklch(16%_0.02_260/0.08)]">
+      <DialogContent className="max-w-[480px] p-9">
         <DialogHeader>
-          <DialogTitle className="font-serif text-2xl tracking-[-0.02em]">New Goal</DialogTitle>
+          <DialogTitle className="text-2xl font-bold tracking-[-0.02em] text-[var(--color-bk-ink)]">New Goal</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 mt-2">
           <div className="flex gap-3">
             <div className="w-16">
-              <label className="block text-xs font-semibold text-muted-text tracking-[0.06em] uppercase mb-2">Emoji</label>
-              <input
-                value={emoji}
-                onChange={(e) => setEmoji(e.target.value)}
-                placeholder="🎯"
-                className="w-full px-3 py-3 rounded-xl border-[1.5px] border-[oklch(28%_0.012_260/0.14)] bg-[oklch(100%_0_0/0.55)] font-sans text-lg text-center text-bulga-text placeholder:text-muted-text outline-none transition-colors focus:border-sage focus:bg-[oklch(100%_0_0/0.7)]"
-              />
+              <EmojiPicker value={emoji} onChange={setEmoji} />
             </div>
             <div className="flex-1">
-              <label className="block text-xs font-semibold text-muted-text tracking-[0.06em] uppercase mb-2">Goal Name</label>
+              <label className="block text-[11px] font-semibold tracking-[0.09em] uppercase text-[var(--color-bk-faint)] mb-1.5">Goal Name</label>
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Vacation Fund"
-                className="w-full px-4 py-3 rounded-xl border-[1.5px] border-[oklch(28%_0.012_260/0.14)] bg-[oklch(100%_0_0/0.55)] font-sans text-sm text-bulga-text placeholder:text-muted-text outline-none transition-colors focus:border-sage focus:bg-[oklch(100%_0_0/0.7)]"
+                className="bk-field"
               />
             </div>
           </div>
           <div className="flex gap-3">
             <div className="flex-1">
-              <label className="block text-xs font-semibold text-muted-text tracking-[0.06em] uppercase mb-2">Target Amount</label>
+              <label className="block text-[11px] font-semibold tracking-[0.09em] uppercase text-[var(--color-bk-faint)] mb-1.5">Target Amount</label>
               <input
                 type="number"
                 value={target}
                 onChange={(e) => setTarget(e.target.value)}
                 placeholder="10000"
-                className="w-full px-4 py-3 rounded-xl border-[1.5px] border-[oklch(28%_0.012_260/0.14)] bg-[oklch(100%_0_0/0.55)] font-sans text-sm text-bulga-text placeholder:text-muted-text outline-none transition-colors focus:border-sage focus:bg-[oklch(100%_0_0/0.7)]"
+                className="bk-field"
               />
             </div>
             <div className="flex-1">
-              <label className="block text-xs font-semibold text-muted-text tracking-[0.06em] uppercase mb-2">Already Saved</label>
+              <label className="block text-[11px] font-semibold tracking-[0.09em] uppercase text-[var(--color-bk-faint)] mb-1.5">Already Saved</label>
               <input
                 type="number"
                 value={saved}
                 onChange={(e) => setSaved(e.target.value)}
                 placeholder="0"
-                className="w-full px-4 py-3 rounded-xl border-[1.5px] border-[oklch(28%_0.012_260/0.14)] bg-[oklch(100%_0_0/0.55)] font-sans text-sm text-bulga-text placeholder:text-muted-text outline-none transition-colors focus:border-sage focus:bg-[oklch(100%_0_0/0.7)]"
+                className="bk-field"
               />
             </div>
           </div>
           <div className="flex gap-3">
             <div className="flex-1">
-              <label className="block text-xs font-semibold text-muted-text tracking-[0.06em] uppercase mb-2">Priority Weight (%)</label>
+              <label className="block text-[11px] font-semibold tracking-[0.09em] uppercase text-[var(--color-bk-faint)] mb-1.5">Priority Weight (%)</label>
               <input
                 type="number"
                 min="0"
@@ -123,24 +118,24 @@ export function AddGoalModal({
                 value={priority}
                 onChange={(e) => setPriority(e.target.value)}
                 placeholder="0 = equal split"
-                className="w-full px-4 py-3 rounded-xl border-[1.5px] border-[oklch(28%_0.012_260/0.14)] bg-[oklch(100%_0_0/0.55)] font-sans text-sm text-bulga-text placeholder:text-muted-text outline-none transition-colors focus:border-sage focus:bg-[oklch(100%_0_0/0.7)]"
+                className="bk-field"
               />
             </div>
             <div className="flex-1">
-              <label className="block text-xs font-semibold text-muted-text tracking-[0.06em] uppercase mb-2">Deadline</label>
+              <label className="block text-[11px] font-semibold tracking-[0.09em] uppercase text-[var(--color-bk-faint)] mb-1.5">Deadline</label>
               <input
                 type="date"
                 value={deadline}
                 onChange={(e) => setDeadline(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border-[1.5px] border-[oklch(28%_0.012_260/0.14)] bg-[oklch(100%_0_0/0.55)] font-sans text-sm text-bulga-text placeholder:text-muted-text outline-none transition-colors focus:border-sage focus:bg-[oklch(100%_0_0/0.7)]"
+                className="bk-field bk-field-date"
               />
             </div>
           </div>
         </div>
-        {error && <p className="text-sm text-terra font-medium mt-2">{error}</p>}
-        <div className="flex gap-2.5 mt-6">
-          <Button variant="outline" onClick={onClose} className="flex-1 py-3 rounded-xl border-[1.5px] border-bulga-border bg-transparent text-sm font-medium text-muted-text">Cancel</Button>
-          <Button onClick={handleSubmit} disabled={isPending} className="flex-[2] py-3 rounded-xl bg-sage text-white text-sm font-semibold hover:opacity-85">
+        {error && <p className="text-sm text-[var(--color-bk-clay)] font-medium mt-2">{error}</p>}
+        <div className="flex gap-3 mt-7">
+          <Button variant="outline" onClick={onClose} className="flex-1 h-11 rounded-full border border-[var(--color-bk-line)] bg-transparent text-sm font-medium text-[var(--color-bk-muted)]">Cancel</Button>
+          <Button onClick={handleSubmit} disabled={isPending} className="flex-[2] h-11 rounded-full bg-[var(--color-primary)] text-white text-sm font-semibold hover:opacity-85">
             {isPending ? "Creating..." : "Create Goal"}
           </Button>
         </div>

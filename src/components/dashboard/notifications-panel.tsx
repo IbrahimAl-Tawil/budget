@@ -76,30 +76,30 @@ export function NotificationsPanel({
   }
 
   const iconMap = {
-    warning: <TrendingUp className="w-4 h-4 text-terra" />,
-    alert: <AlertTriangle className="w-4 h-4 text-terra" />,
-    info: <Calendar className="w-4 h-4 text-sage" />,
+    warning: <TrendingUp className="w-4 h-4 text-[var(--color-bk-clay)]" />,
+    alert: <AlertTriangle className="w-4 h-4 text-[var(--color-bk-clay)]" />,
+    info: <Calendar className="w-4 h-4 text-[var(--color-primary)]" />,
   };
 
   return (
     <>
       <div className="fixed inset-0 z-40" onClick={onClose} />
-      <div className="absolute top-full right-0 mt-2 w-[320px] bg-glass backdrop-blur-[40px] backdrop-saturate-[1.8] border border-bulga-border rounded-2xl shadow-[0_24px_80px_oklch(16%_0.02_260/0.14),0_0_1px_oklch(100%_0_0/0.15)_inset] z-50 overflow-hidden">
-        <div className="px-4 py-3 border-b border-bulga-border">
-          <span className="text-xs font-semibold tracking-[0.06em] uppercase text-muted-text">
+      <div className="absolute top-full right-0 mt-2 w-[320px] bg-[var(--color-bk-surface)] border border-[var(--color-bk-line)] rounded-2xl shadow-[0_18px_50px_oklch(20%_0.02_80/0.1)] z-50 overflow-hidden">
+        <div className="px-4 py-3 border-b border-[var(--color-bk-line)]">
+          <span className="text-[11px] font-semibold tracking-[0.09em] uppercase text-[var(--color-bk-faint)]">
             Notifications
           </span>
         </div>
-        <div className="max-h-[360px] overflow-y-auto custom-scrollbar">
+        <div className="max-h-[360px] overflow-y-auto bk-scroll">
           {notifications.map((n, i) => (
             <div
               key={i}
-              className="flex gap-3 px-4 py-3 border-b border-[oklch(100%_0_0/0.1)] last:border-b-0 hover:bg-[oklch(100%_0_0/0.08)]"
+              className="flex gap-3 px-4 py-3 border-b border-[var(--color-bk-line-soft)] last:border-b-0 hover:bg-[oklch(98%_0.004_90)]"
             >
               <div className="mt-0.5 shrink-0">{iconMap[n.type]}</div>
               <div>
-                <div className="text-[13px] font-semibold">{n.title}</div>
-                <div className="text-[11px] text-muted-text mt-0.5">{n.message}</div>
+                <div className="text-[13px] font-semibold tracking-[-0.02em] text-[var(--color-bk-ink)]">{n.title}</div>
+                <div className="text-[11px] text-[var(--color-bk-muted)] mt-0.5">{n.message}</div>
               </div>
             </div>
           ))}

@@ -82,8 +82,10 @@ export async function getDashboardOverview(
     }),
   ]);
 
+  // An account's current balance is its stored (starting) balance plus the
+  // net of any transactions booked against it.
   const netWorth = accounts.reduce(
-    (sum, a) => sum + (accountBalances.get(a.id) ?? 0),
+    (sum, a) => sum + a.balance + (accountBalances.get(a.id) ?? 0),
     0
   );
   const monthlyIncome = summary.income;
@@ -361,7 +363,8 @@ export async function getAccounts(userId: string): Promise<AccountView[]> {
     name: a.name,
     type: a.type,
     num: a.number || "",
-    balance: balances.get(a.id) ?? 0,
+    // Stored (starting) balance plus the net of transactions on this account.
+    balance: a.balance + (balances.get(a.id) ?? 0),
     change: "",
     bg: a.gradient || ACCOUNT_GRADIENTS[a.type] || ACCOUNT_GRADIENTS.other,
   }));

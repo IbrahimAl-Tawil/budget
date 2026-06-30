@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { OnboardingWizard } from "@/components/onboarding/onboarding-wizard";
+import { Wordmark } from "@/components/bulga/logo";
 
 export default async function OnboardingPage() {
   const session = await auth();
@@ -9,13 +10,11 @@ export default async function OnboardingPage() {
   if (session.user.onboardingDone) redirect("/dashboard");
 
   return (
-    <div className="relative z-[1] min-h-screen flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-[var(--color-bk-canvas)] text-[var(--color-bk-ink)]">
       <div className="w-full max-w-xl mx-auto">
-        <div className="text-center mb-10 sm:mb-12">
-          <span className="font-serif text-3xl tracking-[-0.02em] text-bulga-text">
-            Bulg<em className="not-italic text-sage">a</em>
-          </span>
-          <p className="text-muted-text text-[13px] mt-3">
+        <div className="flex flex-col items-center gap-3 text-center mb-10">
+          <Wordmark size={30} />
+          <p className="text-[var(--color-bk-muted)] text-[13px]">
             Let&apos;s set up your budget
           </p>
         </div>
