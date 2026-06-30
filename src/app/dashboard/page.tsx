@@ -4,15 +4,39 @@ import { getDashboardOverview, getSpendingData, getGoals, getTransactions, getSu
 import { prisma } from "@/lib/db/prisma";
 import { BulgaShell } from "@/components/bulga/bulga-shell";
 
-export default async function DashboardPage() {
+/**
+ * Resolve the dashboard period from the URL. Both params must be present and
+ * sane (month 1–12, year within a reasonable window) or we fall back wholesale
+ * to today — never mix a valid month with a bogus year.
+ */
+function resolvePeriod(
+  rawMonth: string | undefined,
+  rawYear: string | undefined,
+  todayMonth: number,
+  todayYear: number,
+): { month: number; year: number } {
+  const month = Number(rawMonth);
+  const year = Number(rawYear);
+  const validMonth = Number.isInteger(month) && month >= 1 && month <= 12;
+  const validYear = Number.isInteger(year) && year >= 2000 && year <= todayYear + 5;
+  return validMonth && validYear ? { month, year } : { month: todayMonth, year: todayYear };
+}
+
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ month?: string; year?: string }>;
+}) {
   const session = await auth();
 
   if (!session) redirect("/login");
   if (!session.user.onboardingDone) redirect("/onboarding");
 
   const now = new Date();
-  const month = now.getMonth() + 1;
-  const year = now.getFullYear();
+  const todayMonth = now.getMonth() + 1;
+  const todayYear = now.getFullYear();
+  const sp = await searchParams;
+  const { month, year } = resolvePeriod(sp.month, sp.year, todayMonth, todayYear);
   const userId = session.user.id;
 
   // Fetch all tab data server-side in parallel
@@ -47,6 +71,8 @@ export default async function DashboardPage() {
         accent: prefs?.accent ?? null,
         month,
         year,
+        todayMonth,
+        todayYear,
       }}
     />
   );

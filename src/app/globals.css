@@ -164,6 +164,49 @@
 @keyframes bkSpin { to { transform: rotate(360deg); } }
 .bk-spin { animation: bkSpin 0.8s linear infinite; transform-origin: center; }
 
+/* Popover reveal — calm scale-fade anchored to the top-right trigger
+   (the month picker). Quicker than a page enter; same easing. */
+@keyframes bkPop {
+  from { opacity: 0; transform: translateY(-4px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+.bk-pop { animation: bkPop 0.16s cubic-bezier(0.22, 0.61, 0.36, 1) both; transform-origin: top right; }
+
+/* Round ghost icon button — the month picker's year stepper. */
+.bk-stepper-btn {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--color-bk-muted);
+  cursor: pointer;
+  transition: background 0.14s, color 0.14s;
+}
+.bk-stepper-btn:hover { background: oklch(96% 0.005 90); color: var(--color-bk-ink); }
+.bk-stepper-btn:disabled { opacity: 0.3; cursor: default; }
+.bk-stepper-btn:disabled:hover { background: transparent; color: var(--color-bk-muted); }
+
+/* Month-grid cell — the selected cell sets bg/color inline (accent fill),
+   which wins over this hover wash, so the active month stays on-accent. */
+.bk-month-cell {
+  display: grid;
+  place-items: center;
+  height: 38px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-bk-muted);
+  cursor: pointer;
+  transition: background 0.14s, color 0.14s;
+}
+.bk-month-cell:hover { background: oklch(96% 0.005 90); color: var(--color-bk-ink); }
+
 /* Sidebar icon-rail buttons — hover only when not the active (filled) item.
    Soft grey wash + ink, matching the Settings tab rail's hover state. */
 .bk-rail-btn:not([aria-current="page"]):hover {
@@ -205,5 +248,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .bk-enter { animation: none; }
+  .bk-pop { animation: none; }
   .bk-spin { animation-duration: 1.4s; }
 }

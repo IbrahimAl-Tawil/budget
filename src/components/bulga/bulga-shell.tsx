@@ -9,10 +9,10 @@
 // a hover tooltip. The whole palette is hue-derived from a single switchable
 // accent, exposed as --bk-accent on the root and passed to every page.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
-import { Home, List, CreditCard, Target, Sparkles, Bell, Plus, ChevronDown, Calendar, Settings, LogOut, PieChart, Repeat, Lightbulb } from "lucide-react";
+import { Home, List, CreditCard, Target, Sparkles, Bell, Plus, Settings, LogOut, PieChart, Repeat, Lightbulb } from "lucide-react";
 import { AddTransactionModal } from "@/components/dashboard/modals/add-transaction-modal";
 import { ImportModal } from "@/components/dashboard/modals/import-modal";
 import { EditTransactionModal } from "@/components/dashboard/modals/edit-transaction-modal";
@@ -33,6 +33,7 @@ import type {
 } from "@/lib/types";
 import { DEFAULT_ACCENT, deriveTheme, themeVars, hueOf } from "@/components/bulga/theme";
 import { LogoMark } from "@/components/bulga/logo";
+import { MonthPicker } from "@/components/bulga/month-picker";
 import { BulgaOverview } from "@/components/bulga/pages/overview";
 import { BulgaTransactions } from "@/components/bulga/pages/transactions";
 import { BulgaAccounts } from "@/components/bulga/pages/accounts";
@@ -59,8 +60,12 @@ interface InitialData {
   insights: InsightView[];
   /** Persisted brand accent (oklch); null falls back to the default evergreen. */
   accent: string | null;
+  /** Selected period (1-indexed month) — drives every dashboard query. */
   month: number;
   year: number;
+  /** Today's real period — for the picker's "this month" marker + reset. */
+  todayMonth: number;
+  todayYear: number;
 }
 
 interface NavItem {
@@ -134,6 +139,7 @@ function RailButton({
 export function BulgaShell({ initialData }: { initialData: InitialData }) {
   const { data: session } = useSession();
   const router = useRouter();
+  const [periodPending, startPeriodTransition] = useTransition();
   const [view, setView] = useState<View>("overview");
   const [accent, setAccent] = useState<string>(initialData.accent ?? DEFAULT_ACCENT);
   const [showAdd, setShowAdd] = useState(false);
@@ -178,7 +184,19 @@ export function BulgaShell({ initialData }: { initialData: InitialData }) {
     };
   }, [theme]);
 
-  const { overview, goals, transactions, accounts, spending, subscriptions, insights, month, year } = initialData;
+  const { overview, goals, transactions, accounts, spending, subscriptions, insights, month, year, todayMonth, todayYear } = initialData;
+
+  // Commit a new period to the URL; the dashboard RSC re-runs and refetches for
+  // it. Wrapped in a transition so the current UI stays put (no blank flash)
+  // and the picker can show a pending state while the new month loads.
+  const selectPeriod = useCallback(
+    (m: number, y: number) => {
+      startPeriodTransition(() => {
+        router.push(`/dashboard?month=${m}&year=${y}`, { scroll: false });
+      });
+    },
+    [router],
+  );
 
   const monthLabel = `${MONTH_NAMES[month - 1]} ${year}`;
   const txThisMonth = transactions.total;
@@ -463,30 +481,17 @@ export function BulgaShell({ initialData }: { initialData: InitialData }) {
             </div>
 
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              {/* month pill */}
-              <button
-                type="button"
-                aria-label={`Month: ${monthLabel}`}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 7,
-                  height: 38,
-                  padding: "0 15px",
-                  borderRadius: 999,
-                  border: "1px solid oklch(91% 0.006 85)",
-                  background: "oklch(98% 0.004 90)",
-                  fontFamily: "inherit",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: "oklch(40% 0.012 80)",
-                  cursor: "pointer",
-                }}
-              >
-                <Calendar size={14} strokeWidth={2} aria-hidden="true" />
-                {monthLabel}
-                <ChevronDown size={13} strokeWidth={2.2} aria-hidden="true" />
-              </button>
+              {/* month picker — drives the dashboard period */}
+              <MonthPicker
+                month={month}
+                year={year}
+                todayMonth={todayMonth}
+                todayYear={todayYear}
+                accent={accent}
+                theme={theme}
+                pending={periodPending}
+                onSelect={selectPeriod}
+              />
 
               {/* bell */}
               <div style={{ position: "relative" }}>
