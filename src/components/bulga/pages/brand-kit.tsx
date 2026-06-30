@@ -29,15 +29,15 @@ export function BulgaBrandKit({ accent, theme, onAccentChange }: BulgaBrandKitPr
     return () => cancelAnimationFrame(raf);
   }, []);
 
-  // Live palette built from the active theme (section 3). "Logo green" is the
-  // one fixed swatch — it never follows the accent.
+  // Live palette built from the active theme (section 3) — every swatch follows
+  // the accent, the logo included.
   const palette: { name: string; role: string; value: string; fixed?: boolean }[] = [
     { name: "Canvas", role: "Background", value: "var(--color-bk-canvas)" },
     { name: "Surface", role: "Cards", value: "var(--color-bk-surface)" },
     { name: "Ink", role: "Text", value: theme.ink },
     { name: "Accent", role: "Themed", value: theme.accent },
     { name: "Soft fill", role: "Accent tint", value: theme.accentTint },
-    { name: "Logo green", role: "Fixed", value: LOGO_GREEN, fixed: true },
+    { name: "Deep tone", role: "Figures", value: theme.accentDeep },
     { name: "Clay", role: "Alert", value: theme.clay },
   ];
 
@@ -63,10 +63,10 @@ export function BulgaBrandKit({ accent, theme, onAccentChange }: BulgaBrandKitPr
         }}
       >
         <div>
-          {/* The mark pins to LOGO_GREEN — it stays evergreen no matter which
-              accent is active, the one fixed point in the system. */}
+          {/* The mark tracks the active accent — pick pink and the logo turns
+              pink, so the whole identity moves as one. */}
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <LogoMark size={44} bg={LOGO_GREEN} fg="#fff" />
+            <LogoMark size={44} bg={accent} fg="#fff" />
             <span
               style={{
                 fontFamily: "var(--font-ui), system-ui, sans-serif",

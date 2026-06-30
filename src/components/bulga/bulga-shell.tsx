@@ -31,7 +31,7 @@ import type {
   AccountView,
   InsightView,
 } from "@/lib/types";
-import { DEFAULT_ACCENT, LOGO_GREEN, deriveTheme, themeVars, hueOf } from "@/components/bulga/theme";
+import { DEFAULT_ACCENT, deriveTheme, themeVars, hueOf } from "@/components/bulga/theme";
 import { LogoMark } from "@/components/bulga/logo";
 import { BulgaOverview } from "@/components/bulga/pages/overview";
 import { BulgaTransactions } from "@/components/bulga/pages/transactions";
@@ -167,8 +167,8 @@ export function BulgaShell({ initialData }: { initialData: InitialData }) {
   // Push the accent-derived tokens onto :root so they reach EVERYTHING —
   // including modals, which render through a portal into document.body and so
   // sit outside this shell's root div. Without this, dialog inputs/buttons keep
-  // reading the static evergreen :root tokens from globals.css. The logo opts
-  // out by pinning to LOGO_GREEN, so it stays evergreen regardless.
+  // reading the static evergreen :root tokens from globals.css. The logo mark
+  // tracks the accent too (see the rail), so the whole identity moves as one.
   useEffect(() => {
     const root = document.documentElement;
     const vars = themeVars(theme);
@@ -268,8 +268,8 @@ export function BulgaShell({ initialData }: { initialData: InitialData }) {
       style={
         {
           // Re-tint the whole primitive layer (Button/Input/Badge/rings/tints)
-          // from the active accent — not just --bk-accent. The logo opts out by
-          // pinning to LOGO_GREEN below.
+          // from the active accent — not just --bk-accent. The logo mark tracks
+          // the accent too (see the rail below).
           ...themeVars(theme),
           height: "100vh",
           display: "flex",
@@ -297,9 +297,9 @@ export function BulgaShell({ initialData }: { initialData: InitialData }) {
             padding: "20px 0",
           }}
         >
-            {/* mark — always the brand green, never the active accent */}
+            {/* mark — tracks the active accent (pink theme → pink mark) */}
             <div style={{ marginBottom: 24 }}>
-              <LogoMark size={22} bg={LOGO_GREEN} fg="#fff" />
+              <LogoMark size={22} bg={accent} fg="#fff" />
             </div>
 
             {/* primary nav */}

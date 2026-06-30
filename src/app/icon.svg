@@ -1,6 +1,11 @@
 <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
   <rect width="32" height="32" rx="9" fill="oklch(48% 0.115 158)"/>
-  <g transform="translate(4 4)" fill="#fff">
-    <path fill-rule="evenodd" d="M5 3h8.2a4.4 4.4 0 0 1 2.9 7.7A4.6 4.6 0 0 1 14 21H5V3Zm3.2 3v4h4.6a2 2 0 1 0 0-4H8.2Zm0 6.6v5.4H14a2.5 2.5 0 0 0 0-5H8.2v-.4Z"/>
-  </g>
+  <svg x="6.5" y="6.5" width="19" height="19" viewBox="8 8 80 80">
+    <g fill="#fff" fill-rule="evenodd">
+      <path d="M26 26 H50 C62 26 70 32 70 42 C70 48 67 52 61 55 C69 57 74 62 74 70 C74 80 65 87 51 87 H26 Z M39 34 V51 H49 C56 51 60 48 60 42 C60 37 56 34 50 34 Z M39 60 V79 H50 C58 79 63 75 63 69 C63 64 58 60 51 60 Z"/>
+      <path d="M22 26 H46 V29 H22 Z"/>
+      <path d="M22 84 H46 V87 H22 Z"/>
+      <path d="M40 28 C48 14 66 8 84 10 C76 26 58 32 40 30 Z M46 27 C56 19 70 15 80 13 C68 18 56 23 46 27 Z"/>
+    </g>
+  </svg>
 </svg>

@@ -1,9 +1,9 @@
 // Bulga brand mark.
 //
-// A bold, filled "B" monogram with knockout (negative-space) counters and a
-// fine cut splitting the two bowls — a stylized, ownable letterform rather than
-// a generic glyph. Sits in the brand's rounded-square lockup, reads cleanly
-// from a 44px tile down to a 16px favicon. Monochrome-safe.
+// A high-contrast serif "B" with open (knockout) counters whose top terminal
+// grows into a veined leaf sweeping up and to the right — a stylized, ownable
+// letterform that ties the brand to growth. Sits in the brand's rounded-square
+// lockup, reads cleanly from a 44px tile down to a 16px favicon. Monochrome-safe.
 
 import { LOGO_GREEN } from "@/components/bulga/theme";
 
@@ -35,17 +35,19 @@ export function LogoMark({ size = 30, bg = LOGO_GREEN, fg = "#fff", className }:
       }}
     >
       <svg
-        width={size * 0.62}
-        height={size * 0.62}
-        viewBox="0 0 24 24"
+        width={size * 0.66}
+        height={size * 0.66}
+        viewBox="8 8 80 80"
         fill={fg}
         aria-hidden="true"
       >
-        {/* bold filled B with knockout counters + a fine cut between the bowls */}
-        <path
-          fillRule="evenodd"
-          d="M5 3h8.2a4.4 4.4 0 0 1 2.9 7.7A4.6 4.6 0 0 1 14 21H5V3Zm3.2 3v4h4.6a2 2 0 1 0 0-4H8.2Zm0 6.6v5.4H14a2.5 2.5 0 0 0 0-5H8.2v-.4Z"
-        />
+        {/* serif B with knockout counters, slab serifs, and a veined leaf */}
+        <g fillRule="evenodd">
+          <path d="M26 26 H50 C62 26 70 32 70 42 C70 48 67 52 61 55 C69 57 74 62 74 70 C74 80 65 87 51 87 H26 Z M39 34 V51 H49 C56 51 60 48 60 42 C60 37 56 34 50 34 Z M39 60 V79 H50 C58 79 63 75 63 69 C63 64 58 60 51 60 Z" />
+          <path d="M22 26 H46 V29 H22 Z" />
+          <path d="M22 84 H46 V87 H22 Z" />
+          <path d="M40 28 C48 14 66 8 84 10 C76 26 58 32 40 30 Z M46 27 C56 19 70 15 80 13 C68 18 56 23 46 27 Z" />
+        </g>
       </svg>
     </div>
   );
