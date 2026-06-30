@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { GlassCard } from "@/components/dashboard/glass-card";
+import { GlassCard } from "@/components/dashboard/primitives/glass-card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { signOut } from "next-auth/react";
 import { Save, Trash2, LogOut } from "lucide-react";
+import { CURRENCIES } from "@/lib/constants";
 
 interface SettingsProps {
   user: {
@@ -117,10 +118,11 @@ export function SettingsClient({ user }: SettingsProps) {
               onChange={(e) => setCurrency(e.target.value)}
               className="w-full h-10 rounded-xl bg-white/70 border border-[oklch(90%_0.006_80)] px-3 text-sm font-sans outline-none"
             >
-              <option value="CAD">CAD</option>
-              <option value="USD">USD</option>
-              <option value="EUR">EUR</option>
-              <option value="GBP">GBP</option>
+              {CURRENCIES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
             </select>
           </div>
         </div>

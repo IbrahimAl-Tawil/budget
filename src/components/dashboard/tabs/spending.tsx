@@ -2,8 +2,8 @@
 
 import type { SpendCategory } from "@/lib/types";
 import { fmt } from "@/lib/format";
-import { GlassCard, CardLabel } from "./glass-card";
-import { DonutChart } from "./charts";
+import { GlassCard, CardLabel } from "@/components/dashboard/primitives/glass-card";
+import { DonutChart } from "@/components/dashboard/charts";
 
 const SPENDING_TRACK = "oklch(92% 0.006 80)";
 const ovLabelCls = "text-[11px] font-medium tracking-[0.07em] uppercase text-muted-text";

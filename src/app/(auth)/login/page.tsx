@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { signIn } from "next-auth/react";
-import { GlassCard } from "@/components/dashboard/glass-card";
+import { GlassCard } from "@/components/dashboard/primitives/glass-card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 

@@ -3,10 +3,10 @@
 import { useState } from "react";
 import type { AccountView } from "@/lib/types";
 import { fmt } from "@/lib/format";
-import { GlassCard } from "./glass-card";
+import { GlassCard } from "@/components/dashboard/primitives/glass-card";
 import { Plus, Pencil } from "lucide-react";
-import { AddAccountModal } from "./add-account-modal";
-import { EditAccountModal } from "./edit-account-modal";
+import { AddAccountModal } from "@/components/dashboard/modals/add-account-modal";
+import { EditAccountModal } from "@/components/dashboard/modals/edit-account-modal";
 
 const ovLabelCls = "text-[11px] font-medium tracking-[0.07em] uppercase text-muted-text";
 

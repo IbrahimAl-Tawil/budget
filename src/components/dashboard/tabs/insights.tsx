@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { InsightView } from "@/lib/types";
-import { GlassCard, CardLabel } from "./glass-card";
+import { GlassCard, CardLabel } from "@/components/dashboard/primitives/glass-card";
 import { Loader2, Sparkles } from "lucide-react";
 
 export function Insights({ data }: { data: InsightView[] }) {

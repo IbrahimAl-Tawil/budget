@@ -10,17 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Trash2, ChevronDown, Check } from "lucide-react";
 import type { AccountView } from "@/lib/types";
-
-const ACCOUNT_TYPES = [
-  "Chequing",
-  "Savings",
-  "TFSA",
-  "RRSP",
-  "FHSA",
-  "Credit Card",
-  "Investment",
-  "Other",
-];
+import { ACCOUNT_TYPES } from "@/lib/constants";
 
 const ACCOUNT_COLORS: { name: string; value: string }[] = [
   { name: "Charcoal", value: "linear-gradient(135deg, oklch(18% 0.012 260), oklch(28% 0.015 260))" },

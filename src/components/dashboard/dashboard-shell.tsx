@@ -4,18 +4,18 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { TABS, type Tab } from "@/lib/types";
 import type { DashboardOverview, SpendCategory, GoalView, TransactionView, SubscriptionView, AccountView, InsightView } from "@/lib/types";
-import { Overview } from "./overview";
-import { Spending } from "./spending";
-import { Goals } from "./goals";
-import { Transactions } from "./transactions";
-import { Subscriptions } from "./subscriptions";
-import { Accounts } from "./accounts";
-import { Insights } from "./insights";
-import { AddTransactionModal } from "./add-modal";
-import { ImportModal } from "./import-modal";
+import { Overview } from "@/components/dashboard/tabs/overview";
+import { Spending } from "@/components/dashboard/tabs/spending";
+import { Goals } from "@/components/dashboard/tabs/goals";
+import { Transactions } from "@/components/dashboard/tabs/transactions";
+import { Subscriptions } from "@/components/dashboard/tabs/subscriptions";
+import { Accounts } from "@/components/dashboard/tabs/accounts";
+import { Insights } from "@/components/dashboard/tabs/insights";
+import { AddTransactionModal } from "@/components/dashboard/modals/add-transaction-modal";
+import { ImportModal } from "@/components/dashboard/modals/import-modal";
 import { Bell, Settings, Plus, Upload, LogOut, Menu, X } from "lucide-react";
 import { signOut } from "next-auth/react";
-import { NotificationsPanel } from "./notifications-panel";
+import { NotificationsPanel } from "@/components/dashboard/notifications-panel";
 
 const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 

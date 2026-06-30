@@ -2,8 +2,8 @@
 
 import type { SubscriptionView } from "@/lib/types";
 import { fmt } from "@/lib/format";
-import { GlassCard, CardLabel } from "./glass-card";
-import { TxIcon } from "./tx-icon";
+import { GlassCard, CardLabel } from "@/components/dashboard/primitives/glass-card";
+import { TxIcon } from "@/components/dashboard/primitives/tx-icon";
 
 const STAT_DIVIDER = "oklch(90% 0.006 80)";
 const SPENDING_TRACK = "oklch(92% 0.006 80)";

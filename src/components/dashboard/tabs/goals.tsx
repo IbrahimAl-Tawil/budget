@@ -3,10 +3,10 @@
 import { useEffect, useState, useTransition } from "react";
 import type { GoalView, GoalAllocationView } from "@/lib/types";
 import { fmt } from "@/lib/format";
-import { GlassCard, CardLabel } from "./glass-card";
+import { GlassCard, CardLabel } from "@/components/dashboard/primitives/glass-card";
 import { Plus } from "lucide-react";
-import { AddGoalModal } from "./add-goal-modal";
-import { EditGoalModal } from "./edit-goal-modal";
+import { AddGoalModal } from "@/components/dashboard/modals/add-goal-modal";
+import { EditGoalModal } from "@/components/dashboard/modals/edit-goal-modal";
 
 interface AllocationsResponse {
   surplus: number;

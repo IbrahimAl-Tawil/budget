@@ -3,9 +3,9 @@
 import { useState } from "react";
 import type { TransactionView, SpendCategory } from "@/lib/types";
 import { fmt } from "@/lib/format";
-import { GlassCard, CardLabel } from "./glass-card";
-import { TxRow } from "./tx-row";
-import { EditTransactionModal } from "./edit-tx-modal";
+import { GlassCard, CardLabel } from "@/components/dashboard/primitives/glass-card";
+import { TxRow } from "@/components/dashboard/primitives/tx-row";
+import { EditTransactionModal } from "@/components/dashboard/modals/edit-transaction-modal";
 import { Search, Upload } from "lucide-react";
 
 const STAT_DIVIDER = "oklch(90% 0.006 80)";

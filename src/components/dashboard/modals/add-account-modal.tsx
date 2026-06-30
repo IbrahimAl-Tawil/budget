@@ -9,17 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ChevronDown } from "lucide-react";
-
-const ACCOUNT_TYPES = [
-  "Chequing",
-  "Savings",
-  "TFSA",
-  "RRSP",
-  "FHSA",
-  "Credit Card",
-  "Investment",
-  "Other",
-];
+import { ACCOUNT_TYPES } from "@/lib/constants";
 
 export function AddAccountModal({
   open,

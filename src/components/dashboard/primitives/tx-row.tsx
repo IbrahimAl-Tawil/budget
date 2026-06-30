@@ -2,7 +2,7 @@
 
 import type { TransactionView } from "@/lib/types";
 import { fmt } from "@/lib/format";
-import { TxIcon } from "./tx-icon";
+import { TxIcon } from "@/components/dashboard/primitives/tx-icon";
 
 interface TxRowProps {
   tx: TransactionView;

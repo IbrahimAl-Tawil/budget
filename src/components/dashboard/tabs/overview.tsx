@@ -3,10 +3,10 @@
 import { useState } from "react";
 import type { DashboardOverview, InsightView, TransactionView } from "@/lib/types";
 import { fmt } from "@/lib/format";
-import { GlassCard } from "./glass-card";
-import { LineChart, NWChart } from "./charts";
-import { TxRow } from "./tx-row";
-import { EditTransactionModal } from "./edit-tx-modal";
+import { GlassCard } from "@/components/dashboard/primitives/glass-card";
+import { LineChart, NWChart } from "@/components/dashboard/charts";
+import { TxRow } from "@/components/dashboard/primitives/tx-row";
+import { EditTransactionModal } from "@/components/dashboard/modals/edit-transaction-modal";
 import { Sparkles } from "lucide-react";
 
 const MONTH_NAMES = [

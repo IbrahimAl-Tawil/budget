@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
-import { GlassCard } from "@/components/dashboard/glass-card";
+import { GlassCard } from "@/components/dashboard/primitives/glass-card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,15 +19,11 @@ import {
   PenLine,
   Check,
 } from "lucide-react";
+import { ACCOUNT_TYPES, CURRENCIES } from "@/lib/constants";
 
 type AccountEntry = { name: string; type: string; balance: string };
 type RecurringEntry = { name: string; amount: string; cycle: string; dueDay?: number };
 type Mode = "choose" | "manual" | "auto";
-
-const ACCOUNT_TYPES = [
-  "Chequing", "Savings", "TFSA", "RRSP", "FHSA", "Credit Card", "Investment", "Other",
-];
-const CURRENCIES = ["CAD", "USD", "EUR", "GBP"];
 
 const MANUAL_STEPS = [
   { label: "Income", icon: DollarSign },
