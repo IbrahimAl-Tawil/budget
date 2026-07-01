@@ -9,6 +9,13 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { EmojiPicker } from "@/components/bulga/emoji-picker";
+import { gqlClient, errMessage } from "@/lib/graphql/client";
+
+const CREATE_GOAL = /* GraphQL */ `
+  mutation CreateGoal($input: GoalCreateInput!) {
+    createGoal(input: $input) { ok }
+  }
+`;
 
 export function AddGoalModal({
   open,
@@ -36,22 +43,16 @@ export function AddGoalModal({
     setError("");
     startTransition(async () => {
       try {
-        const res = await fetch("/api/goals", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+        await gqlClient.request(CREATE_GOAL, {
+          input: {
             name,
             emoji: emoji || undefined,
             target: Number(target),
             saved: Number(saved) || 0,
             priority: priority === "" ? 0 : Number(priority),
             deadline: deadline || undefined,
-          }),
+          },
         });
-        if (!res.ok) {
-          setError("Failed to create goal");
-          return;
-        }
         setName("");
         setEmoji("");
         setTarget("");
@@ -59,8 +60,8 @@ export function AddGoalModal({
         setDeadline("");
         setPriority("");
         onAdded();
-      } catch {
-        setError("Something went wrong");
+      } catch (e) {
+        setError(errMessage(e));
       }
     });
   };

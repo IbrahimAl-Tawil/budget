@@ -1,15 +1,24 @@
-import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/server";
+import { prisma } from "@/lib/db/prisma";
 import { ArrowRight, ListChecks, Wallet, Target, Sparkles } from "lucide-react";
 import { LogoMark, Wordmark } from "@/components/bulga/logo";
 
 export default async function LandingPage() {
-  const session = await auth();
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   // If already logged in, go straight to the right place.
-  if (session?.user?.onboardingDone) redirect("/dashboard");
-  if (session && !session.user.onboardingDone) redirect("/onboarding");
+  if (user) {
+    const profile = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { onboardingDone: true },
+    });
+    redirect(profile?.onboardingDone ? "/dashboard" : "/onboarding");
+  }
 
   const features = [
     { icon: Wallet, title: "Everything in one place", desc: "Accounts, cards, and investments — one calm balance." },

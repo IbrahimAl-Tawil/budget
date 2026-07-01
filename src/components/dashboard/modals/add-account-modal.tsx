@@ -15,6 +15,13 @@ import {
   type AccountFormValues,
   type AccountFormErrors,
 } from "@/components/dashboard/modals/account-form";
+import { gqlClient, errMessage } from "@/lib/graphql/client";
+
+const CREATE_ACCOUNT = /* GraphQL */ `
+  mutation CreateAccount($input: AccountCreateInput!) {
+    createAccount(input: $input) { ok }
+  }
+`;
 
 const EMPTY: AccountFormValues = {
   name: "",
@@ -57,26 +64,19 @@ export function AddAccountModal({
     setFormError("");
     startTransition(async () => {
       try {
-        const res = await fetch("/api/accounts", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+        await gqlClient.request(CREATE_ACCOUNT, {
+          input: {
             name: values.name.trim(),
             type: values.type.toLowerCase().replace(" ", "-"),
             balance: Number(values.balance) || 0, // balance defaults to 0
             number: values.number.trim() || undefined,
-            gradient: values.gradient,
-          }),
+          },
         });
-        if (!res.ok) {
-          setFormError("Couldn't create the account. Please try again.");
-          return;
-        }
         setValues(EMPTY);
         setErrors({});
         onAdded();
-      } catch {
-        setFormError("Something went wrong. Please try again.");
+      } catch (e) {
+        setFormError(errMessage(e));
       }
     });
   };

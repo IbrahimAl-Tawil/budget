@@ -1,5 +1,20 @@
 import { anthropic } from "./client";
 import { prisma } from "@/lib/db/prisma";
+import { okColor } from "@/lib/validate";
+
+const INSIGHT_TAGS = ["Spending Pattern", "Alert", "Opportunity", "Trend"];
+const DEFAULT_TAG_COLOR = "oklch(60% 0.09 155)";
+const DEFAULT_TAG_BG = "oklch(25% 0.06 155)";
+
+/** Treat model output as untrusted: clamp tag/body and reject non-color styles. */
+function sanitizeInsight(i: { tag: string; body: string; tagColor: string; tagBg: string }) {
+  return {
+    tag: INSIGHT_TAGS.includes(i.tag) ? i.tag : "Spending Pattern",
+    body: typeof i.body === "string" ? i.body.slice(0, 500) : "",
+    tagColor: okColor(i.tagColor) ? i.tagColor : DEFAULT_TAG_COLOR,
+    tagBg: okColor(i.tagBg) ? i.tagBg : DEFAULT_TAG_BG,
+  };
+}
 
 export async function generateInsightsForUser(userId: string) {
   const threeMonthsAgo = new Date();
@@ -109,19 +124,21 @@ Be specific, actionable, and reference actual numbers. Keep each insight to 1-2 
       tagBg: string;
     }[];
 
-    // Store insights in DB
+    // Store insights in DB (model output sanitized — body/tag clamped, styles
+    // validated — since tagColor/tagBg render into an inline style prop).
     const created = await Promise.all(
-      parsed.map((insight) =>
-        prisma.insight.create({
+      parsed.map((insight) => {
+        const s = sanitizeInsight(insight);
+        return prisma.insight.create({
           data: {
             userId,
-            tag: insight.tag,
-            body: insight.body,
-            tagColor: insight.tagColor,
-            tagBg: insight.tagBg,
+            tag: s.tag,
+            body: s.body,
+            tagColor: s.tagColor,
+            tagBg: s.tagBg,
           },
-        })
-      )
+        });
+      })
     );
 
     return created.map((i) => ({

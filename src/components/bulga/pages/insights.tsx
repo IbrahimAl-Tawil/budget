@@ -3,8 +3,8 @@
 // Bulga — INSIGHTS page.
 //
 // Rebuilt in the Bulga design system from the pre-redesign AI insights tab.
-// A hero with the "Generate" action (POST /api/insights/generate — rate-limited
-// to one fresh generation per day; a same-day call returns the cached set), then
+// A hero with the "Generate" action (the generateInsights GraphQL mutation —
+// rate-limited to one fresh generation per day; a same-day call returns the cached set), then
 // a grid of insight cards. Each insight carries its own tag color/background from
 // the model output; the loading + empty + already-refreshed states are handled
 // inline. This is the page the overview's "See more insights" button opens.
@@ -12,6 +12,13 @@
 import { useState } from "react";
 import type { InsightView } from "@/lib/types";
 import { type BulgaTheme } from "@/components/bulga/theme";
+import { gqlClient } from "@/lib/graphql/client";
+
+const GENERATE_INSIGHTS = /* GraphQL */ `
+  mutation GenerateInsights {
+    generateInsights
+  }
+`;
 
 interface BulgaInsightsProps {
   insights: InsightView[];
@@ -35,16 +42,11 @@ export function BulgaInsights({ insights: initial, theme }: BulgaInsightsProps) 
     setGenerating(true);
     setNote(null);
     try {
-      const res = await fetch("/api/insights/generate", { method: "POST" });
-      if (res.ok) {
-        const result = await res.json();
-        if (result.insights) setInsights(result.insights);
-        if (result.cached) setNote("You've already refreshed today — fresh insights once a day.");
-      } else {
-        setNote("Couldn't generate insights right now. Try again in a moment.");
-      }
+      const { generateInsights } = await gqlClient.request(GENERATE_INSIGHTS);
+      if (generateInsights.insights) setInsights(generateInsights.insights);
+      if (generateInsights.cached) setNote("You've already refreshed today — fresh insights once a day.");
     } catch {
-      setNote("Couldn't reach the insights service. Check your connection and retry.");
+      setNote("Couldn't generate insights right now. Try again in a moment.");
     }
     setGenerating(false);
   };

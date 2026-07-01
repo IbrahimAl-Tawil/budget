@@ -15,6 +15,13 @@ export const DEFAULT_ACCENT = "oklch(48% 0.115 158)"; // Evergreen
 export const LOGO_GREEN = "oklch(48% 0.115 158)";
 
 /**
+ * The Bulga logo coral — the brand mark now stands on its own (no tile) in a
+ * warm coral so it pops against the app's canvas and the light sidebar rail.
+ * Like LOGO_GREEN, it is fixed and ignores the active accent.
+ */
+export const LOGO_CORAL = "oklch(66% 0.17 29)";
+
+/**
  * The Canadian banknote scheme — one accent per denomination, in each note's
  * signature colour ($5 blue, $10 purple, $20 green, $50 red, $100 brown/sepia).
  * Hues are tuned to the system's accent lightness/chroma range so they read

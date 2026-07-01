@@ -1,0 +1,23 @@
+# Supabase project config, version-controlled so auth policy is reviewable and
+# reproducible via `supabase db push` / the Supabase CLI (rather than living only
+# in the dashboard). Confirm the deployed project matches these values.
+
+[auth]
+# Server-enforced password floor (the register form's minLength is client-only).
+minimum_password_length = 12
+# Require a mix so leaked-credential reuse is harder.
+password_requirements = "lower_upper_letters_digits_symbols"
+
+[auth.email]
+# Never ship with confirmations off: an unconfirmed/typo/someone-else's email
+# must not yield an authenticated session.
+enable_confirmations = true
+secure_email_change_enabled = true
+
+[auth.rate_limit]
+# Explicit caps on the auth surface (browser talks to Supabase directly, so the
+# app cannot throttle these itself). Tune to expected traffic.
+email_sent = 10
+sign_in_sign_ups = 30
+token_refresh = 150
+token_verifications = 30

@@ -1,7 +1,7 @@
 import "server-only";
 import { cache } from "react";
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/db/prisma";
 import { getDashboardOverview } from "@/lib/db/queries";
 
@@ -18,10 +18,20 @@ export { resolvePeriod } from "@/lib/period";
 
 /** Auth + onboarding guard. Returns the signed-in user; redirects otherwise. */
 export const requireUser = cache(async () => {
-  const session = await auth();
-  if (!session) redirect("/login");
-  if (!session.user.onboardingDone) redirect("/onboarding");
-  return session.user;
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  // Profile row (id === Supabase auth uuid) carries name + onboarding state.
+  const profile = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { id: true, name: true, email: true, onboardingDone: true },
+  });
+  if (!profile) redirect("/login");
+  if (!profile.onboardingDone) redirect("/onboarding");
+  return profile;
 });
 
 /** Today's real calendar month/year — computed once per request. */

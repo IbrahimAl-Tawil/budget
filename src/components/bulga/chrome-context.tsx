@@ -22,6 +22,8 @@ export interface BulgaChromeValue {
   addTransaction: () => void;
   addGoal: () => void;
   addAccount: () => void;
+  /** Open the Connect-a-bank modal. Pass a Plaid itemId to reconnect (update mode). */
+  connectBank: (updateItemId?: string) => void;
   editTransaction: (tx: TransactionView) => void;
   editGoal: (goal: GoalView) => void;
   editAccount: (account: AccountView) => void;

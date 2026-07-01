@@ -1,12 +1,12 @@
-import path from "node:path";
 import { PrismaClient } from "@prisma/client";
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+import { PrismaPg } from "@prisma/adapter-pg";
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
 
 function createPrismaClient() {
-  const dbPath = path.join(process.cwd(), "prisma", "dev.db");
-  const adapter = new PrismaBetterSqlite3({ url: dbPath });
+  // Runtime connects through the pooled Supabase URL (pgBouncer, port 6543).
+  // Prisma Migrate/CLI uses DIRECT_URL from the datasource block instead.
+  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
   return new PrismaClient({ adapter });
 }
 

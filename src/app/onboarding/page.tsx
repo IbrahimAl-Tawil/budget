@@ -1,13 +1,21 @@
-import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { prisma } from "@/lib/db/prisma";
 import { OnboardingWizard } from "@/components/onboarding/onboarding-wizard";
 import { Wordmark } from "@/components/bulga/logo";
 
 export default async function OnboardingPage() {
-  const session = await auth();
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
-  if (!session) redirect("/login");
-  if (session.user.onboardingDone) redirect("/dashboard");
+  const profile = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { name: true, onboardingDone: true },
+  });
+  if (profile?.onboardingDone) redirect("/dashboard");
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-[var(--color-bk-canvas)] text-[var(--color-bk-ink)]">
@@ -18,7 +26,7 @@ export default async function OnboardingPage() {
             Let&apos;s set up your budget
           </p>
         </div>
-        <OnboardingWizard userName={session.user.name ?? ""} />
+        <OnboardingWizard userName={profile?.name ?? ""} />
       </div>
     </div>
   );
