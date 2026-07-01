@@ -9,6 +9,15 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ChevronDown } from "lucide-react";
+import { gqlClient, errMessage } from "@/lib/graphql/client";
+
+const CATEGORIES = /* GraphQL */ `query Categories { categories { name } }`;
+
+const CREATE_TRANSACTION = /* GraphQL */ `
+  mutation CreateTransaction($input: TransactionCreateInput!) {
+    createTransaction(input: $input) { ok }
+  }
+`;
 
 interface AddTransactionModalProps {
   open: boolean;
@@ -34,13 +43,11 @@ export function AddTransactionModal({
 
   useEffect(() => {
     if (open) {
-      fetch("/api/settings/categories")
-        .then((r) => r.json())
-        .then((data) => {
-          if (data.categories) {
-            setCategories(data.categories.map((c: { name: string }) => c.name));
-          }
-        })
+      gqlClient
+        .request(CATEGORIES)
+        .then(({ categories }) =>
+          setCategories(categories.map((c: { name: string }) => c.name)),
+        )
         .catch(() => {
           // Fallback categories
           setCategories([
@@ -72,23 +79,15 @@ export function AddTransactionModal({
     setError("");
     startTransition(async () => {
       try {
-        const res = await fetch("/api/transactions", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+        await gqlClient.request(CREATE_TRANSACTION, {
+          input: {
             name: form.name,
             amount: Number(form.amount),
             category: form.category,
             type: form.type,
             date: form.date,
-          }),
+          },
         });
-
-        if (!res.ok) {
-          const data = await res.json();
-          setError(data.error || "Failed to add transaction");
-          return;
-        }
 
         // Reset form and close
         setForm({
@@ -100,8 +99,8 @@ export function AddTransactionModal({
         });
         onClose();
         onAdded?.();
-      } catch {
-        setError("Something went wrong");
+      } catch (e) {
+        setError(errMessage(e));
       }
     });
   };

@@ -68,6 +68,12 @@ export interface AccountView {
   balance: number;
   change: string;
   bg: string;
+  /** True for accounts synced from a linked bank (Plaid). */
+  synced?: boolean;
+  /** Institution name for synced accounts (e.g. "TD"). */
+  institution?: string;
+  /** Pre-formatted last-sync date (e.g. "Jun 30"), server-computed. */
+  syncedLabel?: string;
 }
 
 export interface InsightView {

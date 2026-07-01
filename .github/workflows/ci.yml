@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npm run lint
+      - run: npx tsc --noEmit
+      - name: Build
+        run: npm run build
+        env:
+          # Placeholders so the build (which never connects) doesn't fail on
+          # missing env. Real values live in the host's encrypted env store.
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+          DIRECT_URL: postgresql://ci:ci@localhost:5432/ci
+      # Fail on CRITICAL advisories in production deps. High advisories are
+      # triaged via Dependabot instead of hard-failing, because the only current
+      # prod highs (fast-uri, hono) are pulled transitively by Prisma's own dev
+      # server (@prisma/client → prisma → @prisma/dev) and are NOT in the app's
+      # runtime request path — see SECURITY.md. Re-tighten to `high` once Prisma
+      # ships a fix.
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=critical

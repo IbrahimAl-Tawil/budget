@@ -11,8 +11,9 @@
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useSession, signOut } from "next-auth/react";
-import { Home, List, CreditCard, Target, Sparkles, Bell, Plus, Settings, LogOut, PieChart, Repeat, Lightbulb } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import { gqlClient } from "@/lib/graphql/client";
+import { Home, List, CreditCard, Target, Sparkles, Bell, Plus, Settings, LogOut, PieChart, Repeat, Lightbulb, Landmark } from "lucide-react";
 import { AddTransactionModal } from "@/components/dashboard/modals/add-transaction-modal";
 import { ImportModal } from "@/components/dashboard/modals/import-modal";
 import { EditTransactionModal } from "@/components/dashboard/modals/edit-transaction-modal";
@@ -20,6 +21,7 @@ import { AddGoalModal } from "@/components/dashboard/modals/add-goal-modal";
 import { EditGoalModal } from "@/components/dashboard/modals/edit-goal-modal";
 import { AddAccountModal } from "@/components/dashboard/modals/add-account-modal";
 import { EditAccountModal } from "@/components/dashboard/modals/edit-account-modal";
+import { ConnectBankModal } from "@/components/dashboard/modals/connect-bank-modal";
 import { NotificationsPanel } from "@/components/dashboard/notifications-panel";
 import { SettingsModal } from "@/components/dashboard/modals/settings-modal";
 import type { TransactionView, GoalView, AccountView, SpendCategory, BillView } from "@/lib/types";
@@ -29,6 +31,12 @@ import { MonthPicker } from "@/components/bulga/month-picker";
 import { BulgaChromeProvider } from "@/components/bulga/chrome-context";
 import { MONTH_NAMES } from "@/lib/constants";
 import { resolvePeriod } from "@/lib/period";
+
+const UPDATE_ACCENT = /* GraphQL */ `
+  mutation UpdateAccent($accent: String) {
+    updateSettings(input: { accent: $accent }) { ok }
+  }
+`;
 
 interface NavItem {
   href: string;
@@ -130,7 +138,6 @@ export function BulgaChrome({
   todayYear: number;
   children: React.ReactNode;
 }) {
-  const { data: session } = useSession();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -145,6 +152,8 @@ export function BulgaChrome({
   const [showSettings, setShowSettings] = useState(false);
   const [showAddGoal, setShowAddGoal] = useState(false);
   const [showAddAccount, setShowAddAccount] = useState(false);
+  const [showConnectBank, setShowConnectBank] = useState(false);
+  const [connectUpdateItemId, setConnectUpdateItemId] = useState<string | null>(null);
   const [editTx, setEditTx] = useState<TransactionView | null>(null);
   const [editGoal, setEditGoal] = useState<GoalView | null>(null);
   const [editAccount, setEditAccount] = useState<AccountView | null>(null);
@@ -152,14 +161,15 @@ export function BulgaChrome({
   // Mutations live in the modals; refetch server data by re-running the active RSC.
   const refresh = () => router.refresh();
 
+  const handleSignOut = async () => {
+    await createClient().auth.signOut();
+    window.location.href = "/login";
+  };
+
   // Switch the accent live AND persist it (fire-and-forget — UI already applied).
   const setAccent = useCallback((next: string) => {
     setAccentState(next);
-    fetch("/api/settings", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ accent: next }),
-    }).catch(() => {});
+    gqlClient.request(UPDATE_ACCENT, { accent: next }).catch(() => {});
   }, []);
 
   // Memoized so the object identity is stable across renders that don't change
@@ -198,7 +208,7 @@ export function BulgaChrome({
     [router, pathname, todayMonth, todayYear]
   );
 
-  const userName = session?.user?.name ?? user.name ?? null;
+  const userName = user.name ?? null;
   const initials = userName
     ? userName.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
     : null;
@@ -219,6 +229,10 @@ export function BulgaChrome({
       addTransaction: () => setShowAdd(true),
       addGoal: () => setShowAddGoal(true),
       addAccount: () => setShowAddAccount(true),
+      connectBank: (updateItemId?: string) => {
+        setConnectUpdateItemId(updateItemId ?? null);
+        setShowConnectBank(true);
+      },
       editTransaction: setEditTx,
       editGoal: setEditGoal,
       editAccount: setEditAccount,
@@ -251,7 +265,7 @@ export function BulgaChrome({
         >
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", height: "100%", padding: "20px 0" }}>
             <div style={{ marginBottom: 24 }}>
-              <LogoMark size={22} bg={accent} fg="#fff" />
+              <LogoMark size={22} />
             </div>
 
             <nav aria-label="Primary" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -314,7 +328,7 @@ export function BulgaChrome({
                       <Settings size={15} strokeWidth={2} aria-hidden="true" />
                       Settings
                     </button>
-                    <button type="button" role="menuitem" className="bk-menu-item" onClick={() => { setShowProfileMenu(false); signOut({ callbackUrl: "/login" }); }}>
+                    <button type="button" role="menuitem" className="bk-menu-item" onClick={() => { setShowProfileMenu(false); handleSignOut(); }}>
                       <LogOut size={15} strokeWidth={2} aria-hidden="true" />
                       Log out
                     </button>
@@ -417,6 +431,10 @@ export function BulgaChrome({
                         <List size={15} strokeWidth={2} aria-hidden="true" />
                         Import statement
                       </button>
+                      <button type="button" role="menuitem" onClick={() => { setShowAddMenu(false); setShowConnectBank(true); }} className="bk-menu-item">
+                        <Landmark size={15} strokeWidth={2} aria-hidden="true" />
+                        Connect a bank
+                      </button>
                     </div>
                   </>
                 )}
@@ -438,6 +456,7 @@ export function BulgaChrome({
         <EditGoalModal open={!!editGoal} goal={editGoal} onClose={() => setEditGoal(null)} onUpdated={() => { setEditGoal(null); refresh(); }} />
         <AddAccountModal open={showAddAccount} onClose={() => setShowAddAccount(false)} onAdded={() => { setShowAddAccount(false); refresh(); }} />
         <EditAccountModal open={!!editAccount} account={editAccount} onClose={() => setEditAccount(null)} onUpdated={() => { setEditAccount(null); refresh(); }} />
+        <ConnectBankModal open={showConnectBank} updateItemId={connectUpdateItemId ?? undefined} onClose={() => setShowConnectBank(false)} onLinked={() => { refresh(); }} />
         <SettingsModal
           open={showSettings}
           onClose={() => setShowSettings(false)}

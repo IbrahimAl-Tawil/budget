@@ -6,7 +6,7 @@
 // are identical everywhere.
 
 import { useState } from "react";
-import { ChevronDown, Eye, EyeOff } from "lucide-react";
+import { Check, ChevronDown, Eye, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const labelCls =
@@ -90,6 +90,87 @@ export function PasswordInput({ invalid, className, ...props }: TextInputProps) 
       >
         {revealed ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
       </button>
+    </div>
+  );
+}
+
+export interface PasswordRule {
+  label: string;
+  test: (value: string) => boolean;
+}
+
+/**
+ * The rules a new password must satisfy. Shared between the live meter and the
+ * submit-time validation so the two never drift out of sync.
+ */
+export const PASSWORD_RULES: PasswordRule[] = [
+  { label: "8 or more characters", test: (v) => v.length >= 8 },
+  { label: "One uppercase letter", test: (v) => /[A-Z]/.test(v) },
+  { label: "One special character", test: (v) => /[^A-Za-z0-9]/.test(v) },
+];
+
+/** True when a password satisfies every rule. */
+export function passwordMeetsRules(value: string): boolean {
+  return PASSWORD_RULES.every((rule) => rule.test(value));
+}
+
+// Strength tiers keyed by how many rules are met (index = met − 1). Restrained
+// palette: clay → warm gold → the evergreen accent. No off-brand traffic lights.
+const STRENGTH_TIERS = [
+  { label: "Weak", color: "var(--color-bk-clay)" },
+  { label: "Fair", color: "oklch(70% 0.13 75)" },
+  { label: "Strong", color: "var(--color-primary)" },
+];
+
+/**
+ * Live password-strength feedback: a segmented meter plus a checklist of the
+ * rules. Renders nothing until the user starts typing.
+ */
+export function PasswordStrength({ value }: { value: string }) {
+  if (!value) return null;
+
+  const met = PASSWORD_RULES.map((rule) => rule.test(value));
+  const count = met.filter(Boolean).length;
+  const tier = STRENGTH_TIERS[Math.max(0, count - 1)];
+
+  return (
+    <div className="mt-2.5">
+      <div className="flex items-center gap-2.5">
+        <div className="flex gap-1 flex-1" aria-hidden>
+          {PASSWORD_RULES.map((_, i) => (
+            <span
+              key={i}
+              className="h-1 flex-1 rounded-full transition-colors duration-300"
+              style={{ background: i < count ? tier.color : "var(--color-bk-line)" }}
+            />
+          ))}
+        </div>
+        <span
+          className="text-[11px] font-semibold tracking-[0.04em] w-[42px] text-right"
+          style={{ color: tier.color }}
+        >
+          {tier.label}
+        </span>
+      </div>
+
+      <ul className="mt-2.5 flex flex-col gap-1.5" aria-label="Password requirements">
+        {PASSWORD_RULES.map((rule, i) => (
+          <li key={rule.label} className="flex items-center gap-2 text-[12px]">
+            <span
+              className="grid place-items-center w-4 h-4 rounded-full shrink-0 transition-colors duration-200"
+              style={{
+                background: met[i] ? "var(--color-primary)" : "transparent",
+                border: met[i] ? "none" : "1px solid var(--color-bk-line)",
+              }}
+            >
+              {met[i] && <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />}
+            </span>
+            <span style={{ color: met[i] ? "var(--color-bk-muted)" : "var(--color-bk-faint)" }}>
+              {rule.label}
+            </span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

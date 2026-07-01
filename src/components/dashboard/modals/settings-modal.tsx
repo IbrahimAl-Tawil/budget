@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Dialog,
@@ -11,18 +11,59 @@ import {
 import { Button } from "@/components/ui/button";
 import { Tabs, type TabItem } from "@/components/bulga/tabs";
 import { SchemePicker } from "@/components/bulga/scheme-picker";
-import { signOut, useSession } from "next-auth/react";
-import { User, Wallet, ShieldAlert, Download, ChevronDown, Database, Palette, Trash2, Check } from "lucide-react";
+import { useBulgaChrome } from "@/components/bulga/chrome-context";
+import { createClient } from "@/lib/supabase/client";
+import { gqlClient } from "@/lib/graphql/client";
+import { User, Wallet, ShieldAlert, Download, ChevronDown, Database, Palette, Trash2, Check, Landmark, Unlink, RefreshCw, Loader2, Plus } from "lucide-react";
 import { CURRENCIES } from "@/lib/constants";
 
-type SettingsTab = "profile" | "money" | "appearance" | "data";
+const PLAID_ITEMS = /* GraphQL */ `
+  query PlaidItems {
+    plaidItems {
+      itemId
+      institutionName
+      status
+      lastSyncedAt
+      accountCount
+    }
+  }
+`;
+
+const UNLINK_PLAID_ITEM = /* GraphQL */ `
+  mutation UnlinkPlaidItem($itemId: ID) {
+    unlinkPlaidItem(itemId: $itemId) { ok }
+  }
+`;
+
+const UPDATE_SETTINGS = /* GraphQL */ `
+  mutation UpdateSettings($input: SettingsUpdateInput!) {
+    updateSettings(input: $input) { ok }
+  }
+`;
+
+const DELETE_MY_ACCOUNT = /* GraphQL */ `
+  mutation DeleteMyAccount {
+    deleteMyAccount { ok }
+  }
+`;
+
+type SettingsTab = "profile" | "money" | "connections" | "appearance" | "data";
 
 const TABS: TabItem[] = [
   { value: "profile", label: "Profile", icon: User },
   { value: "appearance", label: "Appearance", icon: Palette },
   { value: "money", label: "Money", icon: Wallet },
+  { value: "connections", label: "Connections", icon: Landmark },
   { value: "data", label: "Data", icon: Database },
 ];
+
+interface PlaidConnection {
+  itemId: string;
+  institutionName: string | null;
+  status: string;
+  lastSyncedAt: string | null;
+  accountCount: number;
+}
 
 interface SettingsModalProps {
   open: boolean;
@@ -76,8 +117,48 @@ function SectionHead({
 
 export function SettingsModal({ open, onClose, user, accent, onAccentChange, onSaved }: SettingsModalProps) {
   const router = useRouter();
-  const { update } = useSession();
+  const { connectBank } = useBulgaChrome();
   const [tab, setTab] = useState<SettingsTab>("profile");
+
+  // ── Connections (linked banks) ──
+  const [connections, setConnections] = useState<PlaidConnection[] | null>(null);
+  const [connLoading, setConnLoading] = useState(false);
+  const [disconnecting, setDisconnecting] = useState<string | null>(null);
+
+  const loadConnections = useCallback(async () => {
+    setConnLoading(true);
+    try {
+      const { plaidItems } = await gqlClient.request<{ plaidItems: PlaidConnection[] }>(
+        PLAID_ITEMS,
+      );
+      setConnections(plaidItems ?? []);
+    } catch {
+      setConnections([]);
+    } finally {
+      setConnLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (open && tab === "connections") loadConnections();
+  }, [open, tab, loadConnections]);
+
+  const disconnect = async (itemId: string) => {
+    setDisconnecting(itemId);
+    try {
+      await gqlClient.request(UNLINK_PLAID_ITEM, { itemId });
+      await loadConnections();
+      router.refresh();
+    } finally {
+      setDisconnecting(null);
+    }
+  };
+
+  // Connecting/reconnecting opens the Plaid overlay, so close settings first.
+  const startConnect = (updateItemId?: string) => {
+    onClose();
+    connectBank(updateItemId);
+  };
 
   const [name, setName] = useState(user.name);
   const [monthlyIncome, setMonthlyIncome] = useState(String(user.monthlyIncome));
@@ -147,8 +228,12 @@ export function SettingsModal({ open, onClose, user, accent, onAccentChange, onS
   const handleDeleteAccount = () => {
     if (!deleteUnlocked) return;
     setDeleting(true);
-    fetch("/api/settings", { method: "DELETE" })
-      .then(() => signOut({ callbackUrl: "/login" }))
+    gqlClient
+      .request(DELETE_MY_ACCOUNT)
+      .then(async () => {
+        await createClient().auth.signOut();
+        window.location.href = "/login";
+      })
       .catch(() => setDeleting(false));
   };
 
@@ -159,21 +244,14 @@ export function SettingsModal({ open, onClose, user, accent, onAccentChange, onS
     const trimmedName = values.name.trim();
     setSaveStatus("saving");
     try {
-      const res = await fetch("/api/settings", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      await gqlClient.request(UPDATE_SETTINGS, {
+        input: {
           name: trimmedName,
           monthlyIncome: Number(values.monthlyIncome) || 0,
           currency: values.currency,
           budgetTarget: Number(values.budgetTarget) || 0,
-        }),
+        },
       });
-      if (!res.ok) {
-        setSaveStatus("error");
-        return;
-      }
-      if (trimmedName !== user.name) await update({ name: trimmedName });
       setSaveStatus("saved");
       router.refresh();
       onSaved?.();
@@ -298,6 +376,94 @@ export function SettingsModal({ open, onClose, user, accent, onAccentChange, onS
                     </div>
                   </div>
                 </div>
+              </section>
+            )}
+
+            {tab === "connections" && (
+              <section className="bk-enter">
+                <SectionHead icon={Landmark} title="Connections" desc="Linked banks that sync balances and transactions automatically." />
+
+                {connLoading && connections === null ? (
+                  <div className="flex items-center gap-2 text-[13px] text-[var(--color-bk-muted)]">
+                    <Loader2 className="w-4 h-4 animate-spin" /> Loading…
+                  </div>
+                ) : connections && connections.length > 0 ? (
+                  <div className="flex flex-col gap-2.5 max-w-[460px]">
+                    {connections.map((c) => {
+                      const needsFix = c.status === "login_required" || c.status === "error";
+                      const statusLabel =
+                        c.status === "active" ? "Connected" : c.status === "login_required" ? "Needs reconnect" : "Sync error";
+                      const busy = disconnecting === c.itemId;
+                      return (
+                        <div
+                          key={c.itemId}
+                          className="flex items-center gap-3 rounded-xl border border-[var(--color-bk-line)] bg-[oklch(98%_0.004_90)] p-3.5"
+                        >
+                          <div
+                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px]"
+                            style={{ background: "var(--accent)", color: "var(--color-primary)" }}
+                          >
+                            <Landmark className="w-[17px] h-[17px]" strokeWidth={1.9} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="truncate text-[13.5px] font-semibold text-[var(--color-bk-ink)]">
+                                {c.institutionName || "Bank"}
+                              </span>
+                              <span
+                                className="shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-semibold"
+                                style={
+                                  needsFix
+                                    ? { background: "var(--color-bk-clay-tint)", color: "var(--color-bk-clay)" }
+                                    : { background: "var(--accent)", color: "var(--color-primary)" }
+                                }
+                              >
+                                {statusLabel}
+                              </span>
+                            </div>
+                            <div className="text-[12px] text-[var(--color-bk-muted)] mt-0.5">
+                              {c.accountCount} {c.accountCount === 1 ? "account" : "accounts"}
+                              {c.lastSyncedAt
+                                ? ` · Updated ${new Date(c.lastSyncedAt).toLocaleDateString("en-CA", { month: "short", day: "numeric" })}`
+                                : ""}
+                            </div>
+                          </div>
+                          {needsFix && (
+                            <button
+                              type="button"
+                              onClick={() => startConnect(c.itemId)}
+                              className="flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-[var(--color-primary)] px-3 text-[12.5px] font-semibold text-white hover:opacity-85"
+                            >
+                              <RefreshCw className="w-3.5 h-3.5" /> Reconnect
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => disconnect(c.itemId)}
+                            disabled={busy}
+                            aria-label={`Disconnect ${c.institutionName || "bank"}`}
+                            className="flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-[var(--color-bk-line)] px-3 text-[12.5px] font-medium text-[var(--color-bk-muted)] hover:border-[var(--color-bk-clay)] hover:text-[var(--color-bk-clay)] transition-colors disabled:opacity-50"
+                          >
+                            {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Unlink className="w-3.5 h-3.5" />}
+                            {busy ? "Removing…" : "Disconnect"}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-[13px] text-[var(--color-bk-muted)] max-w-[420px]">
+                    No banks connected yet. Link one to import balances and transactions automatically.
+                  </p>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => startConnect()}
+                  className="mt-4 flex h-10 items-center gap-2 rounded-full bg-[var(--color-primary)] px-4 text-[13px] font-semibold text-white hover:opacity-85"
+                >
+                  <Plus className="w-4 h-4" /> Connect a bank
+                </button>
               </section>
             )}
 

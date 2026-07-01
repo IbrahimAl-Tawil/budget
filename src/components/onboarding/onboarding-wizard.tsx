@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { useSession } from "next-auth/react";
 import { Card } from "@/components/bulga/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -21,10 +20,36 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { ACCOUNT_TYPES, CURRENCIES } from "@/lib/constants";
+import { ConnectBankModal } from "@/components/dashboard/modals/connect-bank-modal";
+import { gqlClient, gqlUpload, errMessage } from "@/lib/graphql/client";
+
+const AUTO_ONBOARD = /* GraphQL */ `
+  mutation AutoOnboardFromFiles($files: [File!]!, $currency: String, $monthlyIncome: Float) {
+    autoOnboardFromFiles(files: $files, currency: $currency, monthlyIncome: $monthlyIncome)
+  }
+`;
+
+const COMPLETE_ONBOARDING = /* GraphQL */ `
+  mutation CompleteOnboarding($input: OnboardingInput!) {
+    completeOnboarding(input: $input)
+  }
+`;
+
+const CONFIRM_IMPORT = /* GraphQL */ `
+  mutation ConfirmImport($input: ConfirmImportInput!) {
+    confirmImport(input: $input)
+  }
+`;
+
+const DETECTED_INCOME = /* GraphQL */ `
+  query DetectedMonthlyIncome {
+    detectedMonthlyIncome
+  }
+`;
 
 type AccountEntry = { name: string; type: string; balance: string };
 type RecurringEntry = { name: string; amount: string; cycle: string; dueDay?: number };
-type Mode = "choose" | "manual" | "auto";
+type Mode = "choose" | "manual" | "auto" | "connect";
 
 const MANUAL_STEPS = [
   { label: "Income", icon: DollarSign },
@@ -38,6 +63,11 @@ const AUTO_STEPS = [
   { label: "Upload", icon: Upload },
   { label: "Analyzing", icon: Brain },
   { label: "Review", icon: ClipboardCheck },
+];
+
+const CONNECT_STEPS = [
+  { label: "Setup", icon: DollarSign },
+  { label: "Connect", icon: Landmark },
 ];
 
 // Full-size fields use the shared system class (one source of truth). The
@@ -78,7 +108,6 @@ function WizardSelect({
 }
 
 export function OnboardingWizard({ userName }: { userName: string }) {
-  const { update } = useSession();
   const [mode, setMode] = useState<Mode>("choose");
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -97,6 +126,13 @@ export function OnboardingWizard({ userName }: { userName: string }) {
   const [recurring, setRecurring] = useState<RecurringEntry[]>([
     { name: "", amount: "", cycle: "Monthly" },
   ]);
+
+  // Connect (Plaid) fields
+  const [showConnect, setShowConnect] = useState(false);
+  const [bankConnected, setBankConnected] = useState(false);
+  // True once we've queried the bank for income after linking (regardless of
+  // whether any was found) — drives the "detected vs. couldn't detect" copy.
+  const [incomeDetected, setIncomeDetected] = useState(false);
 
   // Auto fields
   const [files, setFiles] = useState<File[]>([]);
@@ -122,6 +158,10 @@ export function OnboardingWizard({ userName }: { userName: string }) {
     }
     if (mode === "auto") {
       return step === 0 ? files.length > 0 : true;
+    }
+    if (mode === "connect") {
+      // Income isn't asked here — it's read from the bank after linking.
+      return step === 0 ? Number(monthlySavings) > 0 : true;
     }
     return false;
   };
@@ -169,23 +209,11 @@ export function OnboardingWizard({ userName }: { userName: string }) {
     setError("");
 
     try {
-      const formData = new FormData();
-      for (const f of files) formData.append("files", f);
-      formData.append("currency", currency);
-
-      const res = await fetch("/api/onboarding/auto", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        setError(data.error || "Analysis failed");
-        setStep(0);
-        return;
-      }
-
-      const data = await res.json();
+      const { autoOnboardFromFiles: data } = await gqlUpload(
+        AUTO_ONBOARD,
+        { files: files.map(() => null), currency },
+        files.map((file, i) => ({ path: `variables.files.${i}`, file })),
+      );
       setAutoAnalysis(data.analysis);
 
       // Pre-fill editable fields from analysis
@@ -213,8 +241,8 @@ export function OnboardingWizard({ userName }: { userName: string }) {
       );
 
       setStep(2); // "Review" step
-    } catch {
-      setError("Failed to analyze files. Please try again.");
+    } catch (e) {
+      setError(errMessage(e));
       setStep(0);
     }
   };
@@ -228,13 +256,12 @@ export function OnboardingWizard({ userName }: { userName: string }) {
       const validAccounts = accounts.filter((a) => a.name && a.balance);
       const validRecurring = recurring.filter((r) => r.name && r.amount);
 
-      const res = await fetch("/api/onboarding", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      await gqlClient.request(COMPLETE_ONBOARDING, {
+        input: {
           monthlyIncome: Number(monthlyIncome),
           currency,
-          budgetTarget: Number(budgetTarget),
+          // Never negative — detected income can come in under the savings goal.
+          budgetTarget: Math.max(0, Number(budgetTarget) || 0),
           accounts: validAccounts.map((a) => ({
             name: a.name,
             type: a.type.toLowerCase().replace(" ", "-"),
@@ -246,36 +273,26 @@ export function OnboardingWizard({ userName }: { userName: string }) {
             cycle: r.cycle,
             dueDay: r.dueDay,
           })),
-        }),
+        },
       });
-
-      if (!res.ok) {
-        const data = await res.json();
-        setError(data.error || "Something went wrong");
-        setLoading(false);
-        return;
-      }
 
       // If auto mode, also import the transactions
       if (mode === "auto" && autoAnalysis?.transactions?.length) {
-        await fetch("/api/import/confirm", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+        await gqlClient.request(CONFIRM_IMPORT, {
+          input: {
             statementId: null,
             transactions: autoAnalysis.transactions.map((t) => ({
               name: t.name,
               amount: t.amount,
               date: t.date,
             })),
-          }),
+          },
         });
       }
 
-      await update({ onboardingDone: true });
       window.location.href = "/dashboard";
-    } catch {
-      setError("Something went wrong. Please try again.");
+    } catch (e) {
+      setError(errMessage(e));
       setLoading(false);
     }
   };
@@ -288,18 +305,33 @@ export function OnboardingWizard({ userName }: { userName: string }) {
           <h2 className={HEADING_CLASS}>Welcome, {userName.split(" ")[0]}!</h2>
           <p className="text-sm text-[var(--color-bk-muted)] mb-6">How would you like to set up your budget?</p>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <button
+              onClick={() => setMode("connect")}
+              className="flex flex-col items-center gap-3 p-7 rounded-2xl border border-[var(--color-bk-line)] bg-[oklch(98%_0.004_90)] hover:border-[var(--color-primary)] transition-colors text-center group"
+            >
+              <div className="w-12 h-12 rounded-full bg-[var(--accent)] flex items-center justify-center group-hover:scale-110 transition-transform">
+                <Landmark className="w-6 h-6 text-[var(--color-primary)]" />
+              </div>
+              <div>
+                <div className="text-sm font-semibold tracking-[-0.02em] text-[var(--color-bk-ink)]">Connect a bank</div>
+                <div className="text-[11px] text-[var(--color-bk-muted)] mt-1 leading-relaxed">
+                  Link your bank to sync accounts &amp; transactions automatically
+                </div>
+              </div>
+            </button>
+
             <button
               onClick={() => setMode("auto")}
               className="flex flex-col items-center gap-3 p-7 rounded-2xl border border-[var(--color-bk-line)] bg-[oklch(98%_0.004_90)] hover:border-[var(--color-primary)] transition-colors text-center group"
             >
               <div className="w-12 h-12 rounded-full bg-[var(--color-sage-light)] flex items-center justify-center group-hover:scale-110 transition-transform">
-                <Brain className="w-6 h-6 text-[var(--color-primary)]" />
+                <Upload className="w-6 h-6 text-[var(--color-primary)]" />
               </div>
               <div>
-                <div className="text-sm font-semibold tracking-[-0.02em] text-[var(--color-bk-ink)]">Automatic</div>
+                <div className="text-sm font-semibold tracking-[-0.02em] text-[var(--color-bk-ink)]">Upload statements</div>
                 <div className="text-[11px] text-[var(--color-bk-muted)] mt-1 leading-relaxed">
-                  Upload bank statements and let AI extract everything
+                  Upload PDF or CSV statements &mdash; AI extracts your accounts &amp; expenses
                 </div>
               </div>
             </button>
@@ -325,7 +357,7 @@ export function OnboardingWizard({ userName }: { userName: string }) {
   }
 
   // --- Determine steps based on mode ---
-  const steps = mode === "manual" ? MANUAL_STEPS : AUTO_STEPS;
+  const steps = mode === "manual" ? MANUAL_STEPS : mode === "connect" ? CONNECT_STEPS : AUTO_STEPS;
   const totalSteps = steps.length;
   const isLastStep = step === totalSteps - 1;
 
@@ -480,6 +512,76 @@ export function OnboardingWizard({ userName }: { userName: string }) {
                 fmtCurrency={fmtCurrency}
                 error={error}
               />
+            )}
+          </>
+        )}
+
+        {/* ====== CONNECT (Plaid) MODE ====== */}
+        {mode === "connect" && (
+          <>
+            {/* Step 1: Setup (savings goal + currency — income comes from the bank) */}
+            {step === 0 && (
+              <div className="space-y-6 sm:space-y-7" key="connect-setup">
+                <div>
+                  <h2 className={HEADING_CLASS}>A few basics</h2>
+                  <p className="text-sm text-[var(--color-bk-muted)]">Set your savings goal and currency — we&apos;ll read your income straight from your bank.</p>
+                </div>
+                <div>
+                  <label className={LABEL_CLASS}>Monthly Savings</label>
+                  <Input type="number" value={monthlySavings} onChange={(e) => setMonthlySavings(e.target.value)} placeholder="1000" min="0" step="100" className={FIELD_CLASS} />
+                  <p className="text-xs text-[var(--color-bk-muted)] mt-1.5">
+                    How much you want to set aside each month. We&apos;ll subtract this from your income to set your spending budget.
+                  </p>
+                </div>
+                <div>
+                  <label className={LABEL_CLASS}>Currency</label>
+                  <WizardSelect value={currency} onChange={(e) => setCurrency(e.target.value)} className={`w-full ${FIELD_CLASS}`}>
+                    {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                  </WizardSelect>
+                </div>
+              </div>
+            )}
+
+            {/* Step 2: Connect the bank */}
+            {step === 1 && (
+              <div className="space-y-6 sm:space-y-7" key="connect-link">
+                <div>
+                  <h2 className={HEADING_CLASS}>Connect your bank</h2>
+                  <p className="text-sm text-[var(--color-bk-muted)]">Securely link your bank through Plaid. We&apos;ll import your accounts and recent transactions, then keep them in sync.</p>
+                </div>
+
+                {bankConnected ? (
+                  <>
+                    <div className="flex items-center gap-3 p-4 rounded-2xl border border-[var(--color-bk-line)] bg-[var(--accent)]">
+                      <Check className="w-5 h-5 text-[var(--color-primary)]" />
+                      <div className="text-sm font-semibold text-[var(--color-bk-ink)]">Bank connected — your accounts are importing.</div>
+                    </div>
+                    <div>
+                      <label className={LABEL_CLASS}>Detected monthly income</label>
+                      <Input type="number" value={monthlyIncome} onChange={(e) => setMonthlyIncome(e.target.value)} placeholder="0" min="0" step="100" className={FIELD_CLASS} />
+                      <p className="text-xs text-[var(--color-bk-muted)] mt-1.5">
+                        {Number(monthlyIncome) > 0
+                          ? "Estimated from the deposits we just imported — edit it if it looks off."
+                          : incomeDetected
+                            ? "We couldn't detect income from your deposits yet. Enter it here, or adjust later in Settings."
+                            : "Reading your deposits…"}
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowConnect(true)}
+                    className="flex items-center justify-center gap-2 w-full h-12 rounded-2xl bg-[var(--color-primary)] text-white text-sm font-semibold hover:opacity-90 transition-opacity"
+                  >
+                    <Landmark className="w-4 h-4" /> Connect a bank
+                  </button>
+                )}
+
+                <p className="text-xs text-[var(--color-bk-muted)]">
+                  Prefer to do this later? You can connect anytime from Settings → Connections. Click “Get Started” below to finish.
+                </p>
+              </div>
             )}
           </>
         )}
@@ -675,6 +777,29 @@ export function OnboardingWizard({ userName }: { userName: string }) {
           )}
         </div>
       </Card>
+
+      <ConnectBankModal
+        open={showConnect}
+        onClose={() => setShowConnect(false)}
+        onLinked={async () => {
+          setBankConnected(true);
+          setShowConnect(false);
+          // The initial Plaid sync runs before onLinked fires, so the imported
+          // transactions are already queryable. Pre-fill the income figure.
+          try {
+            const { detectedMonthlyIncome } = await gqlClient.request<{
+              detectedMonthlyIncome: number | null;
+            }>(DETECTED_INCOME);
+            if (detectedMonthlyIncome && detectedMonthlyIncome > 0) {
+              setMonthlyIncome(String(Math.round(detectedMonthlyIncome)));
+            }
+          } catch {
+            // Leave the field for the user to fill in manually.
+          } finally {
+            setIncomeDetected(true);
+          }
+        }}
+      />
     </>
   );
 }

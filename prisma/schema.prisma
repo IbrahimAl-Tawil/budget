@@ -1,5 +1,6 @@
 datasource db {
-  provider = "sqlite"
+  // Prisma 7: connection URLs live in prisma.config.ts, not here.
+  provider = "postgresql"
 }
 
 generator client {
@@ -7,10 +8,12 @@ generator client {
 }
 
 model User {
-  id             String   @id @default(cuid())
+  // Profile row. id equals the Supabase auth.users UUID (set by the auth trigger
+  // in supabase/migrations on signup) — no self-generated default. Credentials
+  // (password) live in Supabase auth, never here.
+  id             String   @id
   name           String
   email          String   @unique
-  passwordHash   String
   monthlyIncome  Float?
   currency       String   @default("CAD")
   budgetTarget   Float?
@@ -29,6 +32,8 @@ model User {
   insights         Insight[]
   bankStatements   BankStatement[]
   goalAllocations  GoalAllocation[]
+  plaidItems       PlaidItem[]
+  plaidLinkEvents  PlaidLinkEvent[]
 }
 
 model Account {
@@ -42,8 +47,52 @@ model Account {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Plaid sync (null for manually-created accounts)
+  plaidItemId    String?
+  plaidAccountId String?   @unique
+  institution    String?
+  mask           String?
+  syncedAt       DateTime?
+
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions Transaction[]
+  plaidItem    PlaidItem?    @relation(fields: [plaidItemId], references: [id], onDelete: Cascade)
+}
+
+// One connected bank login (Plaid "Item"). Holds the encrypted access token
+// and the /transactions/sync cursor. Removing it cascades its accounts (and
+// their transactions).
+model PlaidItem {
+  id              String    @id @default(cuid())
+  userId          String
+  itemId          String    @unique
+  accessToken     String
+  institutionId   String?
+  institutionName String?
+  cursor          String?
+  status          String    @default("active") // active | login_required | error
+  error           String?
+  lastSyncedAt    DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accounts Account[]
+
+  @@index([userId])
+}
+
+// Durable log of successful bank links — kept even after an Item is disconnected
+// so connect/disconnect churn can be rate-limited (each link creates a billable
+// Plaid Item). Pruned to a rolling window.
+model PlaidLinkEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }
 
 model Category {
@@ -76,6 +125,8 @@ model Transaction {
   recurringFlag String?
   source        String   @default("manual")
   statementId   String?
+  externalId    String?  @unique // Plaid transaction_id (null for manual entries)
+  pending       Boolean  @default(false)
   createdAt     DateTime @default(now())
 
   user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)

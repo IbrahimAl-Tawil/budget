@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { signIn } from "next-auth/react";
+import { createClient } from "@/lib/supabase/client";
 import { Card } from "@/components/bulga/card";
 import { Wordmark } from "@/components/bulga/logo";
 import { Field, TextInput, PasswordInput } from "@/components/bulga/form";
@@ -14,7 +14,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // If next-auth redirected here with ?error=..., surface it inline.
+  // If redirected here with ?error=..., surface it inline.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("error")) {
@@ -27,18 +27,20 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
 
-    const result = await signIn("credentials", {
+    const supabase = createClient();
+    const { error: signInError } = await supabase.auth.signInWithPassword({
       email,
       password,
-      redirect: false,
     });
 
-    if (!result || result.error) {
+    if (signInError) {
       setError("Incorrect email or password. Please try again.");
       setLoading(false);
       return;
     }
 
+    // Full navigation so the proxy sees the fresh session cookie and routes to
+    // dashboard or onboarding as appropriate.
     window.location.href = "/dashboard";
   }
 

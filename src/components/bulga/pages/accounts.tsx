@@ -5,7 +5,7 @@
 // Net-worth hero + accounts grouped by derived section (Cash & savings /
 // Investments / Credit), wired to real AccountView data passed in as props.
 
-import { Plus } from "lucide-react";
+import { Plus, Landmark } from "lucide-react";
 
 import type { AccountView } from "@/lib/types";
 import { fmt } from "@/lib/format";
@@ -18,6 +18,7 @@ interface BulgaAccountsProps {
   theme: BulgaTheme;
   currency?: string;
   onAdd?: () => void;
+  onConnect?: () => void;
   onEdit?: (a: AccountView) => void;
 }
 
@@ -41,7 +42,8 @@ const GROUP_TINT_KEY: Record<GroupKey, string> = {
 
 /** Derive the section a free-string account type belongs to. */
 function groupOf(type: string): GroupKey {
-  const t = type.trim().toLowerCase();
+  // Normalize so both "credit-card" (stored) and "credit card" match.
+  const t = type.trim().toLowerCase().replace(/-/g, " ");
   if (t === "tfsa" || t === "rrsp" || t === "fhsa" || t === "investment") return "invest";
   if (t === "credit card") return "credit";
   // Chequing, Savings, Other-cash, and anything unknown fall into cash.
@@ -60,7 +62,7 @@ function initialOf(name: string): string {
   return (letters[0] ?? name[0] ?? "?").toUpperCase();
 }
 
-export function BulgaAccounts({ accounts, netWorth, accent, theme, currency = "CAD", onAdd, onEdit }: BulgaAccountsProps) {
+export function BulgaAccounts({ accounts, netWorth, accent, theme, currency = "CAD", onAdd, onConnect, onEdit }: BulgaAccountsProps) {
   // Bucket the accounts, preserving their incoming order within each group.
   const buckets: Record<GroupKey, AccountView[]> = { cash: [], invest: [], credit: [] };
   for (const a of accounts) buckets[groupOf(a.type)].push(a);
@@ -107,38 +109,64 @@ export function BulgaAccounts({ accounts, netWorth, accent, theme, currency = "C
             {fmt(netWorth, currency)}
           </div>
         </div>
-        <button
-          type="button"
-          onClick={() => onAdd?.()}
-          aria-label="Add account"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 7,
-            height: 39,
-            padding: "0 18px",
-            borderRadius: 9999,
-            border: "1px dashed var(--color-bk-line)",
-            background: "transparent",
-            fontSize: 13.5,
-            fontWeight: 600,
-            color: "var(--color-bk-muted)",
-            cursor: "pointer",
-            flexShrink: 0,
-            transition: "border-color .15s, color .15s",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = "var(--color-primary)";
-            e.currentTarget.style.color = "var(--color-primary)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = "var(--color-bk-line)";
-            e.currentTarget.style.color = "var(--color-bk-muted)";
-          }}
-        >
-          <Plus size={16} strokeWidth={2} aria-hidden="true" />
-          Add account
-        </button>
+        <div style={{ display: "flex", gap: 10, flexShrink: 0 }}>
+          <button
+            type="button"
+            onClick={() => onConnect?.()}
+            aria-label="Connect a bank"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 7,
+              height: 39,
+              padding: "0 18px",
+              borderRadius: 9999,
+              border: "none",
+              background: "var(--bk-accent)",
+              fontSize: 13.5,
+              fontWeight: 600,
+              color: "#fff",
+              cursor: "pointer",
+              transition: "opacity .15s",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.85")}
+            onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
+          >
+            <Landmark size={16} strokeWidth={2} aria-hidden="true" />
+            Connect a bank
+          </button>
+          <button
+            type="button"
+            onClick={() => onAdd?.()}
+            aria-label="Add account"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 7,
+              height: 39,
+              padding: "0 18px",
+              borderRadius: 9999,
+              border: "1px dashed var(--color-bk-line)",
+              background: "transparent",
+              fontSize: 13.5,
+              fontWeight: 600,
+              color: "var(--color-bk-muted)",
+              cursor: "pointer",
+              transition: "border-color .15s, color .15s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = "var(--color-primary)";
+              e.currentTarget.style.color = "var(--color-primary)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = "var(--color-bk-line)";
+              e.currentTarget.style.color = "var(--color-bk-muted)";
+            }}
+          >
+            <Plus size={16} strokeWidth={2} aria-hidden="true" />
+            Add account
+          </button>
+        </div>
       </section>
 
       {/* groups */}
@@ -224,11 +252,43 @@ export function BulgaAccounts({ accounts, netWorth, accent, theme, currency = "C
                       {initialOf(a.name)}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 14.5, fontWeight: 600 }}>{a.name}</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span
+                          style={{
+                            fontSize: 14.5,
+                            fontWeight: 600,
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          }}
+                        >
+                          {a.name}
+                        </span>
+                        {a.synced && (
+                          <span
+                            style={{
+                              flexShrink: 0,
+                              padding: "2px 8px",
+                              borderRadius: 9999,
+                              background: "var(--accent)",
+                              color: "var(--accent-foreground)",
+                              fontSize: 10.5,
+                              fontWeight: 600,
+                              letterSpacing: "0.02em",
+                            }}
+                          >
+                            Synced
+                          </span>
+                        )}
+                      </div>
                       {(() => {
-                        // Join only the parts that exist, so an account with no
-                        // number never shows a dangling "· " separator.
-                        const meta = [a.num, a.change].filter((p) => p && p.trim()).join(" · ");
+                        // For synced accounts show institution + last update;
+                        // otherwise the number + monthly change. Join only the
+                        // parts that exist, so no dangling "· " separator.
+                        const parts = a.synced
+                          ? [a.institution, a.syncedLabel && `Updated ${a.syncedLabel}`]
+                          : [a.num, a.change];
+                        const meta = parts.filter((p) => p && String(p).trim()).join(" · ");
                         return meta ? (
                           <div style={{ fontSize: 12.5, color: "var(--color-bk-muted)" }}>{meta}</div>
                         ) : null;

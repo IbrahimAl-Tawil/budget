@@ -44,9 +44,11 @@ interface AccountFormProps {
   values: AccountFormValues;
   errors: AccountFormErrors;
   onChange: (patch: Partial<AccountFormValues>) => void;
+  /** Lock the balance field — used for bank-synced accounts. */
+  lockBalance?: boolean;
 }
 
-export function AccountForm({ values, errors, onChange }: AccountFormProps) {
+export function AccountForm({ values, errors, onChange, lockBalance }: AccountFormProps) {
   return (
     <div className="flex flex-col gap-5">
       <Field label="Account name" error={errors.name} htmlFor="acct-name">
@@ -60,15 +62,22 @@ export function AccountForm({ values, errors, onChange }: AccountFormProps) {
       </Field>
 
       <div className="grid grid-cols-2 gap-4">
-        <Field label="Balance" error={errors.balance} hint={errors.balance ? undefined : "Defaults to $0.00"} htmlFor="acct-balance">
+        <Field
+          label="Balance"
+          error={errors.balance}
+          hint={errors.balance ? undefined : lockBalance ? "Managed by your bank" : "Defaults to $0.00"}
+          htmlFor="acct-balance"
+        >
           <TextInput
             id="acct-balance"
             type="number"
             inputMode="decimal"
             value={values.balance}
             invalid={!!errors.balance}
+            disabled={lockBalance}
             onChange={(e) => onChange({ balance: e.target.value })}
             placeholder="0.00"
+            className={lockBalance ? "opacity-60 cursor-not-allowed" : undefined}
           />
         </Field>
         <Field label="Type" htmlFor="acct-type">

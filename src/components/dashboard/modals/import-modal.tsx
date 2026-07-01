@@ -9,6 +9,19 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Upload, FileText, Loader2, Check, ChevronDown } from "lucide-react";
+import { gqlClient, gqlUpload, errMessage } from "@/lib/graphql/client";
+
+const PARSE_STATEMENT = /* GraphQL */ `
+  mutation ParseStatement($file: File!) {
+    parseStatement(file: $file)
+  }
+`;
+
+const CONFIRM_IMPORT = /* GraphQL */ `
+  mutation ConfirmImport($input: ConfirmImportInput!) {
+    confirmImport(input: $input)
+  }
+`;
 
 type Step = "upload" | "mapping" | "processing" | "review" | "done";
 
@@ -86,22 +99,11 @@ export function ImportModal({ open, onClose, onImported }: ImportModalProps) {
       let csvData: { headers: string[]; sampleRows: string[][]; allRows: string[][] } | null = null;
 
       for (const f of files) {
-        const formData = new FormData();
-        formData.append("file", f);
-
-        const res = await fetch("/api/import", {
-          method: "POST",
-          body: formData,
-        });
-
-        if (!res.ok) {
-          const data = await res.json();
-          setError(data.error || `Failed to upload ${f.name}`);
-          setStep("upload");
-          return;
-        }
-
-        const data = await res.json();
+        const { parseStatement: data } = await gqlUpload(
+          PARSE_STATEMENT,
+          { file: null },
+          [{ path: "variables.file", file: f }],
+        );
         ids.push(data.statementId);
 
         if (data.fileType === "pdf") {
@@ -154,8 +156,8 @@ export function ImportModal({ open, onClose, onImported }: ImportModalProps) {
         setTransactions(allParsed);
         setStep("review");
       }
-    } catch {
-      setError("Failed to upload files");
+    } catch (e) {
+      setError(errMessage(e));
       setStep("upload");
     }
   };
@@ -184,25 +186,14 @@ export function ImportModal({ open, onClose, onImported }: ImportModalProps) {
     setError("");
 
     try {
-      const res = await fetch("/api/import/confirm", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ statementId: statementIds[0], transactions }),
+      const { confirmImport: data } = await gqlClient.request(CONFIRM_IMPORT, {
+        input: { statementId: statementIds[0], transactions },
       });
-
-      if (!res.ok) {
-        const data = await res.json();
-        setError(data.error || "Import failed");
-        setStep("review");
-        return;
-      }
-
-      const data = await res.json();
       setImportCount(data.imported);
       setStep("done");
       onImported?.();
-    } catch {
-      setError("Failed to import");
+    } catch (e) {
+      setError(errMessage(e));
       setStep("review");
     }
   };

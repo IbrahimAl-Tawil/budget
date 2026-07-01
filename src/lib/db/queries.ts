@@ -364,9 +364,14 @@ export async function getAccounts(userId: string): Promise<AccountView[]> {
     type: a.type,
     num: a.number || "",
     // Stored (starting) balance plus the net of transactions on this account.
+    // For synced accounts the stored balance is an anchor set so this equals
+    // the bank-reported balance.
     balance: a.balance + (balances.get(a.id) ?? 0),
     change: "",
     bg: a.gradient || ACCOUNT_GRADIENTS[a.type] || ACCOUNT_GRADIENTS.other,
+    synced: !!a.plaidItemId,
+    institution: a.institution ?? undefined,
+    syncedLabel: a.syncedAt ? formatDate(a.syncedAt) : undefined,
   }));
 }
 

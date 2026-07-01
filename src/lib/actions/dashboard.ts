@@ -1,6 +1,6 @@
 "use server";
 
-import { auth } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
 import {
   getDashboardOverview,
   getSpendingData,
@@ -12,9 +12,12 @@ import {
 } from "@/lib/db/queries";
 
 async function getUserId() {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Unauthorized");
-  return session.user.id;
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+  return user.id;
 }
 
 export async function fetchOverview(month: number, year: number) {

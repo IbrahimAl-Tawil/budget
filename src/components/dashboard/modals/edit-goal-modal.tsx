@@ -11,6 +11,19 @@ import { Button } from "@/components/ui/button";
 import { EmojiPicker } from "@/components/bulga/emoji-picker";
 import { Trash2 } from "lucide-react";
 import type { GoalView } from "@/lib/types";
+import { gqlClient, errMessage } from "@/lib/graphql/client";
+
+const UPDATE_GOAL = /* GraphQL */ `
+  mutation UpdateGoal($id: ID!, $input: GoalUpdateInput!) {
+    updateGoal(id: $id, input: $input) { ok }
+  }
+`;
+
+const DELETE_GOAL = /* GraphQL */ `
+  mutation DeleteGoal($id: ID!) {
+    deleteGoal(id: $id) { ok }
+  }
+`;
 
 interface EditGoalModalProps {
   open: boolean;
@@ -63,27 +76,21 @@ export function EditGoalModal({
     setError("");
     startTransition(async () => {
       try {
-        const res = await fetch(`/api/goals/${goal.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+        await gqlClient.request(UPDATE_GOAL, {
+          id: goal.id,
+          input: {
             name,
             emoji: emoji || null,
             target: Number(target),
             saved: Number(saved) || 0,
             priority: priority === "" ? 0 : Number(priority),
             deadline: deadline || null,
-          }),
+          },
         });
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          setError(data.error || "Failed to update goal");
-          return;
-        }
         onClose();
         onUpdated();
-      } catch {
-        setError("Something went wrong");
+      } catch (e) {
+        setError(errMessage(e));
       }
     });
   };
@@ -96,17 +103,11 @@ export function EditGoalModal({
     }
     startTransition(async () => {
       try {
-        const res = await fetch(`/api/goals/${goal.id}`, {
-          method: "DELETE",
-        });
-        if (!res.ok) {
-          setError("Failed to delete");
-          return;
-        }
+        await gqlClient.request(DELETE_GOAL, { id: goal.id });
         onClose();
         onUpdated();
       } catch {
-        setError("Something went wrong");
+        setError("Failed to delete");
       }
     });
   };

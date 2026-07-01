@@ -1,53 +1,63 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { getToken } from "next-auth/jwt";
+import { updateSession } from "@/lib/supabase/middleware";
 
+// Next 16 middleware (Proxy). Auth gate + refreshes the Supabase session cookie
+// on every request. Onboarding gating is NOT done here — it needs the profile
+// row (onboardingDone), which requires Prisma and can't run in the Edge runtime.
+// The server page guards (lib/dashboard-context requireUser + onboarding/page)
+// enforce onboarding instead. Do not delete this file — it is auto-discovered.
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Public pages that don't need auth
-  const isPublic =
-    pathname === "/" ||
+  // Refresh the session; `response` carries the refreshed auth cookies.
+  const { response, user } = await updateSession(request);
+
+  // All API routes and the Supabase auth callback bypass redirect logic. API
+  // routes handle their own auth (GraphQL via context, the Plaid webhook via
+  // signature); /auth/callback must run unauthenticated to establish the session.
+  if (pathname.startsWith("/api") || pathname.startsWith("/auth/")) {
+    return response;
+  }
+
+  const isLoggedIn = !!user;
+  const isAuthPage =
     pathname.startsWith("/login") ||
-    pathname.startsWith("/register");
-  const isApi = pathname.startsWith("/api");
+    pathname.startsWith("/register") ||
+    // Post-sign-up "check your email" screen — reachable before a session
+    // exists (email confirmation pending); signed-in users get bounced on.
+    pathname.startsWith("/verify-email");
 
-  // Always allow API routes
-  if (isApi) return NextResponse.next();
+  // Landing page is public; it does its own logged-in redirect.
+  if (pathname === "/") return response;
 
-  const token = await getToken({ req: request, secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET });
-  const isLoggedIn = !!token;
-  const onboardingDone = token?.onboardingDone as boolean | undefined;
-
-  // Public pages: allow access, but redirect logged-in users from auth pages
-  if (isPublic) {
-    // Landing page: let everyone see it (the page itself redirects logged-in users)
-    if (pathname === "/") return NextResponse.next();
-
-    // Login/register: redirect logged-in users to dashboard or onboarding
-    if (isLoggedIn) {
-      return NextResponse.redirect(
-        new URL(onboardingDone ? "/dashboard" : "/onboarding", request.url)
-      );
-    }
-    return NextResponse.next();
+  // Signed-in users shouldn't sit on the auth pages.
+  if (isAuthPage) {
+    return isLoggedIn
+      ? redirectKeepingCookies(request, response, "/dashboard")
+      : response;
   }
 
-  // Protected pages: require auth
+  // Everything else is protected.
   if (!isLoggedIn) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    return redirectKeepingCookies(request, response, "/login");
   }
 
-  // Onboarding flow
-  const isOnboarding = pathname.startsWith("/onboarding");
-  if (!onboardingDone && !isOnboarding) {
-    return NextResponse.redirect(new URL("/onboarding", request.url));
-  }
-  if (onboardingDone && isOnboarding) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
-  }
+  return response;
+}
 
-  return NextResponse.next();
+// A redirect must carry the refreshed auth cookies from updateSession, or the
+// session won't persist across the redirect.
+function redirectKeepingCookies(
+  request: NextRequest,
+  from: NextResponse,
+  path: string,
+) {
+  const redirect = NextResponse.redirect(new URL(path, request.url));
+  for (const cookie of from.cookies.getAll()) {
+    redirect.cookies.set(cookie);
+  }
+  return redirect;
 }
 
 export const config = {

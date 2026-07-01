@@ -10,6 +10,21 @@ import {
 import { Button } from "@/components/ui/button";
 import { Trash2, ChevronDown } from "lucide-react";
 import type { TransactionView } from "@/lib/types";
+import { gqlClient, errMessage } from "@/lib/graphql/client";
+
+const CATEGORIES = /* GraphQL */ `query Categories { categories { name } }`;
+
+const UPDATE_TRANSACTION = /* GraphQL */ `
+  mutation UpdateTransaction($id: ID!, $input: TransactionUpdateInput!) {
+    updateTransaction(id: $id, input: $input) { ok }
+  }
+`;
+
+const DELETE_TRANSACTION = /* GraphQL */ `
+  mutation DeleteTransaction($id: ID!) {
+    deleteTransaction(id: $id) { ok }
+  }
+`;
 
 interface EditTransactionModalProps {
   open: boolean;
@@ -43,13 +58,11 @@ export function EditTransactionModal({
       setDate("");
       setError("");
 
-      fetch("/api/settings/categories")
-        .then((r) => r.json())
-        .then((data) => {
-          if (data.categories) {
-            setCategories(data.categories.map((c: { name: string }) => c.name));
-          }
-        })
+      gqlClient
+        .request(CATEGORIES)
+        .then(({ categories }) =>
+          setCategories(categories.map((c: { name: string }) => c.name)),
+        )
         .catch(() => {});
     }
   }, [transaction, open]);
@@ -59,30 +72,20 @@ export function EditTransactionModal({
     setError("");
     startTransition(async () => {
       try {
-        const body: Record<string, unknown> = {
+        const input: Record<string, unknown> = {
           name,
           amount: Number(amount),
           type,
           category,
         };
-        if (date) body.date = date;
+        if (date) input.date = date;
 
-        const res = await fetch(`/api/transactions/${transaction.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-
-        if (!res.ok) {
-          const data = await res.json();
-          setError(data.error || "Failed to update");
-          return;
-        }
+        await gqlClient.request(UPDATE_TRANSACTION, { id: transaction.id, input });
 
         onClose();
         onUpdated();
-      } catch {
-        setError("Something went wrong");
+      } catch (e) {
+        setError(errMessage(e));
       }
     });
   };
@@ -92,17 +95,11 @@ export function EditTransactionModal({
     if (!confirm("Delete this transaction?")) return;
     startTransition(async () => {
       try {
-        const res = await fetch(`/api/transactions/${transaction.id}`, {
-          method: "DELETE",
-        });
-        if (!res.ok) {
-          setError("Failed to delete");
-          return;
-        }
+        await gqlClient.request(DELETE_TRANSACTION, { id: transaction.id });
         onClose();
         onUpdated();
       } catch {
-        setError("Something went wrong");
+        setError("Failed to delete");
       }
     });
   };

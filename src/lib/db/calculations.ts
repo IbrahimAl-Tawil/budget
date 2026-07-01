@@ -148,3 +148,48 @@ export async function computeMonthlySurplus(
   const spending = Math.abs(spendAgg._sum.amount ?? 0);
   return { income, spending, surplus: income - spending };
 }
+
+/**
+ * Estimate a user's typical monthly income from their imported transactions —
+ * used to pre-fill the figure during bank-connect onboarding so we don't have to
+ * ask for it. Prefers deposits Plaid classified as "Income" (avoiding transfers
+ * and refunds, which land in "Other"); if that category caught nothing, falls
+ * back to all positive-amount deposits. The total is averaged over the distinct
+ * calendar months that actually have income, so a partial first import (e.g.
+ * only 90 days) still yields a sensible per-month figure.
+ *
+ * @param userId - Owner of the transactions.
+ * @returns Rounded average monthly income, or 0 when no deposits are found.
+ */
+export async function deriveMonthlyIncome(userId: string): Promise<number> {
+  const incomeCategory = await prisma.category.findUnique({
+    where: { userId_name: { userId, name: "Income" } },
+    select: { id: true },
+  });
+
+  let deposits = await prisma.transaction.findMany({
+    where: {
+      userId,
+      amount: { gt: 0 },
+      ...(incomeCategory ? { categoryId: incomeCategory.id } : {}),
+    },
+    select: { amount: true, date: true },
+  });
+
+  // Safety net: the Income category existed but matched nothing (e.g. Plaid
+  // mislabelled the paychecks) — fall back to every deposit rather than $0.
+  if (incomeCategory && deposits.length === 0) {
+    deposits = await prisma.transaction.findMany({
+      where: { userId, amount: { gt: 0 } },
+      select: { amount: true, date: true },
+    });
+  }
+
+  if (deposits.length === 0) return 0;
+
+  const total = deposits.reduce((sum, t) => sum + t.amount, 0);
+  const months = new Set(
+    deposits.map((t) => `${t.date.getFullYear()}-${t.date.getMonth()}`)
+  );
+  return Math.round(total / Math.max(1, months.size));
+}

@@ -1,9 +1,18 @@
-import { getToken } from "next-auth/jwt";
-import { NextRequest } from "next/server";
+import { createClient } from "@/lib/supabase/server";
 
-export async function getApiUser(request: NextRequest | Request) {
-  const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
-  const token = await getToken({ req: request as NextRequest, secret });
-  if (!token?.id) return null;
-  return { id: token.id as string };
+/**
+ * Current authenticated user id from the Supabase session cookie, or null.
+ * Replaces the old NextAuth JWT extraction. The `request` arg is accepted for
+ * call-site compatibility with the existing REST routes but is no longer used —
+ * the session lives in cookies, read via next/headers inside createClient().
+ */
+export async function getApiUser(
+  _request?: Request,
+): Promise<{ id: string } | null> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+  return { id: user.id };
 }
