@@ -5,20 +5,45 @@ on:
     branches: [main]
   push:
     branches: [main]
+  workflow_dispatch: # allow manual runs from the Actions tab
+
+# Cancel superseded runs on the same branch/PR — only the latest push matters.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   verify:
+    name: Verify (lint · typecheck · build)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # >=22 — required by @prisma/* and @supabase/* (see their engines field).
+          node-version: 22
           cache: npm
-      - run: npm ci
-      - run: npx prisma generate
-      - run: npm run lint
-      - run: npx tsc --noEmit
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        # npm ci already runs this via postinstall; kept explicit so the pipeline
+        # doesn't silently depend on a package.json lifecycle hook.
+        run: npx prisma generate
+
+      - name: Validate Prisma schema
+        run: npx prisma validate
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
       - name: Build
         run: npm run build
         env:
@@ -28,11 +53,12 @@ jobs:
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci
           DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
           DIRECT_URL: postgresql://ci:ci@localhost:5432/ci
-      # Fail on CRITICAL advisories in production deps. High advisories are
-      # triaged via Dependabot instead of hard-failing, because the only current
-      # prod highs (fast-uri, hono) are pulled transitively by Prisma's own dev
-      # server (@prisma/client → prisma → @prisma/dev) and are NOT in the app's
-      # runtime request path — see SECURITY.md. Re-tighten to `high` once Prisma
-      # ships a fix.
+
       - name: Audit production dependencies
+        # Fail on CRITICAL advisories in production deps. High advisories are
+        # triaged via Dependabot instead of hard-failing, because the only current
+        # prod highs (fast-uri, hono) are pulled transitively by Prisma's own dev
+        # server (@prisma/client → prisma → @prisma/dev) and are NOT in the app's
+        # runtime request path — see SECURITY.md. Re-tighten to `high` once Prisma
+        # ships a fix.
         run: npm audit --omit=dev --audit-level=critical
