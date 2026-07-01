@@ -10,14 +10,24 @@
 import { useEffect, useState, type CSSProperties } from "react";
 
 import { LogoMark } from "@/components/bulga/logo";
-import { SchemePicker } from "@/components/bulga/scheme-picker";
-import { LOGO_GREEN, type BulgaTheme } from "@/components/bulga/theme";
+import { BANKNOTE_SCHEMES, LOGO_GREEN, type BulgaTheme } from "@/components/bulga/theme";
 import { Button } from "@/components/ui/button";
 
 interface BulgaBrandKitProps {
   accent: string;
   theme: BulgaTheme;
   onAccentChange: (accent: string) => void;
+}
+
+// Rebuild an oklch() with a new lightness/chroma but the same hue — lets the
+// showcase derive tint/deep tones from a variation's own note colour so the
+// Color and Components sections retone when you switch variations.
+function parseOklch(s: string): { L: number; C: number; H: string } {
+  const p = s.replace(/oklch\(|\)/gi, "").trim().split(/[\s,/]+/);
+  return { L: parseFloat(p[0]), C: parseFloat(p[1]), H: p[2] ?? "158" };
+}
+function toOklch(L: number, C: number, H: string): string {
+  return `oklch(${L}% ${C} ${H})`;
 }
 
 export function BulgaBrandKit({ accent, theme, onAccentChange }: BulgaBrandKitProps) {
@@ -29,15 +39,47 @@ export function BulgaBrandKit({ accent, theme, onAccentChange }: BulgaBrandKitPr
     return () => cancelAnimationFrame(raf);
   }, []);
 
+  // Which banknote-palette variation is being previewed. Tapping one sets the
+  // app accent to that variation's primary green and recolours the in-context
+  // demo below so you can see all five note colours working as one set.
+  const [schemeIdx, setSchemeIdx] = useState(0);
+  const activeScheme = BANKNOTE_SCHEMES[schemeIdx];
+  const barWidths = [18, 16, 28, 20, 18];
+
+  // Accent / Soft fill / Deep tone for the whole showcase, derived from the
+  // active variation's $20 green (index 2) so Color + Components track the
+  // selected treatment: vivid → sage → forest.
+  const g = parseOklch(activeScheme.colors[2].value);
+  const preview = {
+    accent: activeScheme.colors[2].value, // the true swatch — shows the treatment as-is
+    // Filled controls (buttons, progress, ghost text on white) need enough
+    // contrast for white/legible text, so cap the fill lightness — a pale
+    // "Tundra" sage stays readable as a button instead of washing out.
+    accentFill: toOklch(Math.min(g.L, 52), g.C, g.H),
+    accentTint: toOklch(Math.min(96, g.L + 40), 0.05, g.H), // cleaner mint, keeps the hue
+    accentDeep: toOklch(Math.max(30, g.L - 16), g.C, g.H),
+  };
+
+  // Sample spending mapped one-category-per-note — the clearest proof of the
+  // banknote palette: it earns its keep on multi-series data, not as a lone
+  // accent. `share` sums to 100 for the stacked bar; `pct` is budget-used.
+  const spendDemo = [
+    { name: "Groceries", amount: "$612", pct: 78, share: 26, color: activeScheme.colors[2].value }, // $20 green
+    { name: "Transport", amount: "$340", pct: 43, share: 15, color: activeScheme.colors[0].value }, // $5 blue
+    { name: "Dining out", amount: "$455", pct: 58, share: 19, color: activeScheme.colors[3].value }, // $50 red
+    { name: "Bills", amount: "$890", pct: 96, share: 30, color: activeScheme.colors[4].value }, // $100 brown
+    { name: "Entertainment", amount: "$180", pct: 23, share: 10, color: activeScheme.colors[1].value }, // $10 purple
+  ];
+
   // Live palette built from the active theme (section 3) — every swatch follows
   // the accent, the logo included.
   const palette: { name: string; role: string; value: string; fixed?: boolean }[] = [
     { name: "Canvas", role: "Background", value: "var(--color-bk-canvas)" },
     { name: "Surface", role: "Cards", value: "var(--color-bk-surface)" },
     { name: "Ink", role: "Text", value: theme.ink },
-    { name: "Accent", role: "Themed", value: theme.accent },
-    { name: "Soft fill", role: "Accent tint", value: theme.accentTint },
-    { name: "Deep tone", role: "Figures", value: theme.accentDeep },
+    { name: "Accent", role: "Themed", value: preview.accent },
+    { name: "Soft fill", role: "Accent tint", value: preview.accentTint },
+    { name: "Deep tone", role: "Figures", value: preview.accentDeep },
     { name: "Clay", role: "Alert", value: theme.clay },
   ];
 
@@ -95,7 +137,7 @@ export function BulgaBrandKit({ accent, theme, onAccentChange }: BulgaBrandKitPr
         </div>
       </section>
 
-      {/* ── 2 · color schemes (LIVE PICKER) ── */}
+      {/* ── 2 · Canadian banknote schemes (LIVE) ── */}
       <section
         style={{
           background: "var(--color-bk-surface)",
@@ -106,16 +148,159 @@ export function BulgaBrandKit({ accent, theme, onAccentChange }: BulgaBrandKitPr
         }}
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 16 }}>
-          <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700 }}>Color schemes</h3>
-          <span style={{ fontSize: 12.5, fontWeight: 600, color: theme.accentDeep }}>
-            Tap one — the whole app retones
+          <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700 }}>Canadian banknote schemes</h3>
+          <span style={{ fontSize: 12.5, fontWeight: 600, color: activeScheme.accent }}>
+            Tap a variation to preview
           </span>
         </div>
         <p style={{ margin: "0 0 22px", fontSize: 13.5, color: muted }}>
-          Pick an accent. Fills, badges, inputs, buttons, charts and progress
-          follow it; the logo stays evergreen.
+          One palette built from all five notes — $5 blue, $10 purple, $20 green,
+          $50 red, $100 brown — in a few tonal treatments. The whole set works
+          together for charts, categories and allocations.
         </p>
-        <SchemePicker accent={accent} onAccentChange={onAccentChange} />
+
+        {/* Variation cards — each shows all five note colours as one palette */}
+        <div style={{ display: "grid", gridTemplateColumns: `repeat(${BANKNOTE_SCHEMES.length}, 1fr)`, gap: 12 }}>
+          {BANKNOTE_SCHEMES.map((s, i) => {
+            const isActive = i === schemeIdx;
+            return (
+              <button
+                key={s.name}
+                type="button"
+                onClick={() => {
+                  setSchemeIdx(i);
+                  onAccentChange(s.accent);
+                }}
+                aria-pressed={isActive}
+                style={{
+                  textAlign: "left",
+                  cursor: "pointer",
+                  padding: 14,
+                  borderRadius: 14,
+                  background: isActive ? "oklch(98% 0.004 90)" : "#fff",
+                  border: isActive ? `1.5px solid ${s.accent}` : "1px solid var(--color-bk-line)",
+                  transition: "border-color .15s, background .15s",
+                }}
+              >
+                <div style={{ display: "flex", gap: 5, marginBottom: 12 }}>
+                  {s.colors.map((c) => (
+                    <div key={c.label} style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ height: 34, borderRadius: 7, background: c.value }} />
+                      <div
+                        style={{
+                          fontSize: 9.5,
+                          fontWeight: 600,
+                          color: faint,
+                          textAlign: "center",
+                          marginTop: 4,
+                        }}
+                      >
+                        {c.label}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 700 }}>{s.name}</div>
+                <div style={{ fontSize: 11.5, color: faint, marginTop: 3, lineHeight: 1.4 }}>{s.note}</div>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* In context — all five colours used together */}
+        <div style={{ marginTop: 22, paddingTop: 20, borderTop: "1px solid var(--color-bk-line-soft)" }}>
+          <div style={{ fontSize: 11.5, color: faint, marginBottom: 12 }}>{activeScheme.name} · in context</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
+            {activeScheme.colors.map((c) => (
+              <span
+                key={c.label}
+                style={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  padding: "5px 12px",
+                  borderRadius: 999,
+                  background: c.value,
+                  color: "#fff",
+                }}
+              >
+                {c.label}
+              </span>
+            ))}
+          </div>
+          <div style={{ display: "flex", height: 12, borderRadius: 999, overflow: "hidden" }}>
+            {activeScheme.colors.map((c, idx) => (
+              <div
+                key={c.label}
+                style={{
+                  width: mounted ? `${barWidths[idx]}%` : "0%",
+                  background: c.value,
+                  transition: `width .9s cubic-bezier(.22,.61,.36,1) ${idx * 80}ms`,
+                }}
+              />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── 2b · applied to a real surface (spending) ── */}
+      <section
+        style={{
+          background: "var(--color-bk-surface)",
+          border: "1px solid var(--color-bk-line)",
+          borderRadius: 20,
+          padding: 28,
+          marginBottom: 16,
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 16 }}>
+          <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700 }}>On your spending</h3>
+          <span style={{ fontSize: 12.5, fontWeight: 600, color: faint }}>{activeScheme.name}</span>
+        </div>
+        <p style={{ margin: "0 0 22px", fontSize: 13.5, color: muted }}>
+          Where the palette earns its keep — one note colour per category, so a
+          breakdown reads at a glance instead of leaning on a single accent.
+        </p>
+
+        {/* Where it goes — one stacked bar across the five categories */}
+        <div style={{ display: "flex", height: 14, borderRadius: 999, overflow: "hidden", marginBottom: 22 }}>
+          {spendDemo.map((d, idx) => (
+            <div
+              key={d.name}
+              title={`${d.name} · ${d.amount}`}
+              style={{
+                width: mounted ? `${d.share}%` : "0%",
+                background: d.color,
+                transition: `width .9s cubic-bezier(.22,.61,.36,1) ${idx * 70}ms`,
+              }}
+            />
+          ))}
+        </div>
+
+        {/* Category rows — mirrors the real spending-tab pattern */}
+        <div style={{ display: "grid", gap: 15 }}>
+          {spendDemo.map((d, idx) => (
+            <div key={d.name} style={{ display: "grid", gridTemplateColumns: "14px 1fr", alignItems: "center", gap: 12 }}>
+              <span style={{ width: 11, height: 11, borderRadius: 4, background: d.color }} aria-hidden="true" />
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                  <span style={{ fontSize: 13.5, fontWeight: 600 }}>{d.name}</span>
+                  <span className="bk-num" style={{ fontSize: 13.5, fontWeight: 600 }}>{d.amount}</span>
+                </div>
+                <div style={{ height: 6, borderRadius: 999, background: "var(--color-bk-track)", overflow: "hidden" }}>
+                  <div
+                    style={{
+                      height: "100%",
+                      width: mounted ? `${d.pct}%` : "0%",
+                      background: d.color,
+                      borderRadius: 999,
+                      transition: `width 1s cubic-bezier(.22,.61,.36,1) ${idx * 70}ms`,
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </section>
 
       {/* ── 3 · color palette (live) ── */}
@@ -212,7 +397,7 @@ export function BulgaBrandKit({ accent, theme, onAccentChange }: BulgaBrandKitPr
             >
               $154,291
             </div>
-            <div style={{ fontFamily: "var(--font-num), Georgia, serif", fontSize: 22, marginTop: 8 }}>
+            <div style={{ fontFamily: "var(--font-num), Georgia, serif", fontSize: 22, marginTop: 8, color: preview.accentDeep }}>
               Money, made plain.
             </div>
           </div>
@@ -246,7 +431,7 @@ export function BulgaBrandKit({ accent, theme, onAccentChange }: BulgaBrandKitPr
             <Button
               style={
                 {
-                  background: theme.accent,
+                  background: preview.accentFill,
                   color: "#fff",
                   borderRadius: 999,
                   height: 38,
@@ -259,7 +444,7 @@ export function BulgaBrandKit({ accent, theme, onAccentChange }: BulgaBrandKitPr
             <Button variant="outline" style={{ borderRadius: 999, height: 38, padding: "0 18px" }}>
               Secondary
             </Button>
-            <Button variant="ghost" style={{ borderRadius: 999, height: 38, color: theme.accent }}>
+            <Button variant="ghost" style={{ borderRadius: 999, height: 38, color: preview.accentFill }}>
               Ghost →
             </Button>
           </div>
@@ -273,7 +458,7 @@ export function BulgaBrandKit({ accent, theme, onAccentChange }: BulgaBrandKitPr
                 padding: "0 18px",
                 borderRadius: 999,
                 border: "none",
-                background: theme.accent,
+                background: preview.accentFill,
                 color: "#fff",
                 fontFamily: "inherit",
                 fontSize: 13.5,
@@ -312,7 +497,7 @@ export function BulgaBrandKit({ accent, theme, onAccentChange }: BulgaBrandKitPr
                 borderRadius: 999,
                 border: "none",
                 background: "none",
-                color: theme.accent,
+                color: preview.accentFill,
                 fontFamily: "inherit",
                 fontSize: 13.5,
                 fontWeight: 600,
@@ -331,8 +516,8 @@ export function BulgaBrandKit({ accent, theme, onAccentChange }: BulgaBrandKitPr
                 fontWeight: 600,
                 padding: "5px 12px",
                 borderRadius: 999,
-                background: theme.accentTint,
-                color: theme.accentDeep,
+                background: preview.accentTint,
+                color: preview.accentDeep,
               }}
             >
               + On track
@@ -391,7 +576,7 @@ export function BulgaBrandKit({ accent, theme, onAccentChange }: BulgaBrandKitPr
                 height: "100%",
                 width: mounted ? "64%" : "0%",
                 borderRadius: 999,
-                background: theme.accent,
+                background: preview.accentFill,
                 transition: "width 1s cubic-bezier(.22,.61,.36,1)",
               }}
             />
