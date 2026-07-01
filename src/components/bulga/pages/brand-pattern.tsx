@@ -127,6 +127,7 @@ function Playground({ accent, accentDeep }: { accent: string; accentDeep: string
         <Slider label="Line gap" value={gap} min={8} max={24} onChange={setGap} />
         <Toggle label="Dashed" checked={broken} onChange={setBroken} />
       </Controls>
+      <ValuesBar values={{ amp, freq, gap, broken }} />
     </div>
   );
 }
@@ -139,7 +140,7 @@ function FlowingWaves({ accent, accentDeep }: { accent: string; accentDeep: stri
   const svgRef = useRef<SVGSVGElement>(null);
   const [amp, setAmp] = useState(8);
   const [freq, setFreq] = useState(4); // ×0.01
-  const [gap, setGap] = useState(14);
+  const [gap, setGap] = useState(15);
   const [dash, setDash] = useState(3);
   const [speed, setSpeed] = useState(6); // 1 slow → 10 fast
 
@@ -196,6 +197,7 @@ function FlowingWaves({ accent, accentDeep }: { accent: string; accentDeep: stri
         <Slider label="Line gap" value={gap} min={8} max={24} onChange={setGap} />
         <Slider label="Dash length" value={dash} min={1} max={8} onChange={setDash} />
       </Controls>
+      <ValuesBar values={{ speed, amp, freq, gap, dash }} />
     </div>
   );
 }
@@ -206,11 +208,11 @@ function FlowingWaves({ accent, accentDeep }: { accent: string; accentDeep: stri
 
 function Engraving({ accent }: { accent: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [text, setText] = useState("$");
-  const [spacing, setSpacing] = useState(6);
-  const [contrast, setContrast] = useState(6);
-  const [base, setBase] = useState(4); // ×0.1
-  const [wobble, setWobble] = useState(2); // ×0.1 of spacing
+  const [text, setText] = useState("$test");
+  const [spacing, setSpacing] = useState(5);
+  const [contrast, setContrast] = useState(3);
+  const [base, setBase] = useState(2); // ×0.1
+  const [wobble, setWobble] = useState(1); // ×0.1 of spacing
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -298,6 +300,7 @@ function Engraving({ accent }: { accent: string }) {
         <Slider label="Base weight" value={base} min={0} max={12} onChange={setBase} />
         <Slider label="Contour wobble" value={wobble} min={0} max={10} onChange={setWobble} />
       </Controls>
+      <ValuesBar values={{ text, spacing, contrast, base, wobble }} />
     </div>
   );
 }
@@ -342,6 +345,7 @@ function SealPlayground({
         <Slider label="Inner" value={seal.inner} min={3} max={8} onChange={(v) => set("inner", v)} />
         <Slider label="Pen offset" value={seal.pen} min={1} max={6} onChange={(v) => set("pen", v)} />
       </Controls>
+      <ValuesBar values={{ ...seal }} />
     </div>
   );
 }
@@ -371,6 +375,7 @@ function RibbonPlayground({ accent, accentDeep }: { accent: string; accentDeep: 
         <Slider label="Crossings" value={freq} min={4} max={28} onChange={setFreq} />
         <Slider label="Weight" value={weight} min={4} max={20} onChange={setWeight} />
       </Controls>
+      <ValuesBar values={{ amp, freq, weight }} />
     </div>
   );
 }
@@ -382,6 +387,34 @@ function RibbonPlayground({ accent, accentDeep }: { accent: string; accentDeep: 
 function Controls({ children }: { children: React.ReactNode }) {
   return (
     <div className="grid grid-cols-2 gap-x-5 gap-y-2 sm:grid-cols-3 lg:grid-cols-5">{children}</div>
+  );
+}
+
+/**
+ * Live readout of a section's current settings + a copy button. Tune the
+ * sliders, copy the JSON, and hand it back to bake in as the defaults.
+ */
+function ValuesBar({ values }: { values: Record<string, number | string | boolean> }) {
+  const [copied, setCopied] = useState(false);
+  const json = JSON.stringify(values);
+  return (
+    <div className="flex items-center gap-2 pt-1">
+      <code className="bk-scroll flex-1 overflow-x-auto whitespace-nowrap rounded-lg bg-[var(--color-bk-canvas)] px-2.5 py-1.5 text-[11px] text-[var(--color-bk-muted)]">
+        {json}
+      </code>
+      <Button
+        variant="outline"
+        size="sm"
+        className="shrink-0 px-3"
+        onClick={() => {
+          navigator.clipboard?.writeText(json);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1200);
+        }}
+      >
+        {copied ? "Copied ✓" : "Copy"}
+      </Button>
+    </div>
   );
 }
 
@@ -444,7 +477,7 @@ export function BrandPatterns() {
   const { accent, accentDeep } = theme;
   // One seal config, shared by the §01 example and the §05 playground so they
   // never drift apart.
-  const [seal, setSeal] = useState<SealConfig>({ petals: 9, inner: 5, pen: 3, label: "$" });
+  const [seal, setSeal] = useState<SealConfig>({ petals: 13, inner: 4, pen: 4, label: "$" });
   return (
     <div className="mt-8 space-y-6" style={{ maxWidth: 1000, margin: "32px auto 0" }}>
       <header className="bk-enter">
