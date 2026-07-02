@@ -19,6 +19,7 @@ const AccountCreateInput = builder.inputType("AccountCreateInput", {
     type: t.string(),
     balance: t.float({ required: true }),
     number: t.string(),
+    gradient: t.string(),
   }),
 });
 
@@ -41,6 +42,7 @@ builder.mutationField("createAccount", (t) =>
       if (!okString(input.name, LIMITS.NAME)) badRequest("Name is too long.");
       if (!okString(input.number, LIMITS.ACCOUNT_NUMBER)) badRequest("Account number is too long.");
       if (!okMoney(input.balance)) badRequest("Balance is out of range.");
+      if (!okColor(input.gradient)) badRequest("Invalid color.");
       if ((await prisma.account.count({ where: { userId } })) >= 100) {
         badRequest("Account limit reached.");
       }
@@ -51,6 +53,7 @@ builder.mutationField("createAccount", (t) =>
           type: input.type || "other",
           balance: input.balance,
           number: input.number || undefined,
+          gradient: input.gradient || undefined,
         },
       });
       return { ok: true, id: account.id };
