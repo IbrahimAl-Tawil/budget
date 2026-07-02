@@ -8,11 +8,16 @@
 // row reveal. Desktop keeps the icon rail — this whole control is display:none
 // there (see .bk-hamburger / .bk-rail in globals.css).
 
+import { useEffect, useState } from "react";
 import { Dialog } from "@base-ui/react/dialog";
 import Link from "next/link";
 import { Settings, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { LucideIcon } from "lucide-react";
+
+// Must match the .bk-hamburger / .bk-rail breakpoint in globals.css: above this
+// the hamburger is hidden and the icon rail takes over.
+const DESKTOP_QUERY = "(min-width: 769px)";
 
 interface NavItem {
   href: string;
@@ -41,6 +46,20 @@ export function MobileNav({
   onOpenSettings: () => void;
   onSignOut: () => void;
 }) {
+  // Controlled so we can force-close when the viewport grows past the desktop
+  // breakpoint: there the hamburger is hidden and the icon rail takes over, so a
+  // still-open sheet would orphan over the desktop layout with nothing that
+  // opened it. Base UI's open state is JS, not CSS, so it can't react to the
+  // breakpoint on its own — we watch matchMedia and close on the desktop side.
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia(DESKTOP_QUERY);
+    const close = () => { if (mq.matches) setOpen(false); };
+    close(); // handle a load that starts already-desktop
+    mq.addEventListener("change", close);
+    return () => mq.removeEventListener("change", close);
+  }, []);
+
   // Each row is a Dialog.Close rendering a Link, so a tap navigates and dismisses
   // in one gesture. --i drives the staggered entrance. Quiet by default: an
   // inline icon + label, no tile. The active row is the only emphasis — a soft
@@ -77,7 +96,7 @@ export function MobileNav({
   };
 
   return (
-    <Dialog.Root>
+    <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Trigger
         className="bk-hamburger group relative grid h-10 w-10 place-items-center rounded-full border border-[var(--color-border)] bg-[var(--color-background)] outline-none transition-colors hover:bg-[var(--color-bk-line-soft)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40 data-popup-open:bg-[var(--bk-accent)]"
         aria-label="Menu"
