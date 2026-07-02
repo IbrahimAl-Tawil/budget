@@ -113,49 +113,48 @@ export function MobileNav({
             </div>
           </nav>
 
-          {/* footer — account + settings + sign out */}
+          {/* footer — account identity with a Settings action, then a
+              destructive-tinted Log out row set apart below. */}
           <div className="mt-1 border-t border-[var(--color-bk-line-soft)] px-3 pt-3">
-            <div className="flex items-center gap-3 px-2.5 py-1.5">
+            <div className="flex items-center gap-3 rounded-[14px] px-2.5 py-2">
               <span
-                className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-[12px] font-bold text-white"
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-[13px] font-bold text-white"
                 style={{ background: accent }}
                 aria-hidden="true"
               >
                 {initials ?? "?"}
               </span>
-              <div className="min-w-0">
-                <div className="truncate text-[13.5px] font-semibold text-[var(--color-bk-ink)]">
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-[14px] font-semibold text-[var(--color-bk-ink)]">
                   {userName ?? "Your account"}
                 </div>
                 <div className="text-[11.5px] text-[var(--color-bk-faint)]">Free plan</div>
               </div>
-            </div>
-            <div className="mt-1 flex gap-2">
               <Dialog.Close
                 render={
                   <button
                     type="button"
                     onClick={onOpenSettings}
-                    className="flex flex-1 items-center justify-center gap-2 rounded-full border border-[var(--color-border)] px-3 py-2.5 text-[14px] font-semibold text-[var(--color-bk-ink)] outline-none transition-colors hover:bg-[var(--color-bk-line-soft)]"
+                    aria-label="Settings"
+                    className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[var(--color-border)] text-[var(--color-bk-muted)] outline-none transition-colors hover:bg-[var(--color-bk-line-soft)] hover:text-[var(--color-bk-ink)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40"
                   >
-                    <Settings size={16} strokeWidth={2} aria-hidden="true" />
-                    Settings
-                  </button>
-                }
-              />
-              <Dialog.Close
-                render={
-                  <button
-                    type="button"
-                    onClick={onSignOut}
-                    className="flex flex-1 items-center justify-center gap-2 rounded-full border border-[var(--color-border)] px-3 py-2.5 text-[14px] font-semibold text-[var(--color-bk-ink)] outline-none transition-colors hover:bg-[var(--color-bk-line-soft)]"
-                  >
-                    <LogOut size={16} strokeWidth={2} aria-hidden="true" />
-                    Log out
+                    <Settings size={17} strokeWidth={1.9} aria-hidden="true" />
                   </button>
                 }
               />
             </div>
+            <Dialog.Close
+              render={
+                <button
+                  type="button"
+                  onClick={onSignOut}
+                  className="mt-1 flex w-full items-center gap-3.5 rounded-[13px] px-3.5 py-2.5 text-[15px] font-semibold text-[var(--color-bk-clay)] outline-none transition-colors hover:bg-[var(--color-bk-clay-tint)] focus-visible:ring-2 focus-visible:ring-[var(--color-bk-clay)]/40"
+                >
+                  <LogOut size={18} strokeWidth={1.9} aria-hidden="true" />
+                  Log out
+                </button>
+              }
+            />
           </div>
         </Dialog.Popup>
       </Dialog.Portal>
