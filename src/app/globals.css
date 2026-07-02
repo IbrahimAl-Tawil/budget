@@ -427,8 +427,12 @@
   animation: bkRowIn 0.34s cubic-bezier(0.22, 0.61, 0.36, 1) both;
   animation-delay: calc(90ms + var(--i, 0) * 26ms);
 }
-/* Hover only on inactive rows — active rows keep their accent tint (inline bg). */
-.bk-nav-row:not([aria-current="page"]):hover { background: var(--color-bk-line-soft); }
+/* Hover only on inactive rows, and only on real pointer devices — on touch,
+   :hover sticks after a tap (the tapped row stays highlighted until you touch
+   elsewhere), which made the just-tapped row look boxed/uneven. */
+@media (hover: hover) {
+  .bk-nav-row:not([aria-current="page"]):hover { background: var(--color-bk-line-soft); }
+}
 
 @media (prefers-reduced-motion: reduce) {
   .bk-burger > span { transition: none; }
