@@ -8,6 +8,7 @@
 import { useEffect, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useMediaQuery } from "@/lib/use-media-query";
 
 interface ConfirmButtonProps {
   /** Fired on the second (confirming) click. */
@@ -66,17 +67,12 @@ export function ConfirmButton({
     return () => clearTimeout(t);
   }, [armed]);
 
-  // restTextMobileOnly shows the rest label only below the `sm` breakpoint
-  // (640px); at `sm`+ the button collapses back to icon-only.
-  const [isDesktop, setIsDesktop] = useState(false);
-  useEffect(() => {
-    if (!restTextMobileOnly) return;
-    const mq = window.matchMedia("(min-width: 640px)");
-    const update = () => setIsDesktop(mq.matches);
-    update();
-    mq.addEventListener("change", update);
-    return () => mq.removeEventListener("change", update);
-  }, [restTextMobileOnly]);
+  // Viewport read for restTextMobileOnly: at/above the `sm` breakpoint (640px)
+  // a mobile-only button collapses back to icon-only. SSR-safe via
+  // useSyncExternalStore (serverValue false ⇒ matches the SSR markup, which
+  // renders the rest label). restLabelActive below owns the restTextMobileOnly
+  // gating, so this stays a pure "is desktop" boolean.
+  const isDesktop = useMediaQuery("(min-width: 640px)", false);
 
   const RunIcon = busy && BusyIcon ? BusyIcon : Icon;
   // restText active unless it's mobile-only and we're on desktop.

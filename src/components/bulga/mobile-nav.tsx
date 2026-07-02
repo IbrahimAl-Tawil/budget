@@ -14,6 +14,7 @@ import Link from "next/link";
 import { Settings, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { LucideIcon } from "lucide-react";
+import { useMediaQuery } from "@/lib/use-media-query";
 
 // Must match the .bk-hamburger / .bk-rail breakpoint in globals.css: above this
 // the hamburger is hidden and the icon rail takes over.
@@ -50,15 +51,14 @@ export function MobileNav({
   // breakpoint: there the hamburger is hidden and the icon rail takes over, so a
   // still-open sheet would orphan over the desktop layout with nothing that
   // opened it. Base UI's open state is JS, not CSS, so it can't react to the
-  // breakpoint on its own — we watch matchMedia and close on the desktop side.
+  // breakpoint on its own. The CSS guard in globals.css (.bk-sheet hidden ≥769px)
+  // is the visual backstop; this keeps the JS `open` state honest so the sheet
+  // doesn't reappear when the viewport shrinks back to mobile.
   const [open, setOpen] = useState(false);
+  const isDesktop = useMediaQuery(DESKTOP_QUERY, true); // SSR default desktop
   useEffect(() => {
-    const mq = window.matchMedia(DESKTOP_QUERY);
-    const close = () => { if (mq.matches) setOpen(false); };
-    close(); // handle a load that starts already-desktop
-    mq.addEventListener("change", close);
-    return () => mq.removeEventListener("change", close);
-  }, []);
+    if (isDesktop) setOpen(false);
+  }, [isDesktop]);
 
   // Each row is a Dialog.Close rendering a Link, so a tap navigates and dismisses
   // in one gesture. --i drives the staggered entrance. Quiet by default: an
@@ -109,7 +109,7 @@ export function MobileNav({
       </Dialog.Trigger>
 
       <Dialog.Portal>
-        <Dialog.Backdrop className="fixed inset-0 z-[60] bg-[oklch(20%_0.02_80/0.32)] transition-opacity duration-300 data-closed:opacity-0 data-open:opacity-100" />
+        <Dialog.Backdrop className="bk-sheet-backdrop fixed inset-0 z-[60] bg-[oklch(20%_0.02_80/0.32)] transition-opacity duration-300 data-closed:opacity-0 data-open:opacity-100" />
         <Dialog.Popup className="bk-sheet fixed inset-x-0 bottom-0 z-[61] mx-auto flex max-h-[86vh] w-full max-w-[520px] flex-col rounded-t-[30px] bg-[var(--color-bk-surface)] pt-2 pb-[max(16px,env(safe-area-inset-bottom))] outline-none">
           {/* nav rows — scroll if a short screen can't fit them all. No grab
               handle: it implied a drag gesture the sheet doesn't support;

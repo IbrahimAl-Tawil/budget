@@ -382,6 +382,15 @@
   .bk-rail { display: none !important; }
   .bk-hamburger { display: grid !important; }
 }
+/* Defense in depth: the sheet + backdrop are portaled and driven purely by the
+   MobileNav JS open state. If a resize past the breakpoint races the matchMedia
+   close (or the sheet was somehow opened at desktop width), it would orphan over
+   the desktop layout with the rail still showing. This hard-hides both above the
+   breakpoint so the mobile sheet can NEVER render on desktop, regardless of JS. */
+@media (min-width: 769px) {
+  .bk-sheet,
+  .bk-sheet-backdrop { display: none !important; }
+}
 
 /* Animated hamburger → X. Three lines centered in the button; on open (Base UI
    sets data-popup-open on the trigger) the outer two rotate into an X and the

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { Card } from "@/components/bulga/card";
@@ -9,19 +10,26 @@ import { Field, TextInput, PasswordInput } from "@/components/bulga/form";
 import { Button } from "@/components/ui/button";
 import { GoogleAuthButton } from "@/components/auth/google-button";
 
+// useSearchParams() must sit under a Suspense boundary or `next build` errors on
+// this route. The form is otherwise self-contained, so wrap the whole thing.
 export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
+function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  // If redirected here with ?error=..., surface it inline. useSearchParams reads
+  // the URL during render (SSR-safe) — no effect + window.location needed.
+  const hadRedirectError = useSearchParams().has("error");
+  const [error, setError] = useState(
+    hadRedirectError ? "Incorrect email or password. Please try again." : "",
+  );
   const [loading, setLoading] = useState(false);
-
-  // If redirected here with ?error=..., surface it inline.
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("error")) {
-      setError("Incorrect email or password. Please try again.");
-    }
-  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

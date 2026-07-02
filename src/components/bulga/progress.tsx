@@ -7,6 +7,7 @@
 // override (e.g. clay for over-budget).
 
 import { useEffect, useState } from "react";
+import { useMediaQuery } from "@/lib/use-media-query";
 
 /** Drives the fill sweep. Returns `filled` (start empty, flip full next frame so
     the CSS transition tweens) and `animate` (whether to apply the transition at
@@ -14,18 +15,21 @@ import { useEffect, useState } from "react";
     with NO transition, so nothing sweeps — the inline transitions can't be
     caught by the CSS @media reduced-motion blocks, so the gate lives here. */
 function useSweep() {
+  // SSR-safe reduced-motion read (server default false = motion allowed, matching
+  // the animating SSR markup). Replaces the matchMedia-in-useEffect read.
+  const reduced = useMediaQuery("(prefers-reduced-motion: reduce)", false);
+  // Start empty, then flip full on the next frame so the CSS transition tweens.
+  // Under reduced motion we skip the RAF and render filled immediately.
   const [filled, setFilled] = useState(false);
-  const [animate, setAnimate] = useState(true);
   useEffect(() => {
-    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
-      setAnimate(false);
+    if (reduced) {
       setFilled(true);
       return;
     }
     const raf = requestAnimationFrame(() => setFilled(true));
     return () => cancelAnimationFrame(raf);
-  }, []);
-  return { filled, animate };
+  }, [reduced]);
+  return { filled, animate: !reduced };
 }
 
 export interface ProgressBarProps {
