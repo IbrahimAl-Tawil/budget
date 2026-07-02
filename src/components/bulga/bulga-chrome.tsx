@@ -228,22 +228,32 @@ export function BulgaChrome({
   const routeIsPeriodic = !!meta.periodic;
 
   // The period remembered across navigation, held as React state (not read from
-  // storage during render — storage isn't reactive). `null` means "today / not
-  // set" → links stay clean. Seeded once from sessionStorage so it survives
-  // page-to-page within a visit; the URL is still the server's source of truth,
-  // this is just what unqualified nav links should default to.
-  const [remembered, setRemembered] = useState<Period | null>(() => {
-    if (typeof window === "undefined") return null;
+  // storage during render — storage isn't reactive, and reading it in the
+  // initializer would make the first client render differ from the server's
+  // (null), causing a hydration mismatch on the nav hrefs). Always starts null
+  // to match SSR; the effect below hydrates it from sessionStorage AFTER mount.
+  const [remembered, setRemembered] = useState<Period | null>(null);
+
+  // Post-hydration seed: pull the last-picked period from sessionStorage once,
+  // but only if the URL isn't already authoritative here (a periodic route with
+  // ?month=&year= wins — the URL-sync effect handles that). Runs client-only,
+  // so it never affects SSR output. Nav hrefs pick up the value on the render
+  // after mount, which is fine — links aren't clicked during hydration.
+  useEffect(() => {
+    if (routeIsPeriodic && urlMonth != null) return; // URL wins; sync effect owns it
     try {
       const stored = sessionStorage.getItem(PERIOD_KEY);
-      if (!stored) return null;
+      if (!stored) return;
       const [sm, sy] = stored.split("-").map(Number);
       const p = resolvePeriod({ month: String(sm), year: String(sy) }, { month: todayMonth, year: todayYear });
-      return p.month === todayMonth && p.year === todayYear ? null : p;
-    } catch {
-      return null;
-    }
-  });
+      const next = p.month === todayMonth && p.year === todayYear ? null : p;
+      setRemembered((prev) =>
+        prev?.month === next?.month && prev?.year === next?.year ? prev : next
+      );
+    } catch {}
+    // Run once on mount; the URL-sync effect keeps it current thereafter.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // On a periodic route the URL is authoritative — sync it into `remembered` +
   // storage. A BARE url (no ?month=&year=) means "this month", which must CLEAR
