@@ -507,7 +507,7 @@ export function SettingsModal({ open, onClose, user, accent, onAccentChange, onS
                   </p>
                 )}
 
-                <Button size="sm" onClick={() => startConnect()} className="mt-4">
+                <Button size="sm" onClick={() => startConnect()} className="mt-4" variant="outline">
                   <Plus data-icon="inline-start" className="w-4 h-4" /> Connect a bank
                 </Button>
               </section>

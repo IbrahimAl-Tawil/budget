@@ -47,7 +47,7 @@ export function Tabs({
             aria-selected={active}
             onClick={() => onValueChange(item.value)}
             className={cn(
-              "group flex items-center gap-2.5 rounded-full px-4 py-2.5 text-left text-[13.5px] font-medium",
+              "group flex cursor-pointer items-center gap-2.5 rounded-full px-4 py-2.5 text-left text-[13.5px] font-medium",
               "transition-[background-color,color] duration-200 ease-[cubic-bezier(.22,.61,.36,1)]",
               "outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]",
               vertical ? "w-full" : "shrink-0",
