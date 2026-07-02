@@ -184,40 +184,45 @@ export function EditAccountModal({ open, account, onClose, onUpdated }: EditAcco
 
         {formError && <p className="text-sm text-[var(--color-bk-clay)] font-medium mt-3">{formError}</p>}
 
-        <div className="flex items-center gap-2.5 mt-7">
-          {synced ? (
-            <>
-              {/* Per-account: hide/show locally without unlinking the bank. */}
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={handleToggleExcluded}
-                disabled={isPending}
-              >
-                {account.excluded ? (
-                  <>
-                    <Eye data-icon="inline-start" size={15} /> Show account
-                  </>
-                ) : (
-                  <>
-                    <EyeOff data-icon="inline-start" size={15} /> Hide account
-                  </>
-                )}
-              </Button>
-              {/* Whole-bank: honestly labeled — removes every account on the item. */}
-              <ConfirmButton
-                onConfirm={handleRemove}
-                icon={Unlink}
-                confirmLabel="Are you sure?"
-                busyLabel="Disconnecting…"
-                busy={isPending}
-                restLabel="Disconnect bank"
-                armedLabel="Confirm disconnect bank"
-                expandedWidth="w-[172px]"
-                labelMaxWidth="max-w-[160px]"
-              />
-            </>
-          ) : (
+        {synced ? (
+          // Single row: whole-bank disconnect (left, compact) + hide & save (right).
+          <div className="flex items-center gap-2.5 mt-7">
+            <ConfirmButton
+              onConfirm={handleRemove}
+              icon={Unlink}
+              confirmLabel="Are you sure?"
+              busyLabel="Disconnecting…"
+              busy={isPending}
+              restText="Disconnect"
+              restWidth="w-[132px]"
+              restLabel="Disconnect bank"
+              armedLabel="Confirm disconnect bank"
+              expandedWidth="w-[172px]"
+              labelMaxWidth="max-w-[160px]"
+            />
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleToggleExcluded}
+              disabled={isPending}
+              className="ml-auto"
+            >
+              {account.excluded ? (
+                <>
+                  <Eye data-icon="inline-start" size={15} /> Show
+                </>
+              ) : (
+                <>
+                  <EyeOff data-icon="inline-start" size={15} /> Hide
+                </>
+              )}
+            </Button>
+            <Button size="sm" onClick={handleSave} disabled={isPending}>
+              {isPending ? "Saving…" : "Save"}
+            </Button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2.5 mt-7">
             <ConfirmButton
               onConfirm={handleRemove}
               icon={Trash2}
@@ -229,11 +234,11 @@ export function EditAccountModal({ open, account, onClose, onUpdated }: EditAcco
               expandedWidth="w-[148px]"
               labelMaxWidth="max-w-[140px]"
             />
-          )}
-          <Button size="sm" onClick={handleSave} disabled={isPending} className="ml-auto">
-            {isPending ? "Saving…" : "Save changes"}
-          </Button>
-        </div>
+            <Button size="sm" onClick={handleSave} disabled={isPending} className="ml-auto">
+              {isPending ? "Saving…" : "Save changes"}
+            </Button>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
