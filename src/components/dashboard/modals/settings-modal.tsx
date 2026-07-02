@@ -432,7 +432,7 @@ export function SettingsModal({ open, onClose, user, accent, onAccentChange, onS
                     <Loader2 className="w-4 h-4 animate-spin" /> Loading…
                   </div>
                 ) : connections && connections.length > 0 ? (
-                  <div className="max-w-[460px] overflow-hidden rounded-[20px] border border-[var(--color-bk-line)] bg-[var(--color-bk-surface)]">
+                  <div className="overflow-hidden rounded-[20px] border border-[var(--color-bk-line)] bg-[var(--color-bk-surface)]">
                     {connections.map((c, i) => {
                       const needsFix = c.status === "login_required" || c.status === "error";
                       const statusLabel =
