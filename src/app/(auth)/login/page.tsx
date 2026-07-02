@@ -85,6 +85,14 @@ function LoginForm() {
               placeholder="••••••••"
               required
             />
+            <div className="mt-2 flex justify-end">
+              <Link
+                href="/forgot-password"
+                className="text-[13px] font-medium text-[var(--color-bk-muted)] transition-colors hover:text-[var(--color-bk-ink)]"
+              >
+                Forgot password?
+              </Link>
+            </div>
           </Field>
 
           {error && (

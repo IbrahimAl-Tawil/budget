@@ -24,6 +24,11 @@ export async function proxy(request: NextRequest) {
   const isAuthPage =
     pathname.startsWith("/login") ||
     pathname.startsWith("/register") ||
+    // Request-a-reset screen — reached while logged OUT (you forgot your
+    // password), so it must be public. NOT /reset-password: that one stays
+    // protected so the recovery session from /auth/callback is what grants
+    // access (and a signed-out visitor is bounced to /login).
+    pathname.startsWith("/forgot-password") ||
     // Post-sign-up "check your email" screen — reachable before a session
     // exists (email confirmation pending); signed-in users get bounced on.
     pathname.startsWith("/verify-email");
