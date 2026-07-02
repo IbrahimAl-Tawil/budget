@@ -9,7 +9,6 @@ interface NotificationsPanelProps {
   monthlySpend: number;
   spendingByCategory: SpendCategory[];
   upcomingBills: BillView[];
-  onClose: () => void;
 }
 
 interface Notification {
@@ -23,7 +22,6 @@ export function NotificationsPanel({
   monthlySpend,
   spendingByCategory,
   upcomingBills,
-  onClose,
 }: NotificationsPanelProps) {
   const notifications: Notification[] = [];
 
@@ -81,30 +79,30 @@ export function NotificationsPanel({
     info: <Calendar className="w-4 h-4 text-[var(--color-primary)]" />,
   };
 
+  // Content only — the surface, positioning, scrim, focus and dismissal are
+  // owned by the <Popover> wrapper in the shell (ui/popover.tsx). Fixed width
+  // on wide screens; the Popover caps it to the viewport on small ones.
   return (
-    <>
-      <div className="fixed inset-0 z-40" onClick={onClose} />
-      <div className="absolute top-full right-0 mt-2 w-[320px] bg-[var(--color-bk-surface)] border border-[var(--color-bk-line)] rounded-2xl shadow-[0_18px_50px_oklch(20%_0.02_80/0.1)] z-50 overflow-hidden">
-        <div className="px-4 py-3 border-b border-[var(--color-bk-line)]">
-          <span className="text-[11px] font-semibold tracking-[0.09em] uppercase text-[var(--color-bk-faint)]">
-            Notifications
-          </span>
-        </div>
-        <div className="max-h-[360px] overflow-y-auto bk-scroll">
-          {notifications.map((n, i) => (
-            <div
-              key={i}
-              className="flex gap-3 px-4 py-3 border-b border-[var(--color-bk-line-soft)] last:border-b-0 hover:bg-[oklch(98%_0.004_90)]"
-            >
-              <div className="mt-0.5 shrink-0">{iconMap[n.type]}</div>
-              <div>
-                <div className="text-[13px] font-semibold tracking-[-0.02em] text-[var(--color-bk-ink)]">{n.title}</div>
-                <div className="text-[11px] text-[var(--color-bk-muted)] mt-0.5">{n.message}</div>
-              </div>
-            </div>
-          ))}
-        </div>
+    <div className="w-[320px] max-w-full">
+      <div className="px-4 py-3 border-b border-[var(--color-bk-line)]">
+        <span className="text-[11px] font-semibold tracking-[0.09em] uppercase text-[var(--color-bk-faint)]">
+          Notifications
+        </span>
       </div>
-    </>
+      <div className="max-h-[360px] overflow-y-auto bk-scroll">
+        {notifications.map((n, i) => (
+          <div
+            key={i}
+            className="flex gap-3 px-4 py-3 border-b border-[var(--color-bk-line-soft)] last:border-b-0 hover:bg-[oklch(98%_0.004_90)]"
+          >
+            <div className="mt-0.5 shrink-0">{iconMap[n.type]}</div>
+            <div>
+              <div className="text-[13px] font-semibold tracking-[-0.02em] text-[var(--color-bk-ink)]">{n.title}</div>
+              <div className="text-[11px] text-[var(--color-bk-muted)] mt-0.5">{n.message}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }

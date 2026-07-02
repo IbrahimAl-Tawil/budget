@@ -75,9 +75,10 @@ export function BulgaOverview({ overview, theme, onNavigate }: BulgaOverviewProp
         : `You've spent ${money(overview.monthlySpend)} so far this month against ${money(overview.monthlyIncome)} of income.`;
 
   return (
-    <div className="bk-enter" style={{ maxWidth: 1000, margin: "0 auto" }}>
+    <div className="bk-enter bk-page">
       {/* ── net worth hero ── */}
       <section
+        className="bk-nw-hero"
         style={{
           display: "grid",
           gridTemplateColumns: "1.15fr 1fr",
@@ -131,7 +132,7 @@ export function BulgaOverview({ overview, theme, onNavigate }: BulgaOverviewProp
             <span>this month</span>
           </div>
         </div>
-        <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ width: "100%", height: 110 }} aria-hidden="true">
+        <svg className="bk-nw-spark" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ width: "100%", height: 110 }} aria-hidden="true">
           <defs>
             <linearGradient id="ev-nw-grad" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor={theme.accent} stopOpacity="0.16" />
@@ -146,6 +147,7 @@ export function BulgaOverview({ overview, theme, onNavigate }: BulgaOverviewProp
 
       {/* ── this-month stats ── */}
       <section
+        className="bk-grid-3"
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(3, 1fr)",
@@ -175,7 +177,7 @@ export function BulgaOverview({ overview, theme, onNavigate }: BulgaOverviewProp
       </section>
 
       {/* ── two-up: spending + goals ── */}
-      <section style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+      <section className="bk-grid-2up" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
         <div style={CARD}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 20 }}>
             <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Where it went</h3>
@@ -238,7 +240,7 @@ export function BulgaOverview({ overview, theme, onNavigate }: BulgaOverviewProp
       </section>
 
       {/* ── recent + insight ── */}
-      <section style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 16 }}>
+      <section className="bk-grid-split" style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 16 }}>
         <div style={CARD}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 14 }}>
             <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Recent activity</h3>

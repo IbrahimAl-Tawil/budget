@@ -170,7 +170,7 @@
   from { opacity: 0; transform: translateY(-4px) scale(0.97); }
   to { opacity: 1; transform: none; }
 }
-.bk-pop { animation: bkPop 0.16s cubic-bezier(0.22, 0.61, 0.36, 1) both; transform-origin: top right; }
+.bk-pop { animation: bkPop 0.16s cubic-bezier(0.22, 0.61, 0.36, 1) both; transform-origin: var(--transform-origin, top right); }
 
 /* Month period control — ONE segmented pill (‹ · label · ›) in the outline-
    button language (matches the topbar bell). The container owns the border,
@@ -237,7 +237,7 @@
   box-shadow: inset 0 0 0 0 transparent;
 }
 .bk-month-nav-label:hover:not(:disabled),
-.bk-month-nav-label[aria-expanded="true"] {
+.bk-month-nav-label[data-popup-open] {
   color: var(--color-primary);
   box-shadow: inset 0 0 0 1.5px var(--color-primary);
   border-color: transparent; /* drop the grey hairlines so the accent ring is the only frame */
@@ -322,4 +322,240 @@
   .bk-enter { animation: none; }
   .bk-pop { animation: none; }
   .bk-spin { animation-duration: 1.4s; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   RESPONSIVE — tablet & mobile
+   ----------------------------------------------------------------------
+   The shell + pages are authored with inline styles (fixed px, multi-column
+   grids), which can't hold media queries. These class hooks carry the
+   responsive rules so the inline styles supply the desktop baseline and the
+   class overrides it below the breakpoints. Two stops:
+     · ≤1024px  tablet / iPad
+     · ≤640px   phone
+   One source of truth for every collapse — pages just add the class.
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ── Overflow guard ──
+   Pages are authored maxWidth:1000 + margin:auto but without width:100%, and
+   their grid/flex children default to min-width:auto — so a long merchant name,
+   the insight paragraph, or a wide scheme row refuses to shrink and pushes past
+   the viewport, scrolling the whole app sideways. `.bk-page` gives every page
+   wrapper a real width cap that never exceeds its column, and the canvas clips
+   any residual sub-pixel spill. Grid/flex text cells still need their own
+   min-width:0 (added inline where they hold ellipsised text). */
+.bk-page { width: 100%; max-width: 1000px; margin: 0 auto; }
+.bk-canvas { overflow-x: hidden; }
+
+/* ── Shell ── */
+
+/* Canvas scroll padding tightens on smaller screens (desktop = inline 34px). */
+@media (max-width: 1024px) {
+  .bk-canvas { padding: 24px !important; }
+  .bk-topbar { padding: 18px 24px !important; }
+}
+/* At/below the hamburger breakpoint the topbar wraps: title (with hamburger)
+   on top, controls beneath — so the picker/bell/Add never squeeze. */
+@media (max-width: 768px) {
+  .bk-topbar {
+    flex-wrap: wrap;
+    padding: 16px 20px !important;
+    gap: 12px !important;
+  }
+  /* Controls drop to their own row, left-aligned. The month-nav keeps its
+     natural size (never stretches to fill the row) — flex:1 made it balloon. */
+  .bk-topbar-actions { width: 100%; justify-content: flex-start; }
+  .bk-topbar-actions .bk-month-nav { flex: 0 1 auto; max-width: 280px; min-width: 0; }
+}
+@media (max-width: 640px) {
+  .bk-canvas { padding: 16px !important; }
+  .bk-topbar { padding: 14px 16px !important; }
+  .bk-topbar-title h1 { font-size: 18px !important; }
+}
+
+/* Navigation: desktop shows the persistent icon rail; the hamburger is hidden.
+   At/below the breakpoint the rail collapses entirely and the topbar hamburger
+   opens the dropdown nav (MobileNav) instead. One breakpoint owns the swap so
+   the two can never both show. */
+.bk-hamburger { display: none; }
+@media (max-width: 768px) {
+  .bk-rail { display: none !important; }
+  .bk-hamburger { display: grid !important; }
+}
+
+/* Animated hamburger → X. Three lines centered in the button; on open (Base UI
+   sets data-popup-open on the trigger) the outer two rotate into an X and the
+   middle fades. Line color flips to white when the trigger fills with accent. */
+.bk-burger {
+  position: relative;
+  display: block;
+  width: 18px;
+  height: 12px;
+}
+.bk-burger > span {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--color-bk-ink);
+  transition: transform 0.28s cubic-bezier(0.22, 0.61, 0.36, 1), opacity 0.18s ease, background 0.14s ease;
+}
+.bk-burger > span:nth-child(1) { top: 0; }
+.bk-burger > span:nth-child(2) { top: 5px; }
+.bk-burger > span:nth-child(3) { top: 10px; }
+.bk-hamburger[data-popup-open] .bk-burger > span { background: #fff; }
+.bk-hamburger[data-popup-open] .bk-burger > span:nth-child(1) { transform: translateY(5px) rotate(45deg); }
+.bk-hamburger[data-popup-open] .bk-burger > span:nth-child(2) { opacity: 0; }
+.bk-hamburger[data-popup-open] .bk-burger > span:nth-child(3) { transform: translateY(-5px) rotate(-45deg); }
+
+/* Nav dropdown panel — spring scale-fade-down entrance from its anchor origin;
+   reverses on close (Base UI keeps it mounted through data-closed). */
+@keyframes bkNavIn {
+  from { opacity: 0; transform: translateY(-8px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+.bk-nav-panel[data-open] { animation: bkNavIn 0.22s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.bk-nav-panel[data-closed] {
+  opacity: 0;
+  transform: translateY(-8px) scale(0.97);
+  transition: opacity 0.14s ease, transform 0.14s ease;
+}
+
+/* Staggered row reveal — each row eases up in sequence via its --i index. */
+@keyframes bkRowIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.bk-nav-panel[data-open] .bk-nav-row {
+  animation: bkRowIn 0.32s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  animation-delay: calc(60ms + var(--i, 0) * 28ms);
+}
+.bk-nav-row:hover { background: var(--color-bk-line-soft); }
+/* Active row keeps its accent fill on hover (inline bg wins for the link, but
+   the Settings/Log out rows have no --i and shouldn't over-delay). */
+
+@media (prefers-reduced-motion: reduce) {
+  .bk-burger > span { transition: none; }
+  .bk-nav-panel[data-open],
+  .bk-nav-panel[data-open] .bk-nav-row { animation: none; }
+  .bk-nav-panel[data-closed] { transition: none; transform: none; }
+}
+
+/* ── Generic responsive grids (apply on any inline-styled grid section) ── */
+
+/* Grid children default to min-width:auto, which lets wide content (long
+   merchant names, the insight paragraph) refuse to shrink and overflow the
+   column. Force every direct child of our responsive grids to be allowed to
+   shrink — this is what actually stops the sideways scroll. */
+.bk-grid-2up > *,
+.bk-grid-split > *,
+.bk-grid-3 > * { min-width: 0; }
+
+/* Two-up → single column on tablet & below. */
+@media (max-width: 1024px) {
+  .bk-grid-2up { grid-template-columns: 1fr !important; }
+}
+/* Asymmetric two-up (e.g. 1.5fr 1fr) → single column on tablet & below. */
+@media (max-width: 1024px) {
+  .bk-grid-split { grid-template-columns: 1fr !important; }
+}
+/* Three-up stat row → 1 column on phone (stays 3-up on tablet, it fits). */
+@media (max-width: 640px) {
+  .bk-grid-3 { grid-template-columns: 1fr !important; }
+}
+
+/* Hero rows that place a figure beside action buttons: on phone, stack and
+   let the actions sit full-width beneath the figure. */
+@media (max-width: 640px) {
+  .bk-hero-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 18px;
+  }
+  .bk-hero-actions { align-items: stretch !important; }
+  .bk-hero-actions > div { flex-wrap: wrap; }
+}
+
+/* Overview net-worth hero: figure + sparkline → stack, hide the wide spark on
+   phone (it reads as noise at that width). */
+@media (max-width: 640px) {
+  .bk-nw-hero {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+    align-items: start !important;
+  }
+  .bk-nw-hero .bk-nw-spark { display: none; }
+}
+
+/* ── Brand-kit ── */
+/* Scheme cards: side-by-side is the point (compare palettes), so below the
+   breakpoint make them a horizontal scroll strip rather than crushing 8 into
+   one row. Each card keeps a readable min width; the strip scrolls inside its
+   own bounds so it never widens the page. */
+@media (max-width: 1024px) {
+  .bk-scheme-grid {
+    display: flex !important;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 6px;
+  }
+  .bk-scheme-grid > * {
+    flex: 0 0 auto;
+    width: 220px;
+    scroll-snap-align: start;
+  }
+}
+/* Swatch strip: 7 across is far too tight on small screens. */
+@media (max-width: 1024px) {
+  .bk-grid-swatches { grid-template-columns: repeat(4, 1fr) !important; }
+}
+@media (max-width: 640px) {
+  .bk-grid-swatches { grid-template-columns: repeat(3, 1fr) !important; }
+}
+/* Motion demo: 4 → 2 on tablet → 1 on phone. */
+@media (max-width: 1024px) {
+  .bk-grid-4 { grid-template-columns: repeat(2, 1fr) !important; }
+}
+@media (max-width: 640px) {
+  .bk-grid-4 { grid-template-columns: 1fr !important; }
+}
+/* Brand hero: 52px padding is huge on a phone. */
+@media (max-width: 640px) {
+  .bk-brand-hero { padding: 28px 22px !important; }
+  .bk-brand-hero span { font-size: 30px !important; }
+}
+
+/* ── Transactions table ── */
+/* Desktop keeps all 5 columns (set inline). On tablet drop the Date column;
+   on phone drop Category too, leaving Merchant + Amount. Column visibility is
+   driven here so both the header row and the data rows stay in lockstep. */
+@media (max-width: 1024px) {
+  .bk-tx-row {
+    grid-template-columns: 26px 2.4fr 1.3fr 1fr !important;
+    gap: 12px !important;
+    padding-left: 18px !important;
+    padding-right: 18px !important;
+  }
+  .bk-tx-col-date { display: none !important; }
+}
+@media (max-width: 640px) {
+  .bk-tx-row {
+    grid-template-columns: 22px 1fr auto !important;
+    gap: 10px !important;
+    padding-left: 14px !important;
+    padding-right: 14px !important;
+  }
+  .bk-tx-col-cat { display: none !important; }
+}
+
+/* ── Popovers ──
+   All dropdowns (month picker, notifications, Add menu, account filter, profile
+   menu) are built on Base UI's Popover/Menu primitives (ui/popover.tsx,
+   ui/menu.tsx). Their Positioner does collision detection + viewport shifting,
+   so they stay on-screen at any width with no hand-rolled anchors here. The
+   only responsive tweak is trimming the month grid's padding on phones. */
+@media (max-width: 640px) {
+  .bk-month-pop { padding: 12px !important; }
 }

@@ -11,9 +11,10 @@
 // onSelect callback — no data or routing logic lives here. The palette is
 // hue-derived from the active accent, so it tracks whatever theme is live.
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ChevronLeft, ChevronRight, RotateCcw } from "lucide-react";
 import type { BulgaTheme } from "@/components/bulga/theme";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { MONTH_NAMES } from "@/lib/constants";
 // Browsable year range — the SAME constants the validators use (lib/period), so
 // a picked month can never fall outside what the server accepts.
@@ -51,20 +52,13 @@ export function MonthPicker({
   const [open, setOpen] = useState(false);
   // The year being browsed in the popover — lets you page years without
   // committing until you tap a month. Reset to the live selection each time the
-  // popover opens (see the trigger handler), so browsing never leaks across opens.
+  // popover opens, so browsing never leaks across opens.
   const [viewYear, setViewYear] = useState(year);
 
-  // Escape closes — click-outside is handled by the scrim below.
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [open]);
-
-  const label = `${MONTH_NAMES[month - 1]} ${year}`;
+  // Short label on the trigger ("Jul 2026") so the pill width never shifts
+  // between long/short month names; full name kept for the accessible label.
+  const label = `${MONTHS_SHORT[month - 1]} ${year}`;
+  const fullLabel = `${MONTH_NAMES[month - 1]} ${year}`;
   const onCurrent = month === todayMonth && year === todayYear;
   const maxYear = todayYear + MAX_YEAR_AHEAD;
 
@@ -88,11 +82,17 @@ export function MonthPicker({
   const atMax = year >= maxYear && month >= 12;
 
   return (
-    <div style={{ position: "relative" }}>
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        if (next) setViewYear(year); // entering open → start browsing at the live year
+        setOpen(next);
+      }}
+    >
       {/* One segmented control — a single bordered pill in the outline-button
           language, arrows fused to the center label by hairline dividers so it
-          reads as ONE control (not three buttons). Each region is still its own
-          button; the center opens the popover, the arrows step the month. */}
+          reads as ONE control (not three buttons). The center is the popover
+          trigger; the arrows step the month. */}
       <div className="bk-month-nav" role="group" aria-label="Period" data-pending={pending || undefined}>
         <button
           type="button"
@@ -104,20 +104,19 @@ export function MonthPicker({
           <ChevronLeft size={17} strokeWidth={1.9} aria-hidden="true" />
         </button>
 
-        <button
-          type="button"
-          className="bk-month-nav-label bk-num"
+        <PopoverTrigger
           aria-haspopup="dialog"
-          aria-expanded={open}
-          aria-label={`Period: ${label}. Change month`}
-          onClick={() => {
-            if (!open) setViewYear(year); // entering open → start browsing at the live year
-            setOpen((v) => !v);
-          }}
-          disabled={pending}
-        >
-          {label}
-        </button>
+          render={
+            <button
+              type="button"
+              className="bk-month-nav-label bk-num"
+              aria-label={`Period: ${fullLabel}. Change month`}
+              disabled={pending}
+            >
+              {label}
+            </button>
+          }
+        />
 
         <button
           type="button"
@@ -130,31 +129,12 @@ export function MonthPicker({
         </button>
       </div>
 
-      {open && (
-        <>
-          {/* click-outside scrim — matches the topbar menus */}
-          <div
-            onClick={() => setOpen(false)}
-            style={{ position: "fixed", inset: 0, zIndex: 40 }}
-            aria-hidden="true"
-          />
-          <div
-            role="dialog"
-            aria-label="Choose month"
-            className="bk-pop"
-            style={{
-              position: "absolute",
-              top: 46,
-              right: 0,
-              zIndex: 50,
-              width: 300,
-              padding: 16,
-              borderRadius: 18,
-              background: "var(--color-bk-surface)",
-              border: "1px solid var(--color-bk-line)",
-              boxShadow: "0 12px 32px oklch(20% 0.02 80 / 0.16)",
-            }}
-          >
+      <PopoverContent
+        aria-label="Choose month"
+        align="end"
+        className="bk-month-pop w-[300px] p-4"
+      >
+        <div>
             {/* year stepper */}
             <div
               style={{
@@ -269,9 +249,8 @@ export function MonthPicker({
                 </button>
               </>
             )}
-          </div>
-        </>
-      )}
-    </div>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }

@@ -122,7 +122,7 @@ export function AddTransactionModal({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-[480px] p-9">
+      <DialogContent className="sm:max-w-[480px] p-6 sm:p-9">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold tracking-[-0.02em] text-[var(--color-bk-ink)]">
             Add Transaction

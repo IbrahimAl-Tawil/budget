@@ -28,7 +28,10 @@ import type { TransactionView, GoalView, AccountView, SpendCategory, BillView } 
 import { DEFAULT_ACCENT, deriveTheme, themeVars } from "@/components/bulga/theme";
 import { LogoMark } from "@/components/bulga/logo";
 import { Button } from "@/components/ui/button";
+import { Menu, MenuTrigger, MenuContent, MenuItem } from "@/components/ui/menu";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { MonthPicker } from "@/components/bulga/month-picker";
+import { MobileNav } from "@/components/bulga/mobile-nav";
 import { BulgaChromeProvider } from "@/components/bulga/chrome-context";
 import { MONTH_NAMES } from "@/lib/constants";
 import { resolvePeriod, type Period } from "@/lib/period";
@@ -152,9 +155,6 @@ export function BulgaChrome({
   const [accent, setAccentState] = useState<string>(initialAccent ?? DEFAULT_ACCENT);
   const [showAdd, setShowAdd] = useState(false);
   const [showImport, setShowImport] = useState(false);
-  const [showAddMenu, setShowAddMenu] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showAddGoal, setShowAddGoal] = useState(false);
   const [showAddAccount, setShowAddAccount] = useState(false);
@@ -339,6 +339,7 @@ export function BulgaChrome({
       >
         {/* ░░ ICON RAIL ░░ */}
         <aside
+          className="bk-rail"
           style={{
             width: 60,
             flexShrink: 0,
@@ -368,58 +369,47 @@ export function BulgaChrome({
 
             <div style={{ flex: 1 }} />
 
-            {/* profile avatar → popover */}
-            <div style={{ position: "relative" }}>
-              <button
-                type="button"
-                onClick={() => setShowProfileMenu((v) => !v)}
-                aria-label={userName ?? "Account"}
-                aria-haspopup="menu"
-                aria-expanded={showProfileMenu}
-                style={{
-                  width: 32, height: 32, borderRadius: "50%", background: "var(--bk-accent)", color: "#fff",
-                  display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11.5, fontWeight: 700,
-                  flexShrink: 0, border: "none", cursor: "pointer", outline: "none",
-                }}
-              >
-                {initials ?? (
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <circle cx="12" cy="8" r="3.4" />
-                    <path d="M5.5 20a6.5 6.5 0 0 1 13 0" />
-                  </svg>
-                )}
-              </button>
-
-              {showProfileMenu && (
-                <>
-                  <div onClick={() => setShowProfileMenu(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} aria-hidden="true" />
-                  <div
-                    role="menu"
+            {/* profile avatar → menu. Opens to the right of the rail; the
+                positioner flips/shifts to stay on-screen. */}
+            <Menu>
+              <MenuTrigger
+                render={
+                  <button
+                    type="button"
+                    aria-label={userName ?? "Account"}
                     style={{
-                      position: "absolute", bottom: 0, left: "calc(100% + 12px)", zIndex: 50, minWidth: 208, padding: 6,
-                      borderRadius: 14, background: "var(--color-bk-surface)", border: "1px solid var(--color-bk-line)",
-                      boxShadow: "0 12px 32px oklch(20% 0.02 80 / 0.16)",
+                      width: 32, height: 32, borderRadius: "50%", background: "var(--bk-accent)", color: "#fff",
+                      display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11.5, fontWeight: 700,
+                      flexShrink: 0, border: "none", cursor: "pointer", outline: "none",
                     }}
                   >
-                    <div style={{ padding: "8px 11px 10px" }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-bk-ink)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                        {userName ?? "Your account"}
-                      </div>
-                      <div style={{ fontSize: 11.5, color: "var(--color-bk-faint)" }}>Free plan</div>
-                    </div>
-                    <div style={{ height: 1, background: "var(--color-bk-line-soft)", margin: "2px 0 4px" }} />
-                    <button type="button" role="menuitem" className="bk-menu-item" onClick={() => { setShowProfileMenu(false); setShowSettings(true); }}>
-                      <Settings size={15} strokeWidth={2} aria-hidden="true" />
-                      Settings
-                    </button>
-                    <button type="button" role="menuitem" className="bk-menu-item" onClick={() => { setShowProfileMenu(false); handleSignOut(); }}>
-                      <LogOut size={15} strokeWidth={2} aria-hidden="true" />
-                      Log out
-                    </button>
+                    {initials ?? (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <circle cx="12" cy="8" r="3.4" />
+                        <path d="M5.5 20a6.5 6.5 0 0 1 13 0" />
+                      </svg>
+                    )}
+                  </button>
+                }
+              />
+              <MenuContent side="right" align="end" className="min-w-[208px]">
+                <div style={{ padding: "8px 11px 10px" }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-bk-ink)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {userName ?? "Your account"}
                   </div>
-                </>
-              )}
-            </div>
+                  <div style={{ fontSize: 11.5, color: "var(--color-bk-faint)" }}>Free plan</div>
+                </div>
+                <div style={{ height: 1, background: "var(--color-bk-line-soft)", margin: "2px 0 4px" }} />
+                <MenuItem onClick={() => setShowSettings(true)}>
+                  <Settings size={15} strokeWidth={2} aria-hidden="true" />
+                  <span>Settings</span>
+                </MenuItem>
+                <MenuItem onClick={() => handleSignOut()}>
+                  <LogOut size={15} strokeWidth={2} aria-hidden="true" />
+                  <span>Log out</span>
+                </MenuItem>
+              </MenuContent>
+            </Menu>
           </div>
         </aside>
 
@@ -427,19 +417,33 @@ export function BulgaChrome({
         <main style={{ flex: 1, minWidth: 0, height: "100vh", display: "flex", flexDirection: "column", background: "var(--color-bk-surface)" }}>
           {/* topbar */}
           <header
+            className="bk-topbar"
             style={{
               display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
               padding: "22px 34px", borderBottom: "1px solid oklch(93% 0.005 85)",
             }}
           >
-            <div>
-              <h1 style={{ margin: 0, fontSize: 21, fontWeight: 700, letterSpacing: "-0.025em", color: "var(--color-bk-ink)" }}>
-                {pageTitle}
-              </h1>
-              <p style={{ margin: "3px 0 0", fontSize: 13, color: "oklch(54% 0.012 80)" }}>{pageSub}</p>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+              <MobileNav
+                primary={PRIMARY_NAV}
+                secondary={SECONDARY_NAV}
+                pathname={pathname}
+                hrefFor={hrefFor}
+                accent={accent}
+                userName={userName}
+                initials={initials}
+                onOpenSettings={() => setShowSettings(true)}
+                onSignOut={handleSignOut}
+              />
+              <div className="bk-topbar-title" style={{ minWidth: 0 }}>
+                <h1 style={{ margin: 0, fontSize: 21, fontWeight: 700, letterSpacing: "-0.025em", color: "var(--color-bk-ink)" }}>
+                  {pageTitle}
+                </h1>
+                <p style={{ margin: "3px 0 0", fontSize: 13, color: "oklch(54% 0.012 80)" }}>{pageSub}</p>
+              </div>
             </div>
 
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div className="bk-topbar-actions" style={{ display: "flex", alignItems: "center", gap: 10 }}>
               {/* month picker — only on period-scoped routes (overview /
                   transactions / spending); hidden elsewhere where it'd be inert */}
               {showPicker && (
@@ -455,71 +459,58 @@ export function BulgaChrome({
                 />
               )}
 
-              {/* bell */}
-              <div style={{ position: "relative" }}>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  aria-label="Notifications"
-                  aria-expanded={showNotifications}
-                  onClick={() => setShowNotifications((v) => !v)}
-                >
-                  <Bell size={17} strokeWidth={1.9} aria-hidden="true" />
-                </Button>
-                {showNotifications && (
+              {/* bell — Base UI Popover owns positioning, scrim, focus &
+                  dismissal; its positioner keeps the panel on-screen. */}
+              <Popover>
+                <PopoverTrigger
+                  aria-haspopup="dialog"
+                  render={
+                    <Button variant="outline" size="icon" aria-label="Notifications">
+                      <Bell size={17} strokeWidth={1.9} aria-hidden="true" />
+                    </Button>
+                  }
+                />
+                <PopoverContent className="rounded-2xl">
                   <NotificationsPanel
                     budgetTarget={notice.budgetTarget}
                     monthlySpend={notice.monthlySpend}
                     spendingByCategory={notice.spendingByCategory}
                     upcomingBills={notice.upcomingBills}
-                    onClose={() => setShowNotifications(false)}
                   />
-                )}
-              </div>
+                </PopoverContent>
+              </Popover>
 
-              {/* add */}
-              <div style={{ position: "relative" }}>
-                <Button
-                  size="sm"
-                  aria-label="Add"
-                  aria-haspopup="menu"
-                  aria-expanded={showAddMenu}
-                  onClick={() => setShowAddMenu((v) => !v)}
-                >
-                  <Plus data-icon="inline-start" size={16} strokeWidth={2.4} aria-hidden="true" />
-                  Add
-                </Button>
-                {showAddMenu && (
-                  <>
-                    <div onClick={() => setShowAddMenu(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} aria-hidden="true" />
-                    <div
-                      role="menu"
-                      style={{
-                        position: "absolute", top: 46, right: 0, zIndex: 50, minWidth: 196, padding: 6, borderRadius: 14,
-                        background: "var(--color-bk-surface)", border: "1px solid var(--color-bk-line)", boxShadow: "0 12px 32px oklch(20% 0.02 80 / 0.14)",
-                      }}
-                    >
-                      <button type="button" role="menuitem" onClick={() => { setShowAddMenu(false); setShowAdd(true); }} className="bk-menu-item">
-                        <Plus size={15} strokeWidth={2} aria-hidden="true" />
-                        New transaction
-                      </button>
-                      <button type="button" role="menuitem" onClick={() => { setShowAddMenu(false); setShowImport(true); }} className="bk-menu-item">
-                        <List size={15} strokeWidth={2} aria-hidden="true" />
-                        Import statement
-                      </button>
-                      <button type="button" role="menuitem" onClick={() => { setShowAddMenu(false); setShowConnectBank(true); }} className="bk-menu-item">
-                        <Landmark size={15} strokeWidth={2} aria-hidden="true" />
-                        Connect a bank
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
+              {/* add — Base UI Menu owns open state, scrim, focus & Escape; its
+                  positioner keeps the menu on-screen at any viewport. */}
+              <Menu>
+                <MenuTrigger
+                  render={
+                    <Button size="sm" aria-label="Add">
+                      <Plus data-icon="inline-start" size={16} strokeWidth={2.4} aria-hidden="true" />
+                      Add
+                    </Button>
+                  }
+                />
+                <MenuContent>
+                  <MenuItem onClick={() => setShowAdd(true)}>
+                    <Plus size={15} strokeWidth={2} aria-hidden="true" />
+                    <span>New transaction</span>
+                  </MenuItem>
+                  <MenuItem onClick={() => setShowImport(true)}>
+                    <List size={15} strokeWidth={2} aria-hidden="true" />
+                    <span>Import statement</span>
+                  </MenuItem>
+                  <MenuItem onClick={() => setShowConnectBank(true)}>
+                    <Landmark size={15} strokeWidth={2} aria-hidden="true" />
+                    <span>Connect a bank</span>
+                  </MenuItem>
+                </MenuContent>
+              </Menu>
             </div>
           </header>
 
           {/* scroll canvas — keyed by route so each page gets the bk-enter mount animation */}
-          <div className="bk-scroll" style={{ flex: 1, overflowY: "auto", padding: 34 }} key={pathname}>
+          <div className="bk-scroll bk-canvas" style={{ flex: 1, overflowY: "auto", padding: 34 }} key={pathname}>
             {children}
           </div>
         </main>

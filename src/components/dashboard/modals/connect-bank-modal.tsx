@@ -137,7 +137,7 @@ export function ConnectBankModal({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-[440px] p-9">
+      <DialogContent className="sm:max-w-[440px] p-6 sm:p-9">
         <DialogHeader>
           <DialogTitle className="text-2xl font-semibold tracking-[-0.02em] text-[var(--color-bk-ink)]">
             {isUpdate ? "Reconnect bank" : "Connect a bank"}

@@ -60,7 +60,7 @@ export function BulgaSubscriptions({ subscriptions, theme, currency = "CAD" }: B
   );
 
   return (
-    <div className="bk-enter" style={{ maxWidth: 1000, margin: "0 auto" }}>
+    <div className="bk-enter bk-page">
       {/* ── hero · subscription summary ── */}
       <section style={{ padding: "0 4px 32px" }}>
         <div
@@ -113,7 +113,7 @@ export function BulgaSubscriptions({ subscriptions, theme, currency = "CAD" }: B
       </section>
 
       {/* ── services + annual projection · two-up ── */}
-      <section style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+      <section className="bk-grid-2up" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
         {/* service list */}
         <div style={CARD}>
           <h3 style={{ margin: "0 0 16px", fontSize: 15, fontWeight: 600 }}>Services</h3>

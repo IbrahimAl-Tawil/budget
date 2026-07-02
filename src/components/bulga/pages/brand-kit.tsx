@@ -94,9 +94,10 @@ export function BulgaBrandKit({ accent, theme, onAccentChange }: BulgaBrandKitPr
   const faint = "oklch(56% 0.012 80)";
 
   return (
-    <div className="bk-enter" style={{ maxWidth: 1000, margin: "0 auto" }}>
+    <div className="bk-enter bk-page">
       {/* ── 1 · logo lockup ── */}
       <section
+        className="bk-brand-hero"
         style={{
           background: "oklch(20% 0.014 75)",
           borderRadius: 24,
@@ -160,7 +161,7 @@ export function BulgaBrandKit({ accent, theme, onAccentChange }: BulgaBrandKitPr
         </p>
 
         {/* Variation cards — each shows all five note colours as one palette */}
-        <div style={{ display: "grid", gridTemplateColumns: `repeat(${BANKNOTE_SCHEMES.length}, 1fr)`, gap: 12 }}>
+        <div className="bk-scheme-grid" style={{ display: "grid", gridTemplateColumns: `repeat(${BANKNOTE_SCHEMES.length}, 1fr)`, gap: 12 }}>
           {BANKNOTE_SCHEMES.map((s, i) => {
             const isActive = i === schemeIdx;
             return (
@@ -318,7 +319,7 @@ export function BulgaBrandKit({ accent, theme, onAccentChange }: BulgaBrandKitPr
           Warm-neutral canvas, near-monochrome ink, one confident accent used
           sparingly. Clay flags only what needs attention.
         </p>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 12 }}>
+        <div className="bk-grid-swatches" style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 12 }}>
           {palette.map((p) => (
             <div key={p.name}>
               <div
@@ -364,6 +365,7 @@ export function BulgaBrandKit({ accent, theme, onAccentChange }: BulgaBrandKitPr
 
       {/* ── 4 + 5 · type / components two-up ── */}
       <section
+        className="bk-grid-2up"
         style={{
           display: "grid",
           gridTemplateColumns: "1.1fr 1fr",
@@ -598,7 +600,7 @@ export function BulgaBrandKit({ accent, theme, onAccentChange }: BulgaBrandKitPr
           Snappy, never showy. Spring on press, ease on reveal — every action
           confirms itself.
         </p>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+        <div className="bk-grid-4" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
           {motions.map((mItem) => (
             <div
               key={mItem.title}

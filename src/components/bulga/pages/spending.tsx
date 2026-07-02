@@ -42,9 +42,10 @@ export function BulgaSpending({ spending, theme, currency = "CAD" }: BulgaSpendi
   const overall = totalBudget > 0 ? Math.round((totalActual / totalBudget) * 100) : 0;
 
   return (
-    <div className="bk-enter" style={{ maxWidth: 1000, margin: "0 auto" }}>
+    <div className="bk-enter bk-page">
       {/* ── hero · budget vs actual ── */}
       <section
+        className="bk-hero-row"
         style={{
           display: "flex",
           justifyContent: "space-between",

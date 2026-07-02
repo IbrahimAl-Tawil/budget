@@ -51,12 +51,10 @@ export function BulgaGoals({ goals, accent, theme, currency = "CAD", onAdd, onEd
   const totalTarget = goals.reduce((s, g) => s + g.target, 0);
 
   return (
-    <div
-      className="bk-enter"
-      style={{ maxWidth: 1000, margin: "0 auto" }}
-    >
+    <div className="bk-enter bk-page">
       {/* ── header ── */}
       <section
+        className="bk-hero-row"
         style={{
           display: "flex",
           justifyContent: "space-between",
@@ -94,14 +92,16 @@ export function BulgaGoals({ goals, accent, theme, currency = "CAD", onAdd, onEd
           </div>
         </div>
 
-        <Button variant="outline" size="sm" onClick={() => onAdd?.()} className="border-dashed">
-          <Plus data-icon="inline-start" size={16} strokeWidth={2.2} />
-          New goal
-        </Button>
+        <div style={{ flexShrink: 0 }}>
+          <Button variant="outline" size="sm" onClick={() => onAdd?.()} className="border-dashed">
+            <Plus data-icon="inline-start" size={16} strokeWidth={2.2} />
+            New goal
+          </Button>
+        </div>
       </section>
 
       {/* ── goal cards ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+      <div className="bk-grid-2up" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
         {goals.map((g) => {
           const pct = g.target > 0 ? Math.round((g.saved / g.target) * 100) : 0;
           const clamped = Math.min(pct, 100);
