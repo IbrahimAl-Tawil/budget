@@ -7,6 +7,7 @@ import { Card } from "@/components/bulga/card";
 import { Wordmark } from "@/components/bulga/logo";
 import { Field, TextInput, PasswordInput } from "@/components/bulga/form";
 import { Button } from "@/components/ui/button";
+import { GoogleAuthButton } from "@/components/auth/google-button";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -90,6 +91,8 @@ export default function LoginPage() {
             {loading ? "Signing in…" : "Sign in"}
           </Button>
         </form>
+
+        <GoogleAuthButton label="Continue with Google" />
 
         <p className="text-center text-sm text-[var(--color-bk-muted)] mt-6">
           Don&apos;t have an account?{" "}

@@ -13,6 +13,7 @@ import {
   passwordMeetsRules,
 } from "@/components/bulga/form";
 import { Button } from "@/components/ui/button";
+import { GoogleAuthButton } from "@/components/auth/google-button";
 
 type FieldErrors = { name?: string; password?: string; confirm?: string };
 
@@ -167,6 +168,8 @@ export default function RegisterPage() {
             {loading ? "Creating account…" : "Create account"}
           </Button>
         </form>
+
+        <GoogleAuthButton label="Sign up with Google" />
 
         <p className="text-center text-sm text-[var(--color-bk-muted)] mt-6">
           Already have an account?{" "}

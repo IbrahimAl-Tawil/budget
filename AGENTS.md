@@ -10,7 +10,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 ## Project structure
 
-Budgeting app: Next.js 16 (App Router, Turbopack) · Prisma 7 + SQLite · NextAuth (credentials) · Anthropic SDK. `@/*` maps to `src/*`. The product is **Bulga** — that is the only brand name in the system (no other names anywhere).
+Budgeting app: Next.js 16 (App Router, Turbopack) · Prisma 7 + Postgres (Supabase) · Supabase Auth · Anthropic SDK. `@/*` maps to `src/*`. The product is **Bulga** — that is the only brand name in the system (no other names anywhere).
 
 ```
 src/
@@ -35,10 +35,11 @@ src/
       modals/               # add-/edit- transaction·goal·account + import-modal (functional, wired into bulga-shell)
       notifications-panel.tsx
     onboarding/ settings/   # feature client components
-    providers.tsx           # SessionProvider wrapper
+    providers.tsx           # Providers passthrough (Supabase needs no client auth provider)
   lib/
-    auth.ts                 # NextAuth config (session, used by pages)
-    api-auth.ts             # JWT extraction (used by api/ route handlers)
+    supabase/               # Supabase Auth clients (browser/server/admin/middleware) — auth only, never data
+    api-auth.ts             # getApiUser() — Supabase session for api/ route handlers
+    dashboard-context.ts    # requireUser() — page auth + onboarding guard (Supabase getUser + profile)
     constants.ts            # shared domain constants (ACCOUNT_TYPES, CURRENCIES)
     types.ts                # central view-model types — define shared types HERE
     format.ts               # currency/number formatting (client-safe)  → exports fmt()
@@ -77,4 +78,4 @@ One cohesive language. Build new UI from these primitives so everything stays on
 - **Use the `@/` alias** for cross-folder imports; reserve `./` for same-folder siblings.
 - **No duplicated constants/types.** Shared lists/enums → `lib/constants.ts`; shared types → `lib/types.ts`.
 - **CRUD pattern**: mutations live in the `dashboard/modals/*` dialogs; `BulgaShell` owns their open/close state and calls `router.refresh()` on success (re-runs the page RSC). Pages emit intent up via `onAdd`/`onEdit` callbacks — they don't host modal state themselves.
-- **`auth.ts` vs `api-auth.ts`:** page session guards use `auth.ts`; API route JWT checks use `api-auth.ts`.
+- **Page guards vs API auth:** page session guards use `requireUser()` in `lib/dashboard-context.ts`; API route handlers use `getApiUser()` in `lib/api-auth.ts`. Both resolve the user via Supabase `auth.getUser()`.

@@ -2,9 +2,9 @@ import { createClient } from "@/lib/supabase/server";
 
 /**
  * Current authenticated user id from the Supabase session cookie, or null.
- * Replaces the old NextAuth JWT extraction. The `request` arg is accepted for
- * call-site compatibility with the existing REST routes but is no longer used —
- * the session lives in cookies, read via next/headers inside createClient().
+ * The `request` arg is accepted for call-site compatibility with the existing
+ * REST routes but is no longer used — the session lives in cookies, read via
+ * next/headers inside createClient().
  */
 export async function getApiUser(
   _request?: Request,
