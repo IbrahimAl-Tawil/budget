@@ -8,10 +8,10 @@
 // breakdown list. Over-budget categories switch their bar + figure to clay.
 // Every figure derives from `spending`; nothing is sampled.
 
-import { useEffect, useState } from "react";
 import type { SpendCategory } from "@/lib/types";
 import { type BulgaTheme } from "@/components/bulga/theme";
 import { fmt } from "@/lib/format";
+import { ProgressBar } from "@/components/bulga/progress";
 
 interface BulgaSpendingProps {
   spending: SpendCategory[];
@@ -28,11 +28,6 @@ const CARD: React.CSSProperties = {
 };
 
 export function BulgaSpending({ spending, theme, currency = "CAD" }: BulgaSpendingProps) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    const t = requestAnimationFrame(() => setMounted(true));
-    return () => cancelAnimationFrame(t);
-  }, []);
 
   const money = (n: number) => fmt(n, currency);
 
@@ -117,17 +112,7 @@ export function BulgaSpending({ spending, theme, currency = "CAD" }: BulgaSpendi
                     {money(c.amount)} <span style={{ color: "var(--color-bk-faint)" }}>/ {money(c.budget)}</span>
                   </span>
                 </div>
-                <div style={{ height: 6, borderRadius: 999, background: "var(--color-bk-track)", overflow: "hidden" }}>
-                  <div
-                    style={{
-                      height: "100%",
-                      width: mounted ? `${pct}%` : "0%",
-                      borderRadius: 999,
-                      background: over ? theme.clay : theme.accent,
-                      transition: "width .9s cubic-bezier(.22,.61,.36,1)",
-                    }}
-                  />
-                </div>
+                <ProgressBar value={pct} color={over ? theme.clay : theme.accent} />
               </div>
             );
           })

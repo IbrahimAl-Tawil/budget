@@ -14,6 +14,7 @@ import { BANKNOTE_SCHEMES, LOGO_GREEN, type BulgaTheme } from "@/components/bulg
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Field, TextInput, SelectInput } from "@/components/bulga/form";
+import { ProgressBar, ProgressRing } from "@/components/bulga/progress";
 
 interface BulgaBrandKitProps {
   accent: string;
@@ -466,17 +467,12 @@ export function BulgaBrandKit({ accent, theme, onAccentChange }: BulgaBrandKitPr
             </Field>
           </div>
 
-          {/* Progress bar — animates to ~64% on enter */}
-          <div style={{ height: 6, borderRadius: 999, background: "var(--color-bk-track)", overflow: "hidden" }}>
-            <div
-              style={{
-                height: "100%",
-                width: mounted ? "64%" : "0%",
-                borderRadius: 999,
-                background: preview.accentFill,
-                transition: "width 1s cubic-bezier(.22,.61,.36,1)",
-              }}
-            />
+          {/* The real ProgressBar + ProgressRing (bulga/progress) — the same
+              indicators the overview/spending/subscriptions bars and goal rings
+              are built from. Both sweep from 0 on mount. */}
+          <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+            <ProgressBar value={64} color={preview.accentFill} className="flex-1" />
+            <ProgressRing value={64} color={preview.accentFill} size={48} stroke={5} />
           </div>
         </div>
       </section>

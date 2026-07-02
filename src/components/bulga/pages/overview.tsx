@@ -6,11 +6,11 @@
 // and goals, then recent activity beside a Bulga insight card. Every bar
 // animates from 0% once mounted; every figure derives from `overview`.
 
-import { useEffect, useState } from "react";
 import type { DashboardOverview } from "@/lib/types";
 import { type BulgaTheme, tintFor } from "@/components/bulga/theme";
 import { fmt } from "@/lib/format";
 import { Button } from "@/components/ui/button";
+import { ProgressBar } from "@/components/bulga/progress";
 
 interface BulgaOverviewProps {
   overview: DashboardOverview;
@@ -50,8 +50,6 @@ function sparkline(trend: number[]) {
 }
 
 export function BulgaOverview({ overview, theme, onNavigate }: BulgaOverviewProps) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
 
   const cur = overview.currency;
   const money = (n: number) => fmt(n, cur);
@@ -189,17 +187,7 @@ export function BulgaOverview({ overview, theme, onNavigate }: BulgaOverviewProp
                 <span style={{ fontWeight: 500 }}>{c.name}</span>
                 <span className="bk-num" style={{ color: "var(--color-bk-muted)" }}>{money(c.amount)}</span>
               </div>
-              <div style={{ height: 6, borderRadius: 999, background: "var(--color-bk-track)", overflow: "hidden" }}>
-                <div
-                  style={{
-                    height: "100%",
-                    width: mounted ? `${Math.min(c.pct, 100)}%` : "0%",
-                    borderRadius: 999,
-                    background: theme.accent,
-                    transition: "width .9s cubic-bezier(.22,.61,.36,1)",
-                  }}
-                />
-              </div>
+              <ProgressBar value={c.pct} color={theme.accent} />
             </div>
           ))}
         </div>
@@ -219,17 +207,7 @@ export function BulgaOverview({ overview, theme, onNavigate }: BulgaOverviewProp
                   <span style={{ fontWeight: 500 }}>{g.name}</span>
                   <span className="bk-num" style={{ color: "var(--color-bk-muted)" }}>{pct}%</span>
                 </div>
-                <div style={{ height: 6, borderRadius: 999, background: "var(--color-bk-track)", overflow: "hidden" }}>
-                  <div
-                    style={{
-                      height: "100%",
-                      width: mounted ? `${Math.min(pct, 100)}%` : "0%",
-                      borderRadius: 999,
-                      background: theme.accent,
-                      transition: "width 1.05s cubic-bezier(.22,.61,.36,1)",
-                    }}
-                  />
-                </div>
+                <ProgressBar value={pct} color={theme.accent} duration={1.05} />
               </div>
             );
           })}

@@ -8,10 +8,10 @@
 // tiles + flag badges) and an annual-projection bar chart. Figures derive from
 // `subscriptions`; flags render as clay (price up) / amber (unused) badges.
 
-import { useEffect, useState } from "react";
 import type { SubscriptionView } from "@/lib/types";
 import { type BulgaTheme } from "@/components/bulga/theme";
 import { fmt } from "@/lib/format";
+import { ProgressBar } from "@/components/bulga/progress";
 
 interface BulgaSubscriptionsProps {
   subscriptions: SubscriptionView[];
@@ -37,11 +37,6 @@ function flagBadge(flag: string, theme: BulgaTheme): { bg: string; color: string
 }
 
 export function BulgaSubscriptions({ subscriptions, theme, currency = "CAD" }: BulgaSubscriptionsProps) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    const t = requestAnimationFrame(() => setMounted(true));
-    return () => cancelAnimationFrame(t);
-  }, []);
 
   const money = (n: number) => fmt(n, currency);
 
@@ -208,17 +203,7 @@ export function BulgaSubscriptions({ subscriptions, theme, currency = "CAD" }: B
                       {money(annualCost)}/yr
                     </span>
                   </div>
-                  <div style={{ height: 6, borderRadius: 999, background: "var(--color-bk-track)", overflow: "hidden" }}>
-                    <div
-                      style={{
-                        height: "100%",
-                        width: mounted ? `${pct}%` : "0%",
-                        borderRadius: 999,
-                        background: theme.accent,
-                        transition: "width .9s cubic-bezier(.22,.61,.36,1)",
-                      }}
-                    />
-                  </div>
+                  <ProgressBar value={pct} color={theme.accent} />
                 </div>
               );
             })
