@@ -98,7 +98,7 @@ export function MobileNav({
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Trigger
-        className="bk-hamburger group relative grid h-10 w-10 place-items-center rounded-full border border-[var(--color-border)] bg-[var(--color-background)] outline-none transition-colors hover:bg-[var(--color-bk-line-soft)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40 data-popup-open:bg-[var(--bk-accent)]"
+        className="bk-hamburger group relative grid h-10 w-10 cursor-pointer place-items-center rounded-full border border-[var(--color-border)] bg-[var(--color-background)] outline-none transition-colors hover:bg-[var(--color-bk-line-soft)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40 data-popup-open:bg-[var(--bk-accent)]"
         aria-label="Menu"
       >
         <span className="bk-burger" aria-hidden="true">
