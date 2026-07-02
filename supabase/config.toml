@@ -8,12 +8,17 @@ minimum_password_length = 12
 # Require a mix so leaked-credential reuse is harder.
 password_requirements = "lower_upper_letters_digits_symbols"
 # URLs the auth flow may redirect back to (OAuth + email confirmation both land
-# on /auth/callback). This governs the LOCAL `supabase start` stack; the deployed
-# project's allowlist lives in the dashboard (Authentication → URL Configuration)
-# and must include your production `…/auth/callback` too.
+# on /auth/callback; password recovery lands there with ?next=/reset-password).
+# Supabase matches redirect_to INCLUDING its query string, so the recovery target
+# needs its own entry — a bare /auth/callback entry won't match it. This governs
+# the LOCAL `supabase start` stack; the deployed project's allowlist lives in the
+# dashboard (Authentication → URL Configuration) and must include your production
+# `…/auth/callback` AND `…/auth/callback?next=/reset-password` too.
 additional_redirect_urls = [
   "http://localhost:3000/auth/callback",
   "http://127.0.0.1:3000/auth/callback",
+  "http://localhost:3000/auth/callback?next=/reset-password",
+  "http://127.0.0.1:3000/auth/callback?next=/reset-password",
 ]
 
 [auth.email]
