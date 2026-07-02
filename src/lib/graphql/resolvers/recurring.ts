@@ -3,7 +3,7 @@ import { requireUser, rateLimited, badRequest } from "../errors";
 import { MutationResultRef } from "../types/results";
 import { prisma } from "@/lib/db/prisma";
 import { detectRecurringExpenses } from "@/lib/ai/detect-recurring";
-import { resolveMerchantCached, resolveMerchantInBackground } from "@/lib/merchant/resolve";
+import { resolveMerchant } from "@/lib/merchant/resolve";
 import { rateLimit, MINUTE, HOUR } from "@/lib/rate-limit";
 import { okString, okMoney, okEnum, LIMITS } from "@/lib/validate";
 
@@ -68,21 +68,19 @@ builder.mutationField("confirmRecurring", (t) =>
       });
 
       if (input.action === "confirm" && input.merchantName && input.amount) {
-        // Resolve the logo domain without blocking on Claude (dictionary/cache
-        // only); a true miss is backfilled off the request path so auto-detected
-        // subscriptions get a logo too, same as the manual add path.
-        const merchant = await resolveMerchantCached(input.merchantName);
-        const sub = await prisma.subscription.create({
+        // Resolve the logo domain (dictionary/cache → Claude on a miss) so
+        // auto-detected subscriptions get a logo too, same as the manual path.
+        const merchant = await resolveMerchant(input.merchantName);
+        await prisma.subscription.create({
           data: {
             userId,
             name: input.merchantName,
             amount: Math.abs(input.amount),
             cycle: input.frequency || "Monthly",
-            domain: merchant?.domain ?? null,
+            domain: merchant.domain,
             confirmedByUser: true,
           },
         });
-        if (!merchant) resolveMerchantInBackground(sub.id, input.merchantName);
       }
       return { ok: true };
     },

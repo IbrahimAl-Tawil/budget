@@ -103,17 +103,20 @@ async function resolveWithClaude(normalizedKey: string, rawName: string): Promis
 }
 
 /**
- * Fast, DB-only resolution: seed dictionary → Merchant cache. NO Claude call, so
- * it's safe to await in a request path (create/edit mutations) — worst case a
- * couple of indexed reads. Returns null when the merchant isn't known yet (a
- * true miss), which the caller can backfill out of band via
- * resolveMerchantInBackground().
+ * Resolve a merchant name → company + domain, caching the result. Order:
+ *   1. seed dictionary (authoritative, always current)
+ *   2. Merchant cache (cross-user; holds Claude-resolved merchants)
+ *   3. Claude (only a true miss)
+ * Awaited inline by the create/edit mutations — these are low-frequency
+ * interactive actions, so a brief wait on an unknown merchant is fine; known
+ * merchants are a fast DB hit. Returns a best-effort fallback (name as-is, no
+ * domain) if the Claude call fails, and does NOT cache failures.
  */
-export async function resolveMerchantCached(rawName: string): Promise<ResolvedMerchant | null> {
+export async function resolveMerchant(rawName: string): Promise<ResolvedMerchant> {
   const key = normalizeKey(rawName);
-  if (!key) return null;
+  if (!key) return { displayName: rawName, domain: null, isCompany: false };
 
-  // Dictionary FIRST — it's code, so it's authoritative and always current.
+  // 1. Dictionary FIRST — it's code, so it's authoritative and always current.
   // Checking it before the cache means a dictionary entry can never be shadowed
   // by a stale cache row (e.g. a domain we later corrected); we refresh the
   // cached row so cross-user reads that skip the dictionary stay correct.
@@ -124,27 +127,13 @@ export async function resolveMerchantCached(rawName: string): Promise<ResolvedMe
     return resolved;
   }
 
-  // Cross-user cache — only holds Claude-resolved merchants at this point.
+  // 2. Cross-user cache — only holds Claude-resolved merchants at this point.
   const cached = await prisma.merchant.findUnique({ where: { normalizedKey: key } });
   if (cached) {
     return { displayName: cached.displayName, domain: cached.domain, isCompany: cached.isCompany };
   }
 
-  return null;
-}
-
-/**
- * Full resolution including the Claude fallback for a true miss. Makes a
- * (blocking) Anthropic call, so DON'T await this in a latency-sensitive request
- * path — use resolveMerchantCached() there and resolveMerchantInBackground() to
- * fill misses. Returns a best-effort fallback (name as-is, no domain) if the AI
- * call fails, and does NOT cache failures so a transient error doesn't stick.
- */
-export async function resolveMerchant(rawName: string): Promise<ResolvedMerchant> {
-  const cached = await resolveMerchantCached(rawName);
-  if (cached) return cached;
-
-  const key = normalizeKey(rawName);
+  // 3. Claude — only a true miss.
   try {
     const resolved = await resolveWithClaude(key, rawName);
     await cacheMerchant(key, resolved, "claude");
@@ -152,27 +141,6 @@ export async function resolveMerchant(rawName: string): Promise<ResolvedMerchant
   } catch {
     return { displayName: rawName, domain: null, isCompany: false };
   }
-}
-
-/**
- * Fire-and-forget: resolve a true miss via Claude off the request path and write
- * the domain back onto the subscription once it lands. Never throws into the
- * caller. Use after a create/edit that only had a cached/dictionary miss.
- */
-export function resolveMerchantInBackground(subscriptionId: string, rawName: string): void {
-  void (async () => {
-    try {
-      const resolved = await resolveMerchant(rawName);
-      if (resolved.domain) {
-        await prisma.subscription.updateMany({
-          where: { id: subscriptionId },
-          data: { domain: resolved.domain },
-        });
-      }
-    } catch {
-      // Best-effort backfill — a failure just leaves the letter-tile fallback.
-    }
-  })();
 }
 
 async function cacheMerchant(
