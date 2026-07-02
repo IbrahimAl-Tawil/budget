@@ -3,6 +3,7 @@ import {
   computeAccountBalances,
   computeAllBudgetSpent,
   computeMonthlySurplus,
+  NOT_EXCLUDED_ACCOUNT,
 } from "./calculations";
 import {
   detectPriceChanges,
@@ -134,6 +135,7 @@ export async function getDashboardOverview(
       userId,
       amount: { lt: 0 },
       date: { gte: sevenMonthsAgo },
+      ...NOT_EXCLUDED_ACCOUNT,
     },
   });
 

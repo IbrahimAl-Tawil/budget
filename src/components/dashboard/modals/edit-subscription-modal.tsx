@@ -1,8 +1,9 @@
 "use client";
 
-// Edit-subscription modal. Mirrors edit-goal/edit-account: prefill from the
+// Edit-subscription modal. Mirrors edit-account/edit-goal: prefill from the
 // selected row, save via updateSubscription, delete via deleteSubscription
-// (ConfirmButton guard). Same form system + validate() shape as the add modal.
+// (ConfirmButton guard). Fields live in the shared <SubscriptionForm>; this
+// modal owns only prefill + submit/delete + API.
 
 import { useEffect, useState, useTransition } from "react";
 import {
@@ -14,12 +15,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { ConfirmButton } from "@/components/bulga/confirm-button";
 import { Trash2 } from "lucide-react";
-import { Field, TextInput, SelectInput } from "@/components/bulga/form";
-import { SUBSCRIPTION_CYCLES } from "@/lib/constants";
+import {
+  SubscriptionForm,
+  validateSubscription,
+  EMPTY_SUBSCRIPTION,
+  type SubscriptionFormValues,
+  type SubscriptionFormErrors,
+} from "@/components/dashboard/modals/subscription-form";
 import type { SubscriptionView } from "@/lib/types";
 import { gqlClient, errMessage } from "@/lib/graphql/client";
-
-const CATEGORIES = /* GraphQL */ `query Categories { categories { id name } }`;
 
 const UPDATE_SUBSCRIPTION = /* GraphQL */ `
   mutation UpdateSubscription($id: ID!, $name: String, $cycle: String, $amount: Float, $categoryId: ID) {
@@ -33,26 +37,6 @@ const DELETE_SUBSCRIPTION = /* GraphQL */ `
   }
 `;
 
-interface Values {
-  name: string;
-  amount: string;
-  cycle: string;
-  categoryId: string;
-}
-
-function validate(v: Values): Partial<Record<keyof Values, string>> {
-  const errors: Partial<Record<keyof Values, string>> = {};
-  if (!v.name.trim()) errors.name = "Give the subscription a name.";
-  const amount = Number(v.amount);
-  if (!v.amount.trim() || !Number.isFinite(amount) || amount <= 0) {
-    errors.amount = "Enter an amount greater than zero.";
-  }
-  if (!SUBSCRIPTION_CYCLES.includes(v.cycle as (typeof SUBSCRIPTION_CYCLES)[number])) {
-    errors.cycle = "Pick a billing cycle.";
-  }
-  return errors;
-}
-
 export function EditSubscriptionModal({
   open,
   subscription,
@@ -64,9 +48,8 @@ export function EditSubscriptionModal({
   onClose: () => void;
   onUpdated: () => void;
 }) {
-  const [values, setValues] = useState<Values>({ name: "", amount: "", cycle: "Monthly", categoryId: "" });
-  const [errors, setErrors] = useState<Partial<Record<keyof Values, string>>>({});
-  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+  const [values, setValues] = useState<SubscriptionFormValues>(EMPTY_SUBSCRIPTION);
+  const [errors, setErrors] = useState<SubscriptionFormErrors>({});
   const [formError, setFormError] = useState("");
   const [isPending, startTransition] = useTransition();
 
@@ -83,22 +66,18 @@ export function EditSubscriptionModal({
     }
   }, [subscription, open]);
 
-  useEffect(() => {
-    if (!open) return;
-    gqlClient
-      .request<{ categories: { id: string; name: string }[] }>(CATEGORIES)
-      .then(({ categories }) => setCategories(categories))
-      .catch(() => setCategories([]));
-  }, [open]);
-
-  const set = (field: keyof Values, value: string) => {
-    setValues((v) => ({ ...v, [field]: value }));
-    setErrors((e) => (e[field] ? { ...e, [field]: undefined } : e));
+  const change = (patch: Partial<SubscriptionFormValues>) => {
+    setValues((v) => ({ ...v, ...patch }));
+    setErrors((e) => {
+      const next = { ...e };
+      for (const k of Object.keys(patch)) delete next[k as keyof SubscriptionFormErrors];
+      return next;
+    });
   };
 
   const handleSave = () => {
     if (!subscription) return;
-    const found = validate(values);
+    const found = validateSubscription(values);
     if (Object.keys(found).length > 0) {
       setErrors(found);
       return;
@@ -140,58 +119,8 @@ export function EditSubscriptionModal({
             Edit subscription
           </DialogTitle>
         </DialogHeader>
-        <div className="space-y-4 mt-2">
-          <Field label="Name" error={errors.name} htmlFor="edit-sub-name">
-            <TextInput
-              id="edit-sub-name"
-              value={values.name}
-              invalid={!!errors.name}
-              onChange={(e) => set("name", e.target.value)}
-              placeholder="e.g. Netflix"
-            />
-          </Field>
-          <div className="flex gap-3">
-            <Field label="Amount" error={errors.amount} htmlFor="edit-sub-amount" className="flex-1">
-              <TextInput
-                id="edit-sub-amount"
-                type="number"
-                min="0"
-                step="0.01"
-                value={values.amount}
-                invalid={!!errors.amount}
-                onChange={(e) => set("amount", e.target.value)}
-                placeholder="0.00"
-              />
-            </Field>
-            <Field label="Cycle" error={errors.cycle} htmlFor="edit-sub-cycle" className="flex-1">
-              <SelectInput
-                id="edit-sub-cycle"
-                value={values.cycle}
-                invalid={!!errors.cycle}
-                onChange={(e) => set("cycle", e.target.value)}
-              >
-                {SUBSCRIPTION_CYCLES.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </SelectInput>
-            </Field>
-          </div>
-          <Field label="Budget category" optional htmlFor="edit-sub-category">
-            <SelectInput
-              id="edit-sub-category"
-              value={values.categoryId}
-              onChange={(e) => set("categoryId", e.target.value)}
-            >
-              <option value="">No category</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </SelectInput>
-          </Field>
+        <div className="mt-2">
+          <SubscriptionForm values={values} errors={errors} onChange={change} open={open} idPrefix="edit-sub" />
         </div>
         {formError && (
           <p className="text-sm text-[var(--color-bk-clay)] font-medium mt-2">{formError}</p>

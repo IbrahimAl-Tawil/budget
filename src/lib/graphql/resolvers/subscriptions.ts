@@ -6,7 +6,7 @@ import { getSubscriptions } from "@/lib/db/queries";
 import { prisma } from "@/lib/db/prisma";
 import { okMoney, okString, okEnum, LIMITS } from "@/lib/validate";
 import { SUBSCRIPTION_CYCLES } from "@/lib/constants";
-import { resolveMerchant } from "@/lib/merchant/resolve";
+import { resolveMerchantCached, resolveMerchantInBackground } from "@/lib/merchant/resolve";
 
 builder.queryField("subscriptions", (t) =>
   t.field({
@@ -36,7 +36,8 @@ builder.mutationField("createSubscription", (t) =>
       if (!okMoney(input.amount) || input.amount <= 0) {
         badRequest("Enter an amount greater than zero.");
       }
-      if (!okEnum(input.cycle, SUBSCRIPTION_CYCLES)) {
+      // okEnum accepts "" for optional args; cycle is required, so reject empty.
+      if (!input.cycle || !okEnum(input.cycle, SUBSCRIPTION_CYCLES)) {
         badRequest("Pick a billing cycle.");
       }
       // A client-supplied categoryId must belong to the caller (BOLA guard).
@@ -51,10 +52,10 @@ builder.mutationField("createSubscription", (t) =>
       }
 
       const name = input.name.trim();
-      // Resolve the merchant → domain for the logo. Cached in the Merchant table,
-      // so this is a single DB read for known merchants; failures degrade to no
-      // logo (null domain) rather than blocking the create.
-      const merchant = await resolveMerchant(name);
+      // Resolve the logo domain WITHOUT blocking on Claude: dictionary/cache
+      // only (DB reads). A true miss returns null and is backfilled off the
+      // request path, so the mutation never hangs on Anthropic latency.
+      const merchant = await resolveMerchantCached(name);
 
       const sub = await prisma.subscription.create({
         data: {
@@ -63,7 +64,7 @@ builder.mutationField("createSubscription", (t) =>
           amount: Math.abs(input.amount),
           cycle: input.cycle,
           categoryId: input.categoryId || undefined,
-          domain: merchant.domain,
+          domain: merchant?.domain ?? null,
           // Manually added → the user has confirmed it exists. Anchor the
           // last-seen date to now so the "no recent charge" detector doesn't
           // immediately flag a brand-new manual entry.
@@ -71,6 +72,8 @@ builder.mutationField("createSubscription", (t) =>
           lastTransactionDate: new Date(),
         },
       });
+      // Cache miss → resolve via Claude in the background and backfill the logo.
+      if (!merchant) resolveMerchantInBackground(sub.id, name);
       return { ok: true, id: sub.id };
     },
   }),
@@ -91,10 +94,15 @@ builder.mutationField("updateSubscription", (t) =>
       if (name != null && (!okString(name, LIMITS.NAME) || !name.trim())) {
         badRequest("Give the subscription a name.");
       }
-      if (cycle != null && !okEnum(cycle, SUBSCRIPTION_CYCLES)) {
+      // okEnum treats "" as valid (for optional args), but cycle here must be a
+      // real value — reject an explicit empty string too.
+      if (cycle != null && (!cycle || !okEnum(cycle, SUBSCRIPTION_CYCLES))) {
         badRequest("Pick a billing cycle.");
       }
-      if (!okMoney(amount)) badRequest("Amount is out of range.");
+      // Match createSubscription: amount, when provided, must be > 0.
+      if (amount != null && (!okMoney(amount) || amount <= 0)) {
+        badRequest("Enter an amount greater than zero.");
+      }
       const existing = await prisma.subscription.findFirst({
         where: { id, userId },
       });
@@ -117,25 +125,36 @@ builder.mutationField("updateSubscription", (t) =>
         previousAmount?: number;
         domain?: string | null;
       } = {};
+      let renamedTo: string | null = null;
       if (name != null) {
         const trimmed = name.trim();
         data.name = trimmed;
-        // Re-resolve the logo only when the name actually changed.
+        // Re-resolve the logo only when the name changed, and only from the
+        // fast dictionary/cache path (no blocking Claude call). Only overwrite
+        // the stored domain when we got a real one — a miss keeps the existing
+        // domain rather than wiping a good logo; the Claude backfill runs below.
         if (trimmed !== existing.name) {
-          data.domain = (await resolveMerchant(trimmed)).domain;
+          const resolved = await resolveMerchantCached(trimmed);
+          if (resolved?.domain) data.domain = resolved.domain;
+          if (!resolved) renamedTo = trimmed;
         }
       }
       if (cycle != null) data.cycle = cycle;
       if (categoryId !== undefined) data.categoryId = categoryId || null;
-      if (amount != null && Number.isFinite(amount) && amount !== existing.amount) {
-        // Stash the prior amount so the price-change detector can flag the diff.
-        data.previousAmount = existing.amount;
-        data.amount = amount;
+      if (amount != null && Number.isFinite(amount)) {
+        const abs = Math.abs(amount);
+        if (abs !== existing.amount) {
+          // Stash the prior amount so the price-change detector can flag the diff.
+          data.previousAmount = existing.amount;
+          data.amount = abs;
+        }
       }
 
       if (Object.keys(data).length > 0) {
         await prisma.subscription.update({ where: { id }, data });
       }
+      // Renamed to an unknown merchant → resolve via Claude off the request path.
+      if (renamedTo) resolveMerchantInBackground(id, renamedTo);
       return { ok: true, id };
     },
   }),
