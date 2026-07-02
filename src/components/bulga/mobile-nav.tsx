@@ -11,7 +11,8 @@
 import { Dialog } from "@base-ui/react/dialog";
 import Link from "next/link";
 import { Settings, LogOut } from "lucide-react";
-import { Wordmark } from "@/components/bulga/logo";
+import { LogoMark } from "@/components/bulga/logo";
+import { Button } from "@/components/ui/button";
 import type { LucideIcon } from "lucide-react";
 
 interface NavItem {
@@ -97,9 +98,13 @@ export function MobileNav({
             <span aria-hidden="true" className="h-1 w-9 rounded-full bg-[var(--color-bk-line)]" />
           </div>
 
-          {/* header — wordmark */}
-          <div className="flex items-center justify-between px-5 pt-2 pb-3">
-            <Wordmark />
+          {/* header — filled accent mark + wordmark (matches the app's branded
+              tile; a bare transparent mark reads thin at this size). */}
+          <div className="flex items-center gap-2.5 px-5 pt-2 pb-3">
+            <LogoMark size={30} bg={accent} fg="#fff" />
+            <span className="text-[19px] font-bold tracking-[-0.03em] text-[var(--color-bk-ink)]">
+              Bulga
+            </span>
           </div>
 
           {/* nav rows — scroll if a short screen can't fit them all */}
@@ -113,10 +118,10 @@ export function MobileNav({
             </div>
           </nav>
 
-          {/* footer — account identity with a Settings action, then a
-              destructive-tinted Log out row set apart below. */}
+          {/* footer — account identity, then Settings + a red (danger) Log out
+              button side by side. */}
           <div className="mt-1 border-t border-[var(--color-bk-line-soft)] px-3 pt-3">
-            <div className="flex items-center gap-3 rounded-[14px] px-2.5 py-2">
+            <div className="flex items-center gap-3 px-2.5 py-2">
               <span
                 className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-[13px] font-bold text-white"
                 style={{ background: accent }}
@@ -130,31 +135,25 @@ export function MobileNav({
                 </div>
                 <div className="text-[11.5px] text-[var(--color-bk-faint)]">Free plan</div>
               </div>
+            </div>
+            <div className="mt-1 flex gap-2">
               <Dialog.Close
                 render={
-                  <button
-                    type="button"
-                    onClick={onOpenSettings}
-                    aria-label="Settings"
-                    className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[var(--color-border)] text-[var(--color-bk-muted)] outline-none transition-colors hover:bg-[var(--color-bk-line-soft)] hover:text-[var(--color-bk-ink)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40"
-                  >
-                    <Settings size={17} strokeWidth={1.9} aria-hidden="true" />
-                  </button>
+                  <Button variant="outline" size="sm" onClick={onOpenSettings} className="flex-1">
+                    <Settings data-icon="inline-start" size={16} strokeWidth={2} aria-hidden="true" />
+                    Settings
+                  </Button>
+                }
+              />
+              <Dialog.Close
+                render={
+                  <Button variant="danger" size="sm" onClick={onSignOut} className="flex-1">
+                    <LogOut data-icon="inline-start" size={16} strokeWidth={2} aria-hidden="true" />
+                    Log out
+                  </Button>
                 }
               />
             </div>
-            <Dialog.Close
-              render={
-                <button
-                  type="button"
-                  onClick={onSignOut}
-                  className="mt-1 flex w-full items-center gap-3.5 rounded-[13px] px-3.5 py-2.5 text-[15px] font-semibold text-[var(--color-bk-clay)] outline-none transition-colors hover:bg-[var(--color-bk-clay-tint)] focus-visible:ring-2 focus-visible:ring-[var(--color-bk-clay)]/40"
-                >
-                  <LogOut size={18} strokeWidth={1.9} aria-hidden="true" />
-                  Log out
-                </button>
-              }
-            />
           </div>
         </Dialog.Popup>
       </Dialog.Portal>
