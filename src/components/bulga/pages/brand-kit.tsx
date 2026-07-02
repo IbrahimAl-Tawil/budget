@@ -10,7 +10,7 @@
 import { useEffect, useState, type CSSProperties } from "react";
 
 import { LogoMark } from "@/components/bulga/logo";
-import { BANKNOTE_SCHEMES, LOGO_GREEN, type BulgaTheme } from "@/components/bulga/theme";
+import { BANKNOTE_SCHEMES, LOGO_GREEN, deriveTheme, themeVars, type BulgaTheme } from "@/components/bulga/theme";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Field, TextInput, SelectInput } from "@/components/bulga/form";
@@ -20,17 +20,6 @@ interface BulgaBrandKitProps {
   accent: string;
   theme: BulgaTheme;
   onAccentChange: (accent: string) => void;
-}
-
-// Rebuild an oklch() with a new lightness/chroma but the same hue — lets the
-// showcase derive tint/deep tones from a variation's own note colour so the
-// Color and Components sections retone when you switch variations.
-function parseOklch(s: string): { L: number; C: number; H: string } {
-  const p = s.replace(/oklch\(|\)/gi, "").trim().split(/[\s,/]+/);
-  return { L: parseFloat(p[0]), C: parseFloat(p[1]), H: p[2] ?? "158" };
-}
-function toOklch(L: number, C: number, H: string): string {
-  return `oklch(${L}% ${C} ${H})`;
 }
 
 export function BulgaBrandKit({ accent, theme, onAccentChange }: BulgaBrandKitProps) {
@@ -49,19 +38,11 @@ export function BulgaBrandKit({ accent, theme, onAccentChange }: BulgaBrandKitPr
   const activeScheme = BANKNOTE_SCHEMES[schemeIdx];
   const barWidths = [18, 16, 28, 20, 18];
 
-  // Accent / Soft fill / Deep tone for the whole showcase, derived from the
-  // active variation's $20 green (index 2) so Color + Components track the
-  // selected treatment: vivid → sage → forest.
-  const g = parseOklch(activeScheme.colors[2].value);
-  const preview = {
-    accent: activeScheme.colors[2].value, // the true swatch — shows the treatment as-is
-    // Filled controls (buttons, progress, ghost text on white) need enough
-    // contrast for white/legible text, so cap the fill lightness — a pale
-    // "Tundra" sage stays readable as a button instead of washing out.
-    accentFill: toOklch(Math.min(g.L, 52), g.C, g.H),
-    accentTint: toOklch(Math.min(96, g.L + 40), 0.05, g.H), // cleaner mint, keeps the hue
-    accentDeep: toOklch(Math.max(30, g.L - 16), g.C, g.H),
-  };
+  // Derive the previewed theme the SAME way the app does when you actually pick
+  // a scheme (deriveTheme → themeVars), from the variation's $20 green (index 2).
+  // This makes the preview a truthful dry run and keeps one source of truth for
+  // the accent-token math — no bespoke preview palette to drift.
+  const previewTheme = deriveTheme(activeScheme.colors[2].value);
 
   // Sample spending mapped one-category-per-note — the clearest proof of the
   // banknote palette: it earns its keep on multi-series data, not as a lone
@@ -80,9 +61,9 @@ export function BulgaBrandKit({ accent, theme, onAccentChange }: BulgaBrandKitPr
     { name: "Canvas", role: "Background", value: "var(--color-bk-canvas)" },
     { name: "Surface", role: "Cards", value: "var(--color-bk-surface)" },
     { name: "Ink", role: "Text", value: theme.ink },
-    { name: "Accent", role: "Themed", value: preview.accent },
-    { name: "Soft fill", role: "Accent tint", value: preview.accentTint },
-    { name: "Deep tone", role: "Figures", value: preview.accentDeep },
+    { name: "Accent", role: "Themed", value: previewTheme.accent },
+    { name: "Soft fill", role: "Accent tint", value: previewTheme.accentTint },
+    { name: "Deep tone", role: "Figures", value: previewTheme.accentDeep },
     { name: "Clay", role: "Alert", value: theme.clay },
   ];
 
@@ -402,7 +383,7 @@ export function BulgaBrandKit({ accent, theme, onAccentChange }: BulgaBrandKitPr
             >
               $154,291
             </div>
-            <div style={{ fontFamily: "var(--font-num), Georgia, serif", fontSize: 22, marginTop: 8, color: preview.accentDeep }}>
+            <div style={{ fontFamily: "var(--font-num), Georgia, serif", fontSize: 22, marginTop: 8, color: previewTheme.accentDeep }}>
               Money, made plain.
             </div>
           </div>
@@ -419,10 +400,10 @@ export function BulgaBrandKit({ accent, theme, onAccentChange }: BulgaBrandKitPr
           </div>
         </div>
 
-        {/* Components — scope the PREVIEWED scheme's accent onto this card via
-            the same tokens themeVars sets globally, so the real Button/Badge/
-            input/progress inside retone live when you tap a variation (they read
-            these tokens, not a fixed color). */}
+        {/* Components — scope the PREVIEWED theme onto this card with the SAME
+            themeVars the shell applies globally, so the real Button/Badge/input/
+            progress inside retone live (and identically to how picking the
+            scheme would look) when you tap a variation. */}
         <div
           style={
             {
@@ -430,10 +411,7 @@ export function BulgaBrandKit({ accent, theme, onAccentChange }: BulgaBrandKitPr
               border: "1px solid var(--color-bk-line)",
               borderRadius: 20,
               padding: 28,
-              "--primary": preview.accentFill,
-              "--ring": preview.accentFill,
-              "--accent": preview.accentTint,
-              "--accent-foreground": preview.accentDeep,
+              ...themeVars(previewTheme),
             } as CSSProperties
           }
         >
