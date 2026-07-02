@@ -12,6 +12,8 @@ import { useEffect, useState } from "react";
 import { LogoMark } from "@/components/bulga/logo";
 import { BANKNOTE_SCHEMES, LOGO_GREEN, type BulgaTheme } from "@/components/bulga/theme";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Field, TextInput, SelectInput } from "@/components/bulga/form";
 
 interface BulgaBrandKitProps {
   accent: string;
@@ -442,65 +444,26 @@ export function BulgaBrandKit({ accent, theme, onAccentChange }: BulgaBrandKitPr
             <Button variant="link">View all →</Button>
           </div>
 
-          {/* Badges */}
+          {/* The real <Badge> variants. */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 18 }}>
-            <span
-              style={{
-                fontSize: 12,
-                fontWeight: 600,
-                padding: "5px 12px",
-                borderRadius: 999,
-                background: preview.accentTint,
-                color: preview.accentDeep,
-              }}
-            >
-              + On track
-            </span>
-            <span
-              style={{
-                fontSize: 12,
-                fontWeight: 600,
-                padding: "5px 12px",
-                borderRadius: 999,
-                background: theme.clayTint,
-                color: theme.clay,
-              }}
-            >
-              Due soon
-            </span>
-            <span
-              style={{
-                fontSize: 12,
-                fontWeight: 600,
-                padding: "5px 12px",
-                borderRadius: 999,
-                background: "oklch(95% 0.005 85)",
-                color: "oklch(46% 0.012 80)",
-              }}
-            >
-              Neutral
-            </span>
+            <Badge>On track</Badge>
+            <Badge variant="secondary">Neutral</Badge>
+            <Badge variant="destructive">Due soon</Badge>
+            <Badge variant="outline">Draft</Badge>
           </div>
 
-          {/* Input field mock */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 9,
-              height: 42,
-              padding: "0 16px",
-              borderRadius: 13,
-              border: "1px solid var(--color-bk-line)",
-              background: "oklch(98% 0.004 90)",
-              marginBottom: 14,
-            }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="oklch(58% 0.012 80)" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-              <circle cx="11" cy="11" r="7" />
-              <path d="m21 21-4.3-4.3" />
-            </svg>
-            <span style={{ fontSize: 13.5, color: "oklch(58% 0.012 80)" }}>Input field</span>
+          {/* The real form controls (bulga/form) — the exact fields every modal
+              builds on, so this documents the live control styling. */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
+            <Field label="Text input">
+              <TextInput placeholder="e.g. Groceries" />
+            </Field>
+            <Field label="Select">
+              <SelectInput defaultValue="cad">
+                <option value="cad">CAD $</option>
+                <option value="usd">USD $</option>
+              </SelectInput>
+            </Field>
           </div>
 
           {/* Progress bar — animates to ~64% on enter */}
