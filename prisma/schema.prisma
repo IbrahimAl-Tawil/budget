@@ -44,6 +44,9 @@ model Account {
   number    String?
   balance   Float
   gradient  String?
+  // Locally hidden: kept synced, but dropped from net worth and totals. Lets a
+  // user omit one account of a Plaid item without unlinking the whole bank.
+  excluded  Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

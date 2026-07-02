@@ -110,3 +110,25 @@ builder.mutationField("deleteAccount", (t) =>
     },
   }),
 );
+
+// Hide/show a single account locally without unlinking its bank. Excluded
+// accounts stay synced but drop out of net worth + totals.
+builder.mutationField("setAccountExcluded", (t) =>
+  t.field({
+    type: MutationResultRef,
+    args: {
+      id: t.arg.id({ required: true }),
+      excluded: t.arg.boolean({ required: true }),
+    },
+    resolve: async (_root, { id, excluded }, ctx) => {
+      const userId = requireUser(ctx);
+      // deleteMany-scoped update so one user can't toggle another's account.
+      const { count } = await prisma.account.updateMany({
+        where: { id, userId },
+        data: { excluded },
+      });
+      if (count === 0) notFound();
+      return { ok: true, id };
+    },
+  }),
+);

@@ -78,6 +78,8 @@ export interface AccountView {
   institution?: string;
   /** Pre-formatted last-sync date (e.g. "Jun 30"), server-computed. */
   syncedLabel?: string;
+  /** Locally hidden — kept synced but omitted from net worth/totals. */
+  excluded?: boolean;
 }
 
 export interface InsightView {

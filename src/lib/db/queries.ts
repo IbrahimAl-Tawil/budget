@@ -59,7 +59,8 @@ export async function getDashboardOverview(
     budgets,
   ] = await Promise.all([
     prisma.user.findUnique({ where: { id: userId } }),
-    prisma.account.findMany({ where: { userId } }),
+    // Excluded accounts are hidden from net worth (kept synced, but omitted).
+    prisma.account.findMany({ where: { userId, excluded: false } }),
     computeAccountBalances(userId),
     computeMonthlySurplus(userId, month, year),
     computeAllBudgetSpent(userId, month, year),
@@ -378,6 +379,7 @@ export async function getAccounts(userId: string): Promise<AccountView[]> {
     synced: !!a.plaidItemId,
     institution: a.institution ?? undefined,
     syncedLabel: a.syncedAt ? formatDate(a.syncedAt) : undefined,
+    excluded: a.excluded,
   }));
 }
 
