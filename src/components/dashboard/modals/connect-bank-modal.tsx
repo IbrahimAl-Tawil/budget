@@ -184,7 +184,7 @@ export function ConnectBankModal({
         </div>
 
         <div className="mt-7 flex gap-3">
-          <Button variant="ghost" size="sm" onClick={onClose} className="flex-1">
+          <Button variant="secondary" size="sm" onClick={onClose} className="flex-1">
             {phase === "done" ? "Close" : "Cancel"}
           </Button>
           {phase !== "done" && (

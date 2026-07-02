@@ -97,7 +97,7 @@ export function AddAccountModal({
         {formError && <p className="text-sm text-[var(--color-bk-clay)] font-medium mt-3">{formError}</p>}
 
         <div className="flex gap-3 mt-7">
-          <Button variant="ghost" size="sm" onClick={onClose} className="flex-1">
+          <Button variant="secondary" size="sm" onClick={onClose} className="flex-1">
             Cancel
           </Button>
           <Button size="sm" onClick={handleSubmit} disabled={isPending} className="flex-[2]">
