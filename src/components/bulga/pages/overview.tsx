@@ -207,12 +207,9 @@ export function BulgaOverview({ overview, theme, onNavigate }: BulgaOverviewProp
         <div style={CARD}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 20 }}>
             <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Goals on track</h3>
-            <button
-              onClick={() => onNavigate?.("goals")}
-              style={{ fontFamily: "inherit", border: "none", background: "none", fontSize: 12.5, fontWeight: 600, color: theme.accent, cursor: "pointer" }}
-            >
+            <Button variant="link" size="sm" onClick={() => onNavigate?.("goals")} className="text-[12.5px]">
               View all →
-            </button>
+            </Button>
           </div>
           {goals.map((g) => {
             const pct = g.target > 0 ? Math.round((g.saved / g.target) * 100) : 0;
@@ -244,12 +241,9 @@ export function BulgaOverview({ overview, theme, onNavigate }: BulgaOverviewProp
         <div style={CARD}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 14 }}>
             <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Recent activity</h3>
-            <button
-              onClick={() => onNavigate?.("transactions")}
-              style={{ fontFamily: "inherit", border: "none", background: "none", fontSize: 12.5, fontWeight: 600, color: theme.accent, cursor: "pointer" }}
-            >
+            <Button variant="link" size="sm" onClick={() => onNavigate?.("transactions")} className="text-[12.5px]">
               See all →
-            </button>
+            </Button>
           </div>
           {recent.map((t) => {
             const [tint, ink] = tintFor(t.category);

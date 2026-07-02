@@ -7,7 +7,7 @@
 // the picker just calls onAccentChange — the shell owns accent state and pushes
 // it back down as `accent` + `theme`. No hardcoded sample data ships here.
 
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useState } from "react";
 
 import { LogoMark } from "@/components/bulga/logo";
 import { BANKNOTE_SCHEMES, LOGO_GREEN, type BulgaTheme } from "@/components/bulga/theme";
@@ -427,87 +427,19 @@ export function BulgaBrandKit({ accent, theme, onAccentChange }: BulgaBrandKitPr
         >
           <h3 style={{ margin: "0 0 20px", fontSize: 16, fontWeight: 700 }}>Components</h3>
 
-          {/* Real ui/ primitives (the actual app buttons future devs build on),
-              tinted to the live accent via inline vars so they retone too. */}
+          {/* The actual <Button> variants future devs build on — rendered with
+              NO inline overrides, so this documents exactly what the component
+              produces. They inherit the live accent through the primary token. */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", marginBottom: 12 }}>
-            <Button
-              style={
-                {
-                  background: preview.accentFill,
-                  color: "#fff",
-                  borderRadius: 999,
-                  height: 38,
-                  padding: "0 18px",
-                } as CSSProperties
-              }
-            >
-              Primary
-            </Button>
-            <Button variant="outline" style={{ borderRadius: 999, height: 38, padding: "0 18px" }}>
-              Secondary
-            </Button>
-            <Button variant="ghost" style={{ borderRadius: 999, height: 38, color: preview.accentFill }}>
-              Ghost →
-            </Button>
+            <Button size="sm">Primary</Button>
+            <Button variant="outline" size="sm">Outline</Button>
+            <Button variant="secondary" size="sm">Secondary</Button>
+            <Button variant="ghost" size="sm">Ghost</Button>
           </div>
-
-          {/* Raw pills — the showcase reference for the exact pill shape. */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", marginBottom: 18 }}>
-            <button
-              type="button"
-              style={{
-                height: 38,
-                padding: "0 18px",
-                borderRadius: 999,
-                border: "none",
-                background: preview.accentFill,
-                color: "#fff",
-                fontFamily: "inherit",
-                fontSize: 13.5,
-                fontWeight: 600,
-                cursor: "pointer",
-                transition: "transform .14s cubic-bezier(.34,1.56,.64,1)",
-              }}
-              onMouseDown={(e) => (e.currentTarget.style.transform = "scale(0.94)")}
-              onMouseUp={(e) => (e.currentTarget.style.transform = "")}
-              onMouseLeave={(e) => (e.currentTarget.style.transform = "")}
-            >
-              Primary
-            </button>
-            <button
-              type="button"
-              style={{
-                height: 38,
-                padding: "0 18px",
-                borderRadius: 999,
-                border: "1px solid oklch(86% 0.008 85)",
-                background: "#fff",
-                color: "oklch(28% 0.012 80)",
-                fontFamily: "inherit",
-                fontSize: 13.5,
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
-              Secondary
-            </button>
-            <button
-              type="button"
-              style={{
-                height: 38,
-                padding: "0 16px",
-                borderRadius: 999,
-                border: "none",
-                background: "none",
-                color: preview.accentFill,
-                fontFamily: "inherit",
-                fontSize: 13.5,
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
-              Ghost →
-            </button>
+            <Button variant="danger" size="sm">Delete</Button>
+            <Button variant="destructive" size="sm">Destructive</Button>
+            <Button variant="link">View all →</Button>
           </div>
 
           {/* Badges */}

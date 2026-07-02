@@ -19,7 +19,10 @@ const buttonVariants = cva(
           "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
         danger:
           "bg-[var(--color-bk-clay)] text-white hover:opacity-90 focus-visible:ring-destructive/30",
-        link: "text-primary underline-offset-4 hover:underline",
+        // Inline text link (e.g. a card header's "View all →"). Self-contained:
+        // resets the base pill's height/padding/rounding so it sits on the text
+        // baseline regardless of `size`. Accent-toned, subtle hover.
+        link: "!h-auto !min-h-0 gap-1 !rounded-none !border-0 !bg-transparent !px-0 py-0 font-semibold text-primary hover:opacity-70 focus-visible:ring-0 focus-visible:underline focus-visible:underline-offset-4",
       },
       size: {
         xs: "h-8 gap-1 px-3.5 text-xs has-data-[icon=inline-start]:pl-3 [&_svg:not([class*='size-'])]:size-3.5",
