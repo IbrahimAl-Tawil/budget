@@ -174,8 +174,8 @@ export function SettingsModal({ open, onClose, user, accent, onAccentChange, onS
   const [nameError, setNameError] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Seed the form ONCE per open. The values come from the NextAuth session,
-  // which resolves after first render, so we seed when the modal opens rather
+  // Seed the form ONCE per open. The values come from the server `user` props,
+  // which resolve after first render, so we seed when the modal opens rather
   // than capturing in useState. Crucially this must NOT re-run on every prop
   // change: autosave calls router.refresh(), which feeds fresh `user` props
   // back in — re-seeding then would wipe the live "Saved" status (the flicker)

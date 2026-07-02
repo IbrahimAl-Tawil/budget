@@ -7,6 +7,14 @@
 minimum_password_length = 12
 # Require a mix so leaked-credential reuse is harder.
 password_requirements = "lower_upper_letters_digits_symbols"
+# URLs the auth flow may redirect back to (OAuth + email confirmation both land
+# on /auth/callback). This governs the LOCAL `supabase start` stack; the deployed
+# project's allowlist lives in the dashboard (Authentication → URL Configuration)
+# and must include your production `…/auth/callback` too.
+additional_redirect_urls = [
+  "http://localhost:3000/auth/callback",
+  "http://127.0.0.1:3000/auth/callback",
+]
 
 [auth.email]
 # Never ship with confirmations off: an unconfirmed/typo/someone-else's email
@@ -21,3 +29,16 @@ email_sent = 10
 sign_in_sign_ups = 30
 token_refresh = 150
 token_verifications = 30
+
+# ── OAuth providers ──────────────────────────────────────────────────────────
+# Google sign-in. Credentials come from the environment — NEVER commit the
+# secret. Set these for local dev (e.g. in supabase/.env) and, for the deployed
+# project, also enter the Client ID/Secret in the Supabase dashboard
+# (Authentication → Providers → Google).
+#
+# In Google Cloud Console the OAuth client's Authorized redirect URI must point
+# at Supabase's endpoint (NOT the app): https://<project-ref>.supabase.co/auth/v1/callback
+[auth.external.google]
+enabled = true
+client_id = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID)"
+secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"
