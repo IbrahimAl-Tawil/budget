@@ -200,7 +200,7 @@ export function ImportModal({ open, onClose, onImported }: ImportModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
-      <DialogContent className="max-w-[560px] p-9">
+      <DialogContent className="sm:max-w-[560px] p-6 sm:p-9">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold tracking-[-0.02em] text-[var(--color-bk-ink)]">
             Import Transactions

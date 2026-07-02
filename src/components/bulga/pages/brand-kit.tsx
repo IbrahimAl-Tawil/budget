@@ -10,24 +10,16 @@
 import { useEffect, useState, type CSSProperties } from "react";
 
 import { LogoMark } from "@/components/bulga/logo";
-import { BANKNOTE_SCHEMES, LOGO_GREEN, type BulgaTheme } from "@/components/bulga/theme";
+import { BANKNOTE_SCHEMES, LOGO_GREEN, deriveTheme, themeVars, type BulgaTheme } from "@/components/bulga/theme";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Field, TextInput, SelectInput } from "@/components/bulga/form";
+import { ProgressBar, ProgressRing } from "@/components/bulga/progress";
 
 interface BulgaBrandKitProps {
   accent: string;
   theme: BulgaTheme;
   onAccentChange: (accent: string) => void;
-}
-
-// Rebuild an oklch() with a new lightness/chroma but the same hue — lets the
-// showcase derive tint/deep tones from a variation's own note colour so the
-// Color and Components sections retone when you switch variations.
-function parseOklch(s: string): { L: number; C: number; H: string } {
-  const p = s.replace(/oklch\(|\)/gi, "").trim().split(/[\s,/]+/);
-  return { L: parseFloat(p[0]), C: parseFloat(p[1]), H: p[2] ?? "158" };
-}
-function toOklch(L: number, C: number, H: string): string {
-  return `oklch(${L}% ${C} ${H})`;
 }
 
 export function BulgaBrandKit({ accent, theme, onAccentChange }: BulgaBrandKitProps) {
@@ -46,19 +38,11 @@ export function BulgaBrandKit({ accent, theme, onAccentChange }: BulgaBrandKitPr
   const activeScheme = BANKNOTE_SCHEMES[schemeIdx];
   const barWidths = [18, 16, 28, 20, 18];
 
-  // Accent / Soft fill / Deep tone for the whole showcase, derived from the
-  // active variation's $20 green (index 2) so Color + Components track the
-  // selected treatment: vivid → sage → forest.
-  const g = parseOklch(activeScheme.colors[2].value);
-  const preview = {
-    accent: activeScheme.colors[2].value, // the true swatch — shows the treatment as-is
-    // Filled controls (buttons, progress, ghost text on white) need enough
-    // contrast for white/legible text, so cap the fill lightness — a pale
-    // "Tundra" sage stays readable as a button instead of washing out.
-    accentFill: toOklch(Math.min(g.L, 52), g.C, g.H),
-    accentTint: toOklch(Math.min(96, g.L + 40), 0.05, g.H), // cleaner mint, keeps the hue
-    accentDeep: toOklch(Math.max(30, g.L - 16), g.C, g.H),
-  };
+  // Derive the previewed theme the SAME way the app does when you actually pick
+  // a scheme (deriveTheme → themeVars), from the variation's $20 green (index 2).
+  // This makes the preview a truthful dry run and keeps one source of truth for
+  // the accent-token math — no bespoke preview palette to drift.
+  const previewTheme = deriveTheme(activeScheme.colors[2].value);
 
   // Sample spending mapped one-category-per-note — the clearest proof of the
   // banknote palette: it earns its keep on multi-series data, not as a lone
@@ -77,9 +61,9 @@ export function BulgaBrandKit({ accent, theme, onAccentChange }: BulgaBrandKitPr
     { name: "Canvas", role: "Background", value: "var(--color-bk-canvas)" },
     { name: "Surface", role: "Cards", value: "var(--color-bk-surface)" },
     { name: "Ink", role: "Text", value: theme.ink },
-    { name: "Accent", role: "Themed", value: preview.accent },
-    { name: "Soft fill", role: "Accent tint", value: preview.accentTint },
-    { name: "Deep tone", role: "Figures", value: preview.accentDeep },
+    { name: "Accent", role: "Themed", value: previewTheme.accent },
+    { name: "Soft fill", role: "Accent tint", value: previewTheme.accentTint },
+    { name: "Deep tone", role: "Figures", value: previewTheme.accentDeep },
     { name: "Clay", role: "Alert", value: theme.clay },
   ];
 
@@ -94,9 +78,10 @@ export function BulgaBrandKit({ accent, theme, onAccentChange }: BulgaBrandKitPr
   const faint = "oklch(56% 0.012 80)";
 
   return (
-    <div className="bk-enter" style={{ maxWidth: 1000, margin: "0 auto" }}>
+    <div className="bk-enter bk-page">
       {/* ── 1 · logo lockup ── */}
       <section
+        className="bk-brand-hero"
         style={{
           background: "oklch(20% 0.014 75)",
           borderRadius: 24,
@@ -160,7 +145,7 @@ export function BulgaBrandKit({ accent, theme, onAccentChange }: BulgaBrandKitPr
         </p>
 
         {/* Variation cards — each shows all five note colours as one palette */}
-        <div style={{ display: "grid", gridTemplateColumns: `repeat(${BANKNOTE_SCHEMES.length}, 1fr)`, gap: 12 }}>
+        <div className="bk-scheme-grid" style={{ display: "grid", gridTemplateColumns: `repeat(${BANKNOTE_SCHEMES.length}, 1fr)`, gap: 12 }}>
           {BANKNOTE_SCHEMES.map((s, i) => {
             const isActive = i === schemeIdx;
             return (
@@ -318,7 +303,7 @@ export function BulgaBrandKit({ accent, theme, onAccentChange }: BulgaBrandKitPr
           Warm-neutral canvas, near-monochrome ink, one confident accent used
           sparingly. Clay flags only what needs attention.
         </p>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 12 }}>
+        <div className="bk-grid-swatches" style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 12 }}>
           {palette.map((p) => (
             <div key={p.name}>
               <div
@@ -364,6 +349,7 @@ export function BulgaBrandKit({ accent, theme, onAccentChange }: BulgaBrandKitPr
 
       {/* ── 4 + 5 · type / components two-up ── */}
       <section
+        className="bk-grid-2up"
         style={{
           display: "grid",
           gridTemplateColumns: "1.1fr 1fr",
@@ -397,7 +383,7 @@ export function BulgaBrandKit({ accent, theme, onAccentChange }: BulgaBrandKitPr
             >
               $154,291
             </div>
-            <div style={{ fontFamily: "var(--font-num), Georgia, serif", fontSize: 22, marginTop: 8, color: preview.accentDeep }}>
+            <div style={{ fontFamily: "var(--font-num), Georgia, serif", fontSize: 22, marginTop: 8, color: previewTheme.accentDeep }}>
               Money, made plain.
             </div>
           </div>
@@ -414,172 +400,66 @@ export function BulgaBrandKit({ accent, theme, onAccentChange }: BulgaBrandKitPr
           </div>
         </div>
 
-        {/* Components */}
+        {/* Components — scope the PREVIEWED theme onto this card with the SAME
+            themeVars the shell applies globally, so the real Button/Badge/input/
+            progress inside retone live (and identically to how picking the
+            scheme would look) when you tap a variation. */}
         <div
-          style={{
-            background: "var(--color-bk-surface)",
-            border: "1px solid var(--color-bk-line)",
-            borderRadius: 20,
-            padding: 28,
-          }}
+          style={
+            {
+              background: "var(--color-bk-surface)",
+              border: "1px solid var(--color-bk-line)",
+              borderRadius: 20,
+              padding: 28,
+              ...themeVars(previewTheme),
+            } as CSSProperties
+          }
         >
           <h3 style={{ margin: "0 0 20px", fontSize: 16, fontWeight: 700 }}>Components</h3>
 
-          {/* Real ui/ primitives (the actual app buttons future devs build on),
-              tinted to the live accent via inline vars so they retone too. */}
+          {/* The actual <Button> variants future devs build on — rendered with
+              NO inline overrides, so this documents exactly what the component
+              produces. They inherit the live accent through the primary token. */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", marginBottom: 12 }}>
-            <Button
-              style={
-                {
-                  background: preview.accentFill,
-                  color: "#fff",
-                  borderRadius: 999,
-                  height: 38,
-                  padding: "0 18px",
-                } as CSSProperties
-              }
-            >
-              Primary
-            </Button>
-            <Button variant="outline" style={{ borderRadius: 999, height: 38, padding: "0 18px" }}>
-              Secondary
-            </Button>
-            <Button variant="ghost" style={{ borderRadius: 999, height: 38, color: preview.accentFill }}>
-              Ghost →
-            </Button>
+            <Button size="sm">Primary</Button>
+            <Button variant="outline" size="sm">Outline</Button>
+            <Button variant="secondary" size="sm">Secondary</Button>
+            <Button variant="ghost" size="sm">Ghost</Button>
           </div>
-
-          {/* Raw pills — the showcase reference for the exact pill shape. */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", marginBottom: 18 }}>
-            <button
-              type="button"
-              style={{
-                height: 38,
-                padding: "0 18px",
-                borderRadius: 999,
-                border: "none",
-                background: preview.accentFill,
-                color: "#fff",
-                fontFamily: "inherit",
-                fontSize: 13.5,
-                fontWeight: 600,
-                cursor: "pointer",
-                transition: "transform .14s cubic-bezier(.34,1.56,.64,1)",
-              }}
-              onMouseDown={(e) => (e.currentTarget.style.transform = "scale(0.94)")}
-              onMouseUp={(e) => (e.currentTarget.style.transform = "")}
-              onMouseLeave={(e) => (e.currentTarget.style.transform = "")}
-            >
-              Primary
-            </button>
-            <button
-              type="button"
-              style={{
-                height: 38,
-                padding: "0 18px",
-                borderRadius: 999,
-                border: "1px solid oklch(86% 0.008 85)",
-                background: "#fff",
-                color: "oklch(28% 0.012 80)",
-                fontFamily: "inherit",
-                fontSize: 13.5,
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
-              Secondary
-            </button>
-            <button
-              type="button"
-              style={{
-                height: 38,
-                padding: "0 16px",
-                borderRadius: 999,
-                border: "none",
-                background: "none",
-                color: preview.accentFill,
-                fontFamily: "inherit",
-                fontSize: 13.5,
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
-              Ghost →
-            </button>
+            <Button variant="danger" size="sm">Delete</Button>
+            <Button variant="destructive" size="sm">Destructive</Button>
+            <Button variant="link">View all →</Button>
           </div>
 
-          {/* Badges */}
+          {/* The real <Badge> variants. */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 18 }}>
-            <span
-              style={{
-                fontSize: 12,
-                fontWeight: 600,
-                padding: "5px 12px",
-                borderRadius: 999,
-                background: preview.accentTint,
-                color: preview.accentDeep,
-              }}
-            >
-              + On track
-            </span>
-            <span
-              style={{
-                fontSize: 12,
-                fontWeight: 600,
-                padding: "5px 12px",
-                borderRadius: 999,
-                background: theme.clayTint,
-                color: theme.clay,
-              }}
-            >
-              Due soon
-            </span>
-            <span
-              style={{
-                fontSize: 12,
-                fontWeight: 600,
-                padding: "5px 12px",
-                borderRadius: 999,
-                background: "oklch(95% 0.005 85)",
-                color: "oklch(46% 0.012 80)",
-              }}
-            >
-              Neutral
-            </span>
+            <Badge>On track</Badge>
+            <Badge variant="secondary">Neutral</Badge>
+            <Badge variant="destructive">Due soon</Badge>
+            <Badge variant="outline">Draft</Badge>
           </div>
 
-          {/* Input field mock */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 9,
-              height: 42,
-              padding: "0 16px",
-              borderRadius: 13,
-              border: "1px solid var(--color-bk-line)",
-              background: "oklch(98% 0.004 90)",
-              marginBottom: 14,
-            }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="oklch(58% 0.012 80)" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-              <circle cx="11" cy="11" r="7" />
-              <path d="m21 21-4.3-4.3" />
-            </svg>
-            <span style={{ fontSize: 13.5, color: "oklch(58% 0.012 80)" }}>Input field</span>
+          {/* The real form controls (bulga/form) — the exact fields every modal
+              builds on, so this documents the live control styling. */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
+            <Field label="Text input">
+              <TextInput placeholder="e.g. Groceries" />
+            </Field>
+            <Field label="Select">
+              <SelectInput defaultValue="cad">
+                <option value="cad">CAD $</option>
+                <option value="usd">USD $</option>
+              </SelectInput>
+            </Field>
           </div>
 
-          {/* Progress bar — animates to ~64% on enter */}
-          <div style={{ height: 6, borderRadius: 999, background: "var(--color-bk-track)", overflow: "hidden" }}>
-            <div
-              style={{
-                height: "100%",
-                width: mounted ? "64%" : "0%",
-                borderRadius: 999,
-                background: preview.accentFill,
-                transition: "width 1s cubic-bezier(.22,.61,.36,1)",
-              }}
-            />
+          {/* The real ProgressBar + ProgressRing (bulga/progress) — the same
+              indicators the overview/spending/subscriptions bars and goal rings
+              are built from. Both sweep from 0 on mount. */}
+          <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+            <ProgressBar value={64} className="flex-1" />
+            <ProgressRing value={64} size={48} stroke={5} />
           </div>
         </div>
       </section>
@@ -598,7 +478,7 @@ export function BulgaBrandKit({ accent, theme, onAccentChange }: BulgaBrandKitPr
           Snappy, never showy. Spring on press, ease on reveal — every action
           confirms itself.
         </p>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+        <div className="bk-grid-4" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
           {motions.map((mItem) => (
             <div
               key={mItem.title}

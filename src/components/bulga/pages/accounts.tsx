@@ -100,9 +100,10 @@ export function BulgaAccounts({ accounts, netWorth, accent, theme, currency = "C
   });
 
   return (
-    <div className="bk-enter" style={{ maxWidth: 1000, margin: "0 auto" }}>
+    <div className="bk-enter bk-page">
       {/* net worth hero */}
       <section
+        className="bk-hero-row"
         style={{
           padding: "0 4px 32px",
           display: "flex",
@@ -135,7 +136,7 @@ export function BulgaAccounts({ accounts, netWorth, accent, theme, currency = "C
             {fmt(netWorth, currency)}
           </div>
         </div>
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8, flexShrink: 0 }}>
+        <div className="bk-hero-actions" style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8, flexShrink: 0 }}>
           <div style={{ display: "flex", gap: 10 }}>
           {hasLinkedBank && (
             <Button

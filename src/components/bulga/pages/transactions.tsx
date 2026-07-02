@@ -15,6 +15,15 @@ import { tintFor } from "@/components/bulga/theme";
 import { fmt } from "@/lib/format";
 import { gqlClient } from "@/lib/graphql/client";
 import { Button } from "@/components/ui/button";
+import {
+  Menu,
+  MenuTrigger,
+  MenuContent,
+  MenuRadioGroup,
+  MenuRadioItem,
+  MenuCheckboxItem,
+  MenuSeparator,
+} from "@/components/ui/menu";
 
 const DELETE_TRANSACTIONS = /* GraphQL */ `
   mutation DeleteTransactions($ids: [ID!]!) {
@@ -46,7 +55,6 @@ export function BulgaTransactions({ transactions, accounts, theme, currency = "C
   const [segment, setSegment] = useState<Segment>("all");
   // Empty set = all accounts. Otherwise, only these account ids are shown.
   const [acctFilter, setAcctFilter] = useState<Set<string>>(new Set());
-  const [acctMenuOpen, setAcctMenuOpen] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [isDeleting, startDelete] = useTransition();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -155,18 +163,16 @@ export function BulgaTransactions({ transactions, accounts, theme, currency = "C
 
   return (
     <>
-    <div
-      className="bk-enter"
-      style={{ maxWidth: 1000, margin: "0 auto" }}
-    >
+    <div className="bk-enter bk-page">
       {/* controls */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
         <div
           style={{
             display: "flex",
             alignItems: "center",
             gap: 9,
             flex: 1,
+            minWidth: 200,
             height: 42,
             padding: "0 16px",
             borderRadius: 13,
@@ -233,76 +239,46 @@ export function BulgaTransactions({ transactions, accounts, theme, currency = "C
           })}
         </div>
 
-        {/* account filter */}
+        {/* account filter — Base UI Menu; checkbox items stay open across
+            multi-select, and the positioner keeps it on-screen at any width. */}
         {accounts.length > 0 && (
-          <div style={{ position: "relative" }}>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setAcctMenuOpen((v) => !v)}
-              aria-haspopup="menu"
-              aria-expanded={acctMenuOpen}
-              style={acctFilter.size > 0 ? { background: theme.accentTint, color: theme.accentDeep, borderColor: "transparent" } : undefined}
-            >
-              {acctLabel}
-              <ChevronDown size={14} strokeWidth={2.2} style={{ transition: "transform .18s", transform: acctMenuOpen ? "rotate(180deg)" : "none" }} aria-hidden="true" />
-            </Button>
-            {acctMenuOpen && (
-              <>
-                {/* Oversized inset: this sits inside the page's .bk-enter
-                    transform, which re-roots `fixed` to the content column — a
-                    plain inset:0 wouldn't cover the rail/margins. -100vw claws
-                    the catcher back out to blanket the whole viewport. */}
-                <div onClick={() => setAcctMenuOpen(false)} style={{ position: "fixed", inset: "-100vh -100vw", zIndex: 40 }} aria-hidden="true" />
-                <div
-                  className="bk-pop"
-                  role="menu"
-                  style={{
-                    position: "absolute",
-                    top: "calc(100% + 8px)",
-                    right: 0,
-                    zIndex: 41,
-                    minWidth: 220,
-                    padding: 6,
-                    borderRadius: 14,
-                    background: "var(--color-bk-surface)",
-                    border: "1px solid var(--color-bk-line)",
-                    boxShadow: "0 12px 32px oklch(20% 0.02 80 / 0.14)",
-                  }}
+          <Menu>
+            <MenuTrigger
+              render={
+                <Button
+                  variant="outline"
+                  size="sm"
+                  style={acctFilter.size > 0 ? { background: theme.accentTint, color: theme.accentDeep, borderColor: "transparent" } : undefined}
                 >
-                  <button
-                    type="button"
-                    role="menuitemradio"
-                    aria-checked={acctFilter.size === 0}
-                    onClick={() => setAcctFilter(new Set())}
-                    className="bk-menu-item"
-                    style={{ justifyContent: "space-between" }}
+                  {acctLabel}
+                  <ChevronDown size={14} strokeWidth={2.2} aria-hidden="true" />
+                </Button>
+              }
+            />
+            <MenuContent align="end" className="min-w-[220px]">
+              <MenuRadioGroup value={acctFilter.size === 0 ? "all" : "some"}>
+                <MenuRadioItem value="all" onClick={() => setAcctFilter(new Set())}>
+                  <span>All accounts</span>
+                  {acctFilter.size === 0 && <Check size={15} strokeWidth={2.5} style={{ color: theme.accent, flexShrink: 0 }} aria-hidden="true" />}
+                </MenuRadioItem>
+              </MenuRadioGroup>
+              <MenuSeparator />
+              {accounts.map((a) => {
+                const on = acctFilter.has(a.id);
+                return (
+                  <MenuCheckboxItem
+                    key={a.id}
+                    checked={on}
+                    closeOnClick={false}
+                    onCheckedChange={() => toggleAcct(a.id)}
                   >
-                    All accounts
-                    {acctFilter.size === 0 && <Check size={15} strokeWidth={2.5} style={{ color: theme.accent }} aria-hidden="true" />}
-                  </button>
-                  <div style={{ height: 1, background: "var(--color-bk-line-soft)", margin: "5px 4px" }} />
-                  {accounts.map((a) => {
-                    const on = acctFilter.has(a.id);
-                    return (
-                      <button
-                        key={a.id}
-                        type="button"
-                        role="menuitemcheckbox"
-                        aria-checked={on}
-                        onClick={() => toggleAcct(a.id)}
-                        className="bk-menu-item"
-                        style={{ justifyContent: "space-between" }}
-                      >
-                        {a.name}
-                        {on && <Check size={15} strokeWidth={2.5} style={{ color: theme.accent }} aria-hidden="true" />}
-                      </button>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-          </div>
+                    <span>{a.name}</span>
+                    {on && <Check size={15} strokeWidth={2.5} style={{ color: theme.accent, flexShrink: 0 }} aria-hidden="true" />}
+                  </MenuCheckboxItem>
+                );
+              })}
+            </MenuContent>
+          </Menu>
         )}
       </div>
 
@@ -317,6 +293,7 @@ export function BulgaTransactions({ transactions, accounts, theme, currency = "C
       >
         {/* header */}
         <div
+          className="bk-tx-row"
           style={{
             display: "grid",
             gridTemplateColumns: "26px 2.4fr 1.3fr 1fr 1fr",
@@ -338,8 +315,8 @@ export function BulgaTransactions({ transactions, accounts, theme, currency = "C
             ariaLabel="Select all"
           />
           <span>Merchant</span>
-          <span>Category</span>
-          <span>Date</span>
+          <span className="bk-tx-col-cat">Category</span>
+          <span className="bk-tx-col-date">Date</span>
           <span style={{ textAlign: "right" }}>Amount</span>
         </div>
 
@@ -371,6 +348,7 @@ export function BulgaTransactions({ transactions, accounts, theme, currency = "C
             return (
               <div
                 key={t.id}
+                className="bk-tx-row"
                 role="button"
                 tabIndex={0}
                 onClick={() => onEdit?.(t)}
@@ -452,7 +430,7 @@ export function BulgaTransactions({ transactions, accounts, theme, currency = "C
                     )}
                   </div>
                 </div>
-                <div>
+                <div className="bk-tx-col-cat">
                   <span
                     style={{
                       display: "inline-block",
@@ -467,7 +445,7 @@ export function BulgaTransactions({ transactions, accounts, theme, currency = "C
                     {t.category}
                   </span>
                 </div>
-                <span style={{ fontSize: 13, color: "var(--color-bk-muted)" }}>{t.date}</span>
+                <span className="bk-tx-col-date" style={{ fontSize: 13, color: "var(--color-bk-muted)" }}>{t.date}</span>
                 <span
                   className="bk-num"
                   style={{
@@ -491,11 +469,13 @@ export function BulgaTransactions({ transactions, accounts, theme, currency = "C
           `both`) doesn't re-root this fixed element to the content column. */}
       {selected.size > 0 && (
         <div
-          className="bk-pop"
+          className="bk-pop bk-bulkbar"
           style={{
             // Center over the CONTENT area (right of the 60px icon rail) via
             // symmetric insets + margin auto — NOT translateX, which the bk-pop
-            // animation's own transform would override.
+            // animation's own transform would override. On mobile the rail is
+            // hidden, so .bk-bulkbar resets left:0 (see globals.css) to keep it
+            // centered on the full-width viewport.
             position: "fixed",
             left: 60,
             right: 0,

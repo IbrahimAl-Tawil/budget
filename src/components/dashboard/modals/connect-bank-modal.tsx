@@ -137,7 +137,7 @@ export function ConnectBankModal({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-[440px] p-9">
+      <DialogContent className="sm:max-w-[440px] p-6 sm:p-9">
         <DialogHeader>
           <DialogTitle className="text-2xl font-semibold tracking-[-0.02em] text-[var(--color-bk-ink)]">
             {isUpdate ? "Reconnect bank" : "Connect a bank"}
@@ -184,7 +184,7 @@ export function ConnectBankModal({
         </div>
 
         <div className="mt-7 flex gap-3">
-          <Button variant="ghost" size="sm" onClick={onClose} className="flex-1">
+          <Button variant="secondary" size="sm" onClick={onClose} className="flex-1">
             {phase === "done" ? "Close" : "Cancel"}
           </Button>
           {phase !== "done" && (

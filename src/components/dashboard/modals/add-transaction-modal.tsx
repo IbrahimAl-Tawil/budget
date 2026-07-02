@@ -122,7 +122,7 @@ export function AddTransactionModal({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-[480px] p-9">
+      <DialogContent className="sm:max-w-[480px] p-6 sm:p-9">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold tracking-[-0.02em] text-[var(--color-bk-ink)]">
             Add Transaction
@@ -204,7 +204,7 @@ export function AddTransactionModal({
         )}
 
         <div className="flex gap-3 mt-7">
-          <Button variant="ghost" size="sm" onClick={onClose} className="flex-1">
+          <Button variant="secondary" size="sm" onClick={onClose} className="flex-1">
             Cancel
           </Button>
           <Button size="sm" onClick={handleSubmit} disabled={isPending} className="flex-[2]">

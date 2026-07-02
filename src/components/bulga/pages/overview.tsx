@@ -6,11 +6,11 @@
 // and goals, then recent activity beside a Bulga insight card. Every bar
 // animates from 0% once mounted; every figure derives from `overview`.
 
-import { useEffect, useState } from "react";
 import type { DashboardOverview } from "@/lib/types";
 import { type BulgaTheme, tintFor } from "@/components/bulga/theme";
 import { fmt } from "@/lib/format";
 import { Button } from "@/components/ui/button";
+import { ProgressBar } from "@/components/bulga/progress";
 
 interface BulgaOverviewProps {
   overview: DashboardOverview;
@@ -50,8 +50,6 @@ function sparkline(trend: number[]) {
 }
 
 export function BulgaOverview({ overview, theme, onNavigate }: BulgaOverviewProps) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
 
   const cur = overview.currency;
   const money = (n: number) => fmt(n, cur);
@@ -75,9 +73,10 @@ export function BulgaOverview({ overview, theme, onNavigate }: BulgaOverviewProp
         : `You've spent ${money(overview.monthlySpend)} so far this month against ${money(overview.monthlyIncome)} of income.`;
 
   return (
-    <div className="bk-enter" style={{ maxWidth: 1000, margin: "0 auto" }}>
+    <div className="bk-enter bk-page">
       {/* ── net worth hero ── */}
       <section
+        className="bk-nw-hero"
         style={{
           display: "grid",
           gridTemplateColumns: "1.15fr 1fr",
@@ -131,7 +130,7 @@ export function BulgaOverview({ overview, theme, onNavigate }: BulgaOverviewProp
             <span>this month</span>
           </div>
         </div>
-        <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ width: "100%", height: 110 }} aria-hidden="true">
+        <svg className="bk-nw-spark" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ width: "100%", height: 110 }} aria-hidden="true">
           <defs>
             <linearGradient id="ev-nw-grad" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor={theme.accent} stopOpacity="0.16" />
@@ -146,6 +145,7 @@ export function BulgaOverview({ overview, theme, onNavigate }: BulgaOverviewProp
 
       {/* ── this-month stats ── */}
       <section
+        className="bk-grid-3"
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(3, 1fr)",
@@ -175,7 +175,7 @@ export function BulgaOverview({ overview, theme, onNavigate }: BulgaOverviewProp
       </section>
 
       {/* ── two-up: spending + goals ── */}
-      <section style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+      <section className="bk-grid-2up" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
         <div style={CARD}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 20 }}>
             <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Where it went</h3>
@@ -187,17 +187,7 @@ export function BulgaOverview({ overview, theme, onNavigate }: BulgaOverviewProp
                 <span style={{ fontWeight: 500 }}>{c.name}</span>
                 <span className="bk-num" style={{ color: "var(--color-bk-muted)" }}>{money(c.amount)}</span>
               </div>
-              <div style={{ height: 6, borderRadius: 999, background: "var(--color-bk-track)", overflow: "hidden" }}>
-                <div
-                  style={{
-                    height: "100%",
-                    width: mounted ? `${Math.min(c.pct, 100)}%` : "0%",
-                    borderRadius: 999,
-                    background: theme.accent,
-                    transition: "width .9s cubic-bezier(.22,.61,.36,1)",
-                  }}
-                />
-              </div>
+              <ProgressBar value={c.pct} color={theme.accent} />
             </div>
           ))}
         </div>
@@ -205,12 +195,9 @@ export function BulgaOverview({ overview, theme, onNavigate }: BulgaOverviewProp
         <div style={CARD}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 20 }}>
             <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Goals on track</h3>
-            <button
-              onClick={() => onNavigate?.("goals")}
-              style={{ fontFamily: "inherit", border: "none", background: "none", fontSize: 12.5, fontWeight: 600, color: theme.accent, cursor: "pointer" }}
-            >
+            <Button variant="link" size="sm" onClick={() => onNavigate?.("goals")} className="text-[12.5px]">
               View all →
-            </button>
+            </Button>
           </div>
           {goals.map((g) => {
             const pct = g.target > 0 ? Math.round((g.saved / g.target) * 100) : 0;
@@ -220,17 +207,7 @@ export function BulgaOverview({ overview, theme, onNavigate }: BulgaOverviewProp
                   <span style={{ fontWeight: 500 }}>{g.name}</span>
                   <span className="bk-num" style={{ color: "var(--color-bk-muted)" }}>{pct}%</span>
                 </div>
-                <div style={{ height: 6, borderRadius: 999, background: "var(--color-bk-track)", overflow: "hidden" }}>
-                  <div
-                    style={{
-                      height: "100%",
-                      width: mounted ? `${Math.min(pct, 100)}%` : "0%",
-                      borderRadius: 999,
-                      background: theme.accent,
-                      transition: "width 1.05s cubic-bezier(.22,.61,.36,1)",
-                    }}
-                  />
-                </div>
+                <ProgressBar value={pct} color={theme.accent} duration={1.05} />
               </div>
             );
           })}
@@ -238,16 +215,13 @@ export function BulgaOverview({ overview, theme, onNavigate }: BulgaOverviewProp
       </section>
 
       {/* ── recent + insight ── */}
-      <section style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 16 }}>
+      <section className="bk-grid-split" style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 16 }}>
         <div style={CARD}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 14 }}>
             <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Recent activity</h3>
-            <button
-              onClick={() => onNavigate?.("transactions")}
-              style={{ fontFamily: "inherit", border: "none", background: "none", fontSize: 12.5, fontWeight: 600, color: theme.accent, cursor: "pointer" }}
-            >
+            <Button variant="link" size="sm" onClick={() => onNavigate?.("transactions")} className="text-[12.5px]">
               See all →
-            </button>
+            </Button>
           </div>
           {recent.map((t) => {
             const [tint, ink] = tintFor(t.category);

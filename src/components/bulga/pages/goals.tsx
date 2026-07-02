@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import type { GoalView } from "@/lib/types";
 import type { BulgaTheme } from "@/components/bulga/theme";
 import { Button } from "@/components/ui/button";
+import { ProgressRing } from "@/components/bulga/progress";
 
 interface BulgaGoalsProps {
   goals: GoalView[];
@@ -15,18 +15,7 @@ interface BulgaGoalsProps {
   onEdit?: (g: GoalView) => void;
 }
 
-// Progress ring geometry — matches the design spec (r = 26 inside a 62px svg).
-const RING_R = 26;
-const RING_CIRC = 2 * Math.PI * RING_R;
-
 export function BulgaGoals({ goals, accent, theme, currency = "CAD", onAdd, onEdit }: BulgaGoalsProps) {
-  // Mounted flag drives the ring sweep: arcs start empty (full dashoffset) and
-  // animate down to their target offset on first paint.
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    const t = requestAnimationFrame(() => setMounted(true));
-    return () => cancelAnimationFrame(t);
-  }, []);
 
   // Full date from the ISO field (e.g. "October 15, 2026"). Parsed at UTC noon
   // so the calendar day never shifts across timezones. Falsy ISO → "Ongoing".
@@ -51,12 +40,10 @@ export function BulgaGoals({ goals, accent, theme, currency = "CAD", onAdd, onEd
   const totalTarget = goals.reduce((s, g) => s + g.target, 0);
 
   return (
-    <div
-      className="bk-enter"
-      style={{ maxWidth: 1000, margin: "0 auto" }}
-    >
+    <div className="bk-enter bk-page">
       {/* ── header ── */}
       <section
+        className="bk-hero-row"
         style={{
           display: "flex",
           justifyContent: "space-between",
@@ -94,18 +81,18 @@ export function BulgaGoals({ goals, accent, theme, currency = "CAD", onAdd, onEd
           </div>
         </div>
 
-        <Button variant="outline" size="sm" onClick={() => onAdd?.()} className="border-dashed">
-          <Plus data-icon="inline-start" size={16} strokeWidth={2.2} />
-          New goal
-        </Button>
+        <div style={{ flexShrink: 0 }}>
+          <Button variant="outline" size="sm" onClick={() => onAdd?.()} className="border-dashed">
+            <Plus data-icon="inline-start" size={16} strokeWidth={2.2} />
+            New goal
+          </Button>
+        </div>
       </section>
 
       {/* ── goal cards ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+      <div className="bk-grid-2up" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
         {goals.map((g) => {
           const pct = g.target > 0 ? Math.round((g.saved / g.target) * 100) : 0;
-          const clamped = Math.min(pct, 100);
-          const offset = mounted ? RING_CIRC * (1 - clamped / 100) : RING_CIRC;
           const remaining = Math.max(g.target - g.saved, 0);
 
           return (
@@ -146,55 +133,9 @@ export function BulgaGoals({ goals, accent, theme, currency = "CAD", onAdd, onEd
                   marginBottom: 22,
                 }}
               >
-                <div style={{ position: "relative", width: 62, height: 62, flexShrink: 0 }}>
-                  <svg
-                    width="62"
-                    height="62"
-                    viewBox="0 0 62 62"
-                    style={{ transform: "rotate(-90deg)" }}
-                    aria-hidden="true"
-                  >
-                    <circle
-                      cx="31"
-                      cy="31"
-                      r={RING_R}
-                      fill="none"
-                      stroke="oklch(93% 0.005 85)"
-                      strokeWidth="6"
-                    />
-                    <circle
-                      cx="31"
-                      cy="31"
-                      r={RING_R}
-                      fill="none"
-                      stroke={accent}
-                      strokeWidth="6"
-                      strokeLinecap="round"
-                      strokeDasharray={RING_CIRC.toFixed(1)}
-                      strokeDashoffset={offset.toFixed(1)}
-                      style={{
-                        transition:
-                          "stroke-dashoffset 1.1s cubic-bezier(.22,.61,.36,1)",
-                      }}
-                    />
-                  </svg>
-                  {g.emoji && (
-                    <span
-                      aria-hidden="true"
-                      style={{
-                        position: "absolute",
-                        inset: 0,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontSize: 22,
-                        lineHeight: 1,
-                      }}
-                    >
-                      {g.emoji}
-                    </span>
-                  )}
-                </div>
+                <ProgressRing value={pct} color={accent}>
+                  {g.emoji && <span style={{ fontSize: 22, lineHeight: 1 }}>{g.emoji}</span>}
+                </ProgressRing>
 
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div

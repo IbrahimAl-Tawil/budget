@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Tabs, type TabItem } from "@/components/bulga/tabs";
+import { Menu, MenuTrigger, MenuContent, MenuRadioGroup, MenuRadioItem } from "@/components/ui/menu";
 import { SchemePicker } from "@/components/bulga/scheme-picker";
 import { ConfirmButton } from "@/components/bulga/confirm-button";
 import { useBulgaChrome } from "@/components/bulga/chrome-context";
@@ -289,23 +290,65 @@ export function SettingsModal({ open, onClose, user, accent, onAccentChange, onS
         }
       }}
     >
-      <DialogContent className="sm:max-w-[820px] p-0 gap-0 block overflow-hidden">
+      <DialogContent className="sm:max-w-[min(820px,calc(100%-2.5rem))] p-0 gap-0 block overflow-hidden">
         <DialogHeader className="px-8 pt-7 pb-5 border-b border-[var(--color-bk-line-soft)]">
           <DialogTitle className="text-[22px]">Settings</DialogTitle>
         </DialogHeader>
 
         <div className="flex flex-col md:flex-row" style={{ height: "min(620px, 78vh)" }}>
-          {/* ── Left rail: tabs ── */}
-          <div className="md:w-[196px] md:shrink-0 md:border-r md:border-[var(--color-bk-line-soft)] p-4 md:py-6 md:px-4">
-            <Tabs
-              items={TABS}
-              value={tab}
-              accent={accent}
-              onValueChange={(v) => {
+          {/* ── Left rail (desktop) / top dropdown (mobile): tabs. On small
+               screens 5 pills won't fit a phone width, so the rail collapses to
+               a single pill-styled dropdown; md+ is the vertical rail. ── */}
+          <div className="border-b border-[var(--color-bk-line-soft)] px-4 py-3 md:w-[196px] md:shrink-0 md:border-b-0 md:border-r md:py-6 md:px-4">
+            {(() => {
+              const onValueChange = (v: string) => {
                 disarmDelete();
                 setTab(v as SettingsTab);
-              }}
-            />
+              };
+              const active = TABS.find((t) => t.value === tab) ?? TABS[0];
+              const ActiveIcon = active.icon;
+              return (
+                <>
+                  {/* Mobile: dropdown */}
+                  <div className="md:hidden max-w-[260px]">
+                    <Menu>
+                      <MenuTrigger
+                        className="flex w-full items-center gap-2.5 rounded-full px-4 py-2.5 text-left text-[13.5px] font-semibold text-white outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+                        style={{ background: accent }}
+                      >
+                        {ActiveIcon && <ActiveIcon className="h-4 w-4 shrink-0" strokeWidth={2.1} />}
+                        <span className="min-w-0 flex-1 truncate">{active.label}</span>
+                        <ChevronDown className="h-4 w-4 shrink-0 opacity-90" />
+                      </MenuTrigger>
+                      <MenuContent align="start" className="w-[var(--anchor-width)] min-w-0">
+                        <MenuRadioGroup value={tab} onValueChange={onValueChange}>
+                          {TABS.map((t) => {
+                            const Icon = t.icon;
+                            return (
+                              <MenuRadioItem key={t.value} value={t.value} closeOnClick>
+                                <span className="flex items-center gap-2.5">
+                                  {Icon && <Icon className="h-4 w-4 shrink-0" strokeWidth={1.9} />}
+                                  {t.label}
+                                </span>
+                                {t.value === tab && <Check className="h-4 w-4 shrink-0 text-[var(--color-bk-muted)]" />}
+                              </MenuRadioItem>
+                            );
+                          })}
+                        </MenuRadioGroup>
+                      </MenuContent>
+                    </Menu>
+                  </div>
+                  {/* Desktop: vertical rail */}
+                  <Tabs
+                    className="hidden md:flex"
+                    items={TABS}
+                    value={tab}
+                    accent={accent}
+                    onValueChange={onValueChange}
+                  />
+                </>
+              );
+            })()}
           </div>
 
           {/* ── Right: active panel — scrolls internally so the dialog footprint
@@ -389,7 +432,7 @@ export function SettingsModal({ open, onClose, user, accent, onAccentChange, onS
                     <Loader2 className="w-4 h-4 animate-spin" /> Loading…
                   </div>
                 ) : connections && connections.length > 0 ? (
-                  <div className="max-w-[460px] overflow-hidden rounded-[20px] border border-[var(--color-bk-line)] bg-[var(--color-bk-surface)]">
+                  <div className="overflow-hidden rounded-[20px] border border-[var(--color-bk-line)] bg-[var(--color-bk-surface)]">
                     {connections.map((c, i) => {
                       const needsFix = c.status === "login_required" || c.status === "error";
                       const statusLabel =
@@ -398,55 +441,62 @@ export function SettingsModal({ open, onClose, user, accent, onAccentChange, onS
                       return (
                         <div
                           key={c.itemId}
-                          className="flex items-center gap-[15px] px-[22px] py-[18px]"
+                          className="flex flex-col gap-3 px-[22px] py-[18px] sm:flex-row sm:items-center sm:gap-[15px]"
                           style={{ borderTop: i === 0 ? "none" : "1px solid var(--color-bk-line-soft)" }}
                         >
-                          <div
-                            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[13px]"
-                            style={{ background: "var(--accent)", color: "var(--color-primary)" }}
-                          >
-                            <Landmark className="w-[19px] h-[19px]" strokeWidth={1.9} />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
-                              <span className="truncate text-[14.5px] font-semibold text-[var(--color-bk-ink)]">
-                                {c.institutionName || "Bank"}
-                              </span>
-                              <span
-                                className="shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-semibold tracking-[0.02em]"
-                                style={
-                                  needsFix
-                                    ? { background: "var(--color-bk-clay-tint)", color: "var(--color-bk-clay)" }
-                                    : { background: "var(--accent)", color: "var(--accent-foreground)" }
-                                }
-                              >
-                                {statusLabel}
-                              </span>
+                          <div className="flex min-w-0 flex-1 items-center gap-[15px]">
+                            <div
+                              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[13px]"
+                              style={{ background: "var(--accent)", color: "var(--color-primary)" }}
+                            >
+                              <Landmark className="w-[19px] h-[19px]" strokeWidth={1.9} />
                             </div>
-                            <div className="text-[12.5px] text-[var(--color-bk-muted)] mt-0.5">
-                              {c.accountCount} {c.accountCount === 1 ? "account" : "accounts"}
-                              {c.lastSyncedAt
-                                ? ` · Updated ${new Date(c.lastSyncedAt).toLocaleDateString("en-CA", { month: "short", day: "numeric" })}`
-                                : ""}
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="truncate text-[14.5px] font-semibold text-[var(--color-bk-ink)]">
+                                  {c.institutionName || "Bank"}
+                                </span>
+                                <span
+                                  className="shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-semibold tracking-[0.02em]"
+                                  style={
+                                    needsFix
+                                      ? { background: "var(--color-bk-clay-tint)", color: "var(--color-bk-clay)" }
+                                      : { background: "var(--accent)", color: "var(--accent-foreground)" }
+                                  }
+                                >
+                                  {statusLabel}
+                                </span>
+                              </div>
+                              <div className="text-[12.5px] text-[var(--color-bk-muted)] mt-0.5">
+                                {c.accountCount} {c.accountCount === 1 ? "account" : "accounts"}
+                                {c.lastSyncedAt
+                                  ? ` · Updated ${new Date(c.lastSyncedAt).toLocaleDateString("en-CA", { month: "short", day: "numeric" })}`
+                                  : ""}
+                              </div>
                             </div>
                           </div>
-                          {needsFix && (
-                            <Button size="sm" onClick={() => startConnect(c.itemId)}>
-                              <RefreshCw data-icon="inline-start" className="w-3.5 h-3.5" /> Reconnect
-                            </Button>
-                          )}
-                          <ConfirmButton
-                            onConfirm={() => disconnect(c.itemId)}
-                            icon={Unlink}
-                            busyIcon={Loader2}
-                            confirmLabel="Are you sure?"
-                            busyLabel="Disconnecting…"
-                            busy={busy}
-                            restLabel={`Disconnect ${c.institutionName || "bank"}`}
-                            armedLabel={`Confirm disconnect ${c.institutionName || "bank"}`}
-                            expandedWidth="w-[150px]"
-                            labelMaxWidth="max-w-[130px]"
-                          />
+                          <div className="flex shrink-0 items-center gap-[15px] self-start sm:self-auto">
+                            {needsFix && (
+                              <Button size="sm" onClick={() => startConnect(c.itemId)}>
+                                <RefreshCw data-icon="inline-start" className="w-3.5 h-3.5" /> Reconnect
+                              </Button>
+                            )}
+                            <ConfirmButton
+                              onConfirm={() => disconnect(c.itemId)}
+                              icon={Unlink}
+                              busyIcon={Loader2}
+                              confirmLabel="Are you sure?"
+                              busyLabel="Disconnecting…"
+                              busy={busy}
+                              restText="Unlink"
+                              restTextMobileOnly
+                              restWidth="w-[122px]"
+                              expandedWidth="w-[172px]"
+                              labelMaxWidth="max-w-[128px]"
+                              restLabel={`Disconnect ${c.institutionName || "bank"}`}
+                              armedLabel={`Confirm disconnect ${c.institutionName || "bank"}`}
+                            />
+                          </div>
                         </div>
                       );
                     })}
@@ -457,7 +507,7 @@ export function SettingsModal({ open, onClose, user, accent, onAccentChange, onS
                   </p>
                 )}
 
-                <Button size="sm" onClick={() => startConnect()} className="mt-4">
+                <Button size="sm" onClick={() => startConnect()} className="mt-4" variant="outline">
                   <Plus data-icon="inline-start" className="w-4 h-4" /> Connect a bank
                 </Button>
               </section>

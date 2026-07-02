@@ -8,10 +8,10 @@
 // tiles + flag badges) and an annual-projection bar chart. Figures derive from
 // `subscriptions`; flags render as clay (price up) / amber (unused) badges.
 
-import { useEffect, useState } from "react";
 import type { SubscriptionView } from "@/lib/types";
 import { type BulgaTheme } from "@/components/bulga/theme";
 import { fmt } from "@/lib/format";
+import { ProgressBar } from "@/components/bulga/progress";
 
 interface BulgaSubscriptionsProps {
   subscriptions: SubscriptionView[];
@@ -37,11 +37,6 @@ function flagBadge(flag: string, theme: BulgaTheme): { bg: string; color: string
 }
 
 export function BulgaSubscriptions({ subscriptions, theme, currency = "CAD" }: BulgaSubscriptionsProps) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    const t = requestAnimationFrame(() => setMounted(true));
-    return () => cancelAnimationFrame(t);
-  }, []);
 
   const money = (n: number) => fmt(n, currency);
 
@@ -60,7 +55,7 @@ export function BulgaSubscriptions({ subscriptions, theme, currency = "CAD" }: B
   );
 
   return (
-    <div className="bk-enter" style={{ maxWidth: 1000, margin: "0 auto" }}>
+    <div className="bk-enter bk-page">
       {/* ── hero · subscription summary ── */}
       <section style={{ padding: "0 4px 32px" }}>
         <div
@@ -113,7 +108,7 @@ export function BulgaSubscriptions({ subscriptions, theme, currency = "CAD" }: B
       </section>
 
       {/* ── services + annual projection · two-up ── */}
-      <section style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+      <section className="bk-grid-2up" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
         {/* service list */}
         <div style={CARD}>
           <h3 style={{ margin: "0 0 16px", fontSize: 15, fontWeight: 600 }}>Services</h3>
@@ -208,17 +203,7 @@ export function BulgaSubscriptions({ subscriptions, theme, currency = "CAD" }: B
                       {money(annualCost)}/yr
                     </span>
                   </div>
-                  <div style={{ height: 6, borderRadius: 999, background: "var(--color-bk-track)", overflow: "hidden" }}>
-                    <div
-                      style={{
-                        height: "100%",
-                        width: mounted ? `${pct}%` : "0%",
-                        borderRadius: 999,
-                        background: theme.accent,
-                        transition: "width .9s cubic-bezier(.22,.61,.36,1)",
-                      }}
-                    />
-                  </div>
+                  <ProgressBar value={pct} color={theme.accent} />
                 </div>
               );
             })

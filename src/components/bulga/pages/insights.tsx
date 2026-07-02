@@ -56,7 +56,7 @@ export function BulgaInsights({ insights: initial, theme }: BulgaInsightsProps) 
   const hasInsights = insights.length > 0;
 
   return (
-    <div className="bk-enter" style={{ maxWidth: 1000, margin: "0 auto" }}>
+    <div className="bk-enter bk-page">
       {/* ── hero · AI overview + generate ── */}
       <section
         style={{
@@ -118,7 +118,7 @@ export function BulgaInsights({ insights: initial, theme }: BulgaInsightsProps) 
 
       {/* ── insight cards ── */}
       {hasInsights ? (
-        <section style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <section className="bk-grid-2up" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
           {insights.map((ins) => (
             <div key={ins.id} style={CARD}>
               <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
