@@ -11,7 +11,6 @@
 import { Dialog } from "@base-ui/react/dialog";
 import Link from "next/link";
 import { Settings, LogOut } from "lucide-react";
-import { LogoMark } from "@/components/bulga/logo";
 import { Button } from "@/components/ui/button";
 import type { LucideIcon } from "lucide-react";
 
@@ -98,17 +97,9 @@ export function MobileNav({
             <span aria-hidden="true" className="h-1 w-9 rounded-full bg-[var(--color-bk-line)]" />
           </div>
 
-          {/* header — filled accent mark + wordmark (matches the app's branded
-              tile; a bare transparent mark reads thin at this size). */}
-          <div className="flex items-center gap-2.5 px-5 pt-2 pb-3">
-            <LogoMark size={30} bg={accent} fg="#fff" />
-            <span className="text-[19px] font-bold tracking-[-0.03em] text-[var(--color-bk-ink)]">
-              Bulga
-            </span>
-          </div>
-
-          {/* nav rows — scroll if a short screen can't fit them all */}
-          <nav aria-label="Primary" className="bk-scroll flex-1 overflow-y-auto px-3">
+          {/* nav rows — scroll if a short screen can't fit them all. The grab
+              handle above is enough of a header; no logo needed here. */}
+          <nav aria-label="Primary" className="bk-scroll flex-1 overflow-y-auto px-3 pt-1">
             <div className="flex flex-col gap-1">
               {primary.map((item, i) => row(item, i))}
             </div>
