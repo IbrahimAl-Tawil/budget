@@ -42,9 +42,9 @@ export function MobileNav({
   onSignOut: () => void;
 }) {
   // Each row is a Dialog.Close rendering a Link, so a tap navigates and dismisses
-  // in one gesture. --i drives the staggered entrance. Active rows get a soft
-  // accent tint + an accent left-edge bar (not a hard fill) and a filled icon
-  // tile; inactive rows get a neutral tinted tile.
+  // in one gesture. --i drives the staggered entrance. Quiet by default: an
+  // inline icon + label, no tile. The active row is the only emphasis — a soft
+  // accent-tint pill with the icon + label in the accent tone.
   const row = (item: NavItem, i: number) => {
     const active = pathname === item.href;
     return (
@@ -56,31 +56,19 @@ export function MobileNav({
           <Link
             href={hrefFor(item.href)}
             aria-current={active ? "page" : undefined}
-            className="bk-nav-row relative flex items-center gap-3.5 rounded-[15px] py-2.5 pl-3.5 pr-4 text-[15.5px] font-semibold no-underline outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40"
+            className="bk-nav-row flex items-center gap-3.5 rounded-[13px] px-3.5 py-2.5 text-[15px] font-semibold no-underline outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40"
             style={
               active
                 ? { background: "var(--accent)", color: "var(--color-primary)" }
                 : { color: "var(--color-bk-ink)" }
             }
           >
-            {active && (
-              <span
-                aria-hidden="true"
-                className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full"
-                style={{ background: accent }}
-              />
-            )}
-            <span
+            <item.Icon
+              size={18}
+              strokeWidth={1.9}
               aria-hidden="true"
-              className="grid h-9 w-9 shrink-0 place-items-center rounded-[11px]"
-              style={
-                active
-                  ? { background: accent, color: "#fff" }
-                  : { background: "var(--color-bk-line-soft)", color: "var(--color-bk-muted)" }
-              }
-            >
-              <item.Icon size={18} strokeWidth={1.9} />
-            </span>
+              style={{ color: active ? "var(--color-primary)" : "var(--color-bk-muted)" }}
+            />
             {item.label}
           </Link>
         }
