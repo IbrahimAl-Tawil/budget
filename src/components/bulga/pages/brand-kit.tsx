@@ -7,7 +7,7 @@
 // the picker just calls onAccentChange — the shell owns accent state and pushes
 // it back down as `accent` + `theme`. No hardcoded sample data ships here.
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 
 import { LogoMark } from "@/components/bulga/logo";
 import { BANKNOTE_SCHEMES, LOGO_GREEN, type BulgaTheme } from "@/components/bulga/theme";
@@ -419,14 +419,23 @@ export function BulgaBrandKit({ accent, theme, onAccentChange }: BulgaBrandKitPr
           </div>
         </div>
 
-        {/* Components */}
+        {/* Components — scope the PREVIEWED scheme's accent onto this card via
+            the same tokens themeVars sets globally, so the real Button/Badge/
+            input/progress inside retone live when you tap a variation (they read
+            these tokens, not a fixed color). */}
         <div
-          style={{
-            background: "var(--color-bk-surface)",
-            border: "1px solid var(--color-bk-line)",
-            borderRadius: 20,
-            padding: 28,
-          }}
+          style={
+            {
+              background: "var(--color-bk-surface)",
+              border: "1px solid var(--color-bk-line)",
+              borderRadius: 20,
+              padding: 28,
+              "--primary": preview.accentFill,
+              "--ring": preview.accentFill,
+              "--accent": preview.accentTint,
+              "--accent-foreground": preview.accentDeep,
+            } as CSSProperties
+          }
         >
           <h3 style={{ margin: "0 0 20px", fontSize: 16, fontWeight: 700 }}>Components</h3>
 
@@ -471,8 +480,8 @@ export function BulgaBrandKit({ accent, theme, onAccentChange }: BulgaBrandKitPr
               indicators the overview/spending/subscriptions bars and goal rings
               are built from. Both sweep from 0 on mount. */}
           <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-            <ProgressBar value={64} color={preview.accentFill} className="flex-1" />
-            <ProgressRing value={64} color={preview.accentFill} size={48} stroke={5} />
+            <ProgressBar value={64} className="flex-1" />
+            <ProgressRing value={64} size={48} stroke={5} />
           </div>
         </div>
       </section>
