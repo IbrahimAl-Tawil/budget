@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import type { AccountView } from "@/lib/types";
 import { fmt } from "@/lib/format";
 import { tintFor, type BulgaTheme } from "@/components/bulga/theme";
+import { GuillochePattern } from "@/components/bulga/guilloche";
 import { gqlClient, errMessage } from "@/lib/graphql/client";
 
 const SYNC_PLAID = /* GraphQL */ `
@@ -105,13 +106,16 @@ export function BulgaAccounts({ accounts, netWorth, accent, theme, currency = "C
       <section
         className="bk-hero-row"
         style={{
+          position: "relative",
+          overflow: "hidden",
           padding: "0 4px 32px",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "flex-start",
         }}
       >
-        <div>
+        <GuillochePattern accent={theme.accent} accentDeep={theme.accentDeep} fade="left" opacity={0.16} />
+        <div style={{ position: "relative" }}>
           <div
             style={{
               fontSize: 12,
@@ -136,7 +140,7 @@ export function BulgaAccounts({ accounts, netWorth, accent, theme, currency = "C
             {fmt(netWorth, currency)}
           </div>
         </div>
-        <div className="bk-hero-actions" style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8, flexShrink: 0 }}>
+        <div className="bk-hero-actions" style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8, flexShrink: 0 }}>
           <div style={{ display: "flex", gap: 10 }}>
           {hasLinkedBank && (
             <Button
