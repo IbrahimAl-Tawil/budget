@@ -156,8 +156,11 @@ export function EditAccountModal({ open, account, onClose, onUpdated }: EditAcco
     });
   };
 
-  if (!account) return null;
-
+  // Render the Dialog even with no account: unmounting the Root here would
+  // skip Base UI's enter/exit transitions (mounted-already-open pops in;
+  // instant unmount kills the slide-out). `synced` is null-safe, the direct
+  // `account.*` reads sit inside `synced`-guarded branches, and every handler
+  // guards on `account`.
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="sm:max-w-[480px] p-6 sm:p-9">

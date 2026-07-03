@@ -59,13 +59,28 @@ export function TextInput({ invalid, className, ...props }: TextInputProps) {
   );
 }
 
-/** Date input — the native picker chrome is themed to brand in globals.css. */
-export function DateInput({ invalid, className, ...props }: TextInputProps) {
+/** Date input — the native picker chrome is themed to brand in globals.css.
+    The WHOLE field is the tap target: clicking anywhere focuses it (so the
+    accent focus border shows) and opens the native picker via showPicker(),
+    matching iOS's tap-anywhere behavior instead of Chrome's icon-only target.
+    Keyboard entry is untouched — typing into the segments never opens it. */
+export function DateInput({ invalid, className, onClick, ...props }: TextInputProps) {
   return (
     <input
       type="date"
       aria-invalid={invalid || undefined}
-      className={cn("bk-field bk-field-date", invalid && invalidBorder, className)}
+      className={cn("bk-field bk-field-date cursor-pointer", invalid && invalidBorder, className)}
+      onClick={(e) => {
+        onClick?.(e);
+        if (e.defaultPrevented) return;
+        const el = e.currentTarget;
+        el.focus();
+        // Needs a user gesture (this is one); guarded for engines without it,
+        // where the field still opens natively (iOS) or via the icon.
+        try {
+          el.showPicker?.();
+        } catch {}
+      }}
       {...props}
     />
   );

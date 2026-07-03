@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { SmilePlus } from "lucide-react";
 
 // Curated, goal-relevant set. A constrained grid is intentional: the value
 // always lands as exactly one emoji, so the goal ring (see pages/goals.tsx)
@@ -58,9 +59,20 @@ export function EmojiPicker({ value, onChange, label = "Emoji" }: EmojiPickerPro
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-label={value ? `Emoji: ${value}. Change` : "Choose an emoji"}
-        className="w-full h-11 rounded-xl border border-[var(--color-bk-line)] bg-[oklch(98%_0.004_90)] px-3 text-lg text-center text-[var(--color-bk-ink)] outline-none transition-colors hover:border-[var(--color-bk-muted)] focus:border-[var(--color-primary)] cursor-pointer"
+        className="flex w-full h-11 items-center justify-center rounded-xl border border-[var(--color-bk-line)] bg-[oklch(98%_0.004_90)] px-3 text-lg text-[var(--color-bk-ink)] outline-none transition-colors hover:border-[var(--color-bk-muted)] focus:border-[var(--color-primary)] cursor-pointer"
       >
-        {value || <span className="text-[var(--color-bk-faint)]">🎯</span>}
+        {/* Empty state: a monochrome outline icon, NOT a real emoji — a
+            full-color glyph reads as an assigned value (emoji also ignore
+            `color:`, so tinting can't fade them). Grey line-work in the app's
+            lucide language says "empty, tap to add". */}
+        {value || (
+          <SmilePlus
+            size={19}
+            strokeWidth={1.9}
+            className="text-[var(--color-bk-faint)]"
+            aria-hidden="true"
+          />
+        )}
       </button>
 
       {open && (

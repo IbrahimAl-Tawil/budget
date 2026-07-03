@@ -8,6 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { DateInput } from "@/components/bulga/form";
 import { ChevronDown } from "lucide-react";
 import { gqlClient, errMessage } from "@/lib/graphql/client";
 
@@ -157,12 +158,7 @@ export function AddTransactionModal({
             <label className="block text-[11px] font-semibold tracking-[0.09em] uppercase text-[var(--color-bk-faint)] mb-1.5">
               Date
             </label>
-            <input
-              type="date"
-              value={form.date}
-              onChange={set("date")}
-              className="bk-field bk-field-date"
-            />
+            <DateInput value={form.date} onChange={set("date")} />
           </div>
           <div>
             <label className="block text-[11px] font-semibold tracking-[0.09em] uppercase text-[var(--color-bk-faint)] mb-1.5">

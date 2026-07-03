@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { EmojiPicker } from "@/components/bulga/emoji-picker";
 import { PriorityPicker } from "@/components/bulga/priority-picker";
+import { DateInput } from "@/components/bulga/form";
 import { gqlClient, errMessage } from "@/lib/graphql/client";
 
 const CREATE_GOAL = /* GraphQL */ `
@@ -110,19 +111,16 @@ export function AddGoalModal({
               />
             </div>
           </div>
-          <div className="flex gap-3">
-            <div className="flex-1">
+          {/* Priority wants the full row on phones — three tappable segments
+              don't fit half a sheet width. Side-by-side again from sm up. */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
               <label className="block text-[11px] font-semibold tracking-[0.09em] uppercase text-[var(--color-bk-faint)] mb-1.5">Priority</label>
               <PriorityPicker value={priority} onChange={setPriority} />
             </div>
-            <div className="flex-1">
+            <div>
               <label className="block text-[11px] font-semibold tracking-[0.09em] uppercase text-[var(--color-bk-faint)] mb-1.5">Deadline</label>
-              <input
-                type="date"
-                value={deadline}
-                onChange={(e) => setDeadline(e.target.value)}
-                className="bk-field bk-field-date"
-              />
+              <DateInput value={deadline} onChange={(e) => setDeadline(e.target.value)} />
             </div>
           </div>
           <p className="text-[12px] text-[var(--color-bk-muted)]">

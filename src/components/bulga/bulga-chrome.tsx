@@ -8,7 +8,7 @@
 // active route from usePathname, so deep links, back/forward and code-splitting
 // all work. Shared client state is published through BulgaChromeContext.
 
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -175,6 +175,33 @@ export function BulgaChrome({
     if (pathname !== "/dashboard/transactions") setTxCount(null);
   }, [pathname]);
 
+  // Direction-aware topbar collapse for phones: scrolling down tucks the
+  // subtitle + actions row away (CSS `.bk-topbar[data-collapsed]`, ≤768px only
+  // — desktop ignores the attribute); scrolling up, or landing near the top,
+  // brings them back. The listener lives on the scroll canvas (the app scrolls
+  // an inner div, not the window). The canvas is keyed by route, so the node is
+  // recreated on nav — re-attach per pathname and start each page expanded.
+  const canvasRef = useRef<HTMLDivElement | null>(null);
+  const [navCollapsed, setNavCollapsed] = useState(false);
+  useEffect(() => {
+    setNavCollapsed(false);
+    const el = canvasRef.current;
+    if (!el) return;
+    let lastY = el.scrollTop;
+    const onScroll = () => {
+      // Clamp: iOS rubber-banding reports negative/overshot offsets that would
+      // otherwise read as a direction change and flicker the bar.
+      const y = Math.max(0, Math.min(el.scrollTop, el.scrollHeight - el.clientHeight));
+      const dy = y - lastY;
+      lastY = y;
+      if (y < 40) setNavCollapsed(false);
+      else if (dy > 4) setNavCollapsed(true);
+      else if (dy < -4) setNavCollapsed(false);
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, [pathname]);
+
   // Mutations live in the modals; refetch server data by re-running the active RSC.
   const refresh = () => router.refresh();
 
@@ -297,6 +324,34 @@ export function BulgaChrome({
     ? userName.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
     : null;
 
+  // The notifications bell, rendered in TWO slots: inside the actions cluster
+  // on desktop, and up on the title row on mobile (see .bk-bell-top /
+  // .bk-bell-inline in globals.css — exactly one is visible at a time). Two
+  // instances beat re-parenting: each Popover owns its own anchor + state, and
+  // the mobile one stays reachable even when the bar collapses on scroll.
+  // Base UI's Popover owns positioning, scrim, focus & dismissal; its
+  // positioner keeps the panel on-screen.
+  const bell = (
+    <Popover>
+      <PopoverTrigger
+        aria-haspopup="dialog"
+        render={
+          <Button variant="outline" size="icon" aria-label="Notifications">
+            <Bell size={17} strokeWidth={1.9} aria-hidden="true" />
+          </Button>
+        }
+      />
+      <PopoverContent className="rounded-2xl">
+        <NotificationsPanel
+          budgetTarget={notice.budgetTarget}
+          monthlySpend={notice.monthlySpend}
+          spendingByCategory={notice.spendingByCategory}
+          upcomingBills={notice.upcomingBills}
+        />
+      </PopoverContent>
+    </Popover>
+  );
+
   const pageTitle = meta.title;
   // Prefer the count the active period page reported (accurate for the SELECTED
   // month); fall back to the layout's current-month count before it reports.
@@ -333,11 +388,13 @@ export function BulgaChrome({
 
   return (
     <BulgaChromeProvider value={chromeValue}>
+      {/* .bk-vh = 100dvh with a 100vh fallback — plain 100vh on iOS Safari
+          includes the retracted-toolbar band, cutting the bottom of the app. */}
       <div
+        className="bk-vh"
         style={
           {
             ...themeVars(theme),
-            height: "100vh",
             display: "flex",
             background: "var(--color-bk-canvas)",
             overflow: "hidden",
@@ -346,11 +403,10 @@ export function BulgaChrome({
       >
         {/* ░░ ICON RAIL ░░ */}
         <aside
-          className="bk-rail"
+          className="bk-rail bk-vh"
           style={{
             width: 60,
             flexShrink: 0,
-            height: "100vh",
             background: "var(--color-bk-surface)",
             borderRight: "1px solid var(--color-bk-sidebar-line)",
           }}
@@ -421,22 +477,24 @@ export function BulgaChrome({
         </aside>
 
         {/* ░░ MAIN ░░ */}
-        <main style={{ flex: 1, minWidth: 0, height: "100vh", display: "flex", flexDirection: "column", background: "var(--color-bk-surface)" }}>
+        <main className="bk-vh" style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", background: "var(--color-bk-surface)" }}>
           {/* topbar */}
           <header
             className="bk-topbar"
+            data-collapsed={navCollapsed || undefined}
             style={{
               display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
               padding: "22px 34px", borderBottom: "1px solid oklch(93% 0.005 85)",
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+            <div className="bk-topbar-lead" style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
               <MobileNav
                 primary={PRIMARY_NAV}
                 secondary={SECONDARY_NAV}
                 pathname={pathname}
                 hrefFor={hrefFor}
                 accent={accent}
+                theme={theme}
                 userName={userName}
                 initials={initials}
                 onOpenSettings={() => setShowSettings(true)}
@@ -448,6 +506,8 @@ export function BulgaChrome({
                 </h1>
                 <p style={{ margin: "3px 0 0", fontSize: 13, color: "oklch(54% 0.012 80)" }}>{pageSub}</p>
               </div>
+              {/* mobile-only bell — rides the title row, right-aligned */}
+              <span className="bk-bell-inline">{bell}</span>
             </div>
 
             <div className="bk-topbar-actions" style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -466,26 +526,8 @@ export function BulgaChrome({
                 />
               )}
 
-              {/* bell — Base UI Popover owns positioning, scrim, focus &
-                  dismissal; its positioner keeps the panel on-screen. */}
-              <Popover>
-                <PopoverTrigger
-                  aria-haspopup="dialog"
-                  render={
-                    <Button variant="outline" size="icon" aria-label="Notifications">
-                      <Bell size={17} strokeWidth={1.9} aria-hidden="true" />
-                    </Button>
-                  }
-                />
-                <PopoverContent className="rounded-2xl">
-                  <NotificationsPanel
-                    budgetTarget={notice.budgetTarget}
-                    monthlySpend={notice.monthlySpend}
-                    spendingByCategory={notice.spendingByCategory}
-                    upcomingBills={notice.upcomingBills}
-                  />
-                </PopoverContent>
-              </Popover>
+              {/* desktop-only bell — hidden on mobile, where it rides the title row */}
+              <span className="bk-bell-top">{bell}</span>
 
               {/* add — Base UI Menu owns open state, scrim, focus & Escape; its
                   positioner keeps the menu on-screen at any viewport. */}
@@ -517,7 +559,7 @@ export function BulgaChrome({
           </header>
 
           {/* scroll canvas — keyed by route so each page gets the bk-enter mount animation */}
-          <div className="bk-scroll bk-canvas" style={{ flex: 1, overflowY: "auto", padding: 34 }} key={pathname}>
+          <div ref={canvasRef} className="bk-scroll bk-canvas" style={{ flex: 1, overflowY: "auto", padding: 34 }} key={pathname}>
             {children}
           </div>
         </main>
