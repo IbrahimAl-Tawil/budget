@@ -2,15 +2,29 @@
 
 // Bulga ACCOUNTS page.
 //
-// Net-worth hero + accounts grouped by derived section (Cash & savings /
-// Investments / Credit), wired to real AccountView data passed in as props.
+// Net-worth hero + accounts grouped one of two ways: by derived section
+// (Cash & savings / Investments / Credit — the default) or by bank (each
+// linked institution's accounts together, manual ones pooled at the end).
+// The grouping toggle + manual sync live in one "Options" dropdown, shown
+// only when a bank is linked — without synced accounts neither applies.
+// Wired to real AccountView data passed in as props.
 
 import { useState, useTransition } from "react";
-import { Plus, Landmark, RefreshCw } from "lucide-react";
+import { Plus, Landmark, RefreshCw, Check, ChevronDown, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Menu,
+  MenuTrigger,
+  MenuContent,
+  MenuItem,
+  MenuSeparator,
+  MenuRadioGroup,
+  MenuRadioItem,
+} from "@/components/ui/menu";
 
 import type { AccountView } from "@/lib/types";
 import { fmt } from "@/lib/format";
+import { ACCOUNT_TYPES } from "@/lib/constants";
 import { tintFor, type BulgaTheme } from "@/components/bulga/theme";
 import { GuillochePattern } from "@/components/bulga/guilloche";
 import { gqlClient, errMessage } from "@/lib/graphql/client";
@@ -60,6 +74,13 @@ function groupOf(type: string): GroupKey {
   return "cash";
 }
 
+/** Canonical display label for a stored account type ("credit-card" → "Credit Card"). */
+function typeLabel(type: string): string {
+  const t = type.trim().toLowerCase().replace(/-/g, " ");
+  const known = ACCOUNT_TYPES.find((k) => k.toLowerCase() === t);
+  return known ?? (t.charAt(0).toUpperCase() + t.slice(1));
+}
+
 /** Treat an account's bg as a usable CSS color (not empty / placeholder). */
 function usableColor(bg: string | undefined): bg is string {
   if (!bg) return false;
@@ -77,6 +98,14 @@ export function BulgaAccounts({ accounts, netWorth, accent, theme, currency = "C
   const [isSyncing, startSync] = useTransition();
   const [syncError, setSyncError] = useState("");
 
+  // Grouping view. "type" is the default; "bank" clusters each linked
+  // institution's accounts (chequing + credit + investment together) with
+  // manual accounts pooled last. Only reachable with a linked bank — the
+  // Options menu that switches it is hidden otherwise, and the guard below
+  // snaps back to "type" if the last bank is disconnected mid-session.
+  const [groupBy, setGroupBy] = useState<"type" | "bank">("type");
+  const mode = hasLinkedBank ? groupBy : "type";
+
   const handleSync = () => {
     setSyncError("");
     startSync(async () => {
@@ -90,16 +119,41 @@ export function BulgaAccounts({ accounts, netWorth, accent, theme, currency = "C
     });
   };
 
-  // Bucket the accounts, preserving their incoming order within each group.
-  const buckets: Record<GroupKey, AccountView[]> = { cash: [], invest: [], credit: [] };
-  for (const a of accounts) buckets[groupOf(a.type)].push(a);
+  // Group subtotal excludes hidden accounts, matching net worth.
+  const totalOf = (items: AccountView[]) =>
+    items.reduce((sum, a) => sum + (a.excluded ? 0 : a.balance), 0);
 
-  const groups = GROUP_ORDER.filter((key) => buckets[key].length > 0).map((key) => {
-    const items = buckets[key];
-    // Group subtotal excludes hidden accounts, matching net worth.
-    const total = items.reduce((sum, a) => sum + (a.excluded ? 0 : a.balance), 0);
-    return { key, label: GROUP_LABELS[key], items, total };
-  });
+  // Bucket the accounts, preserving their incoming order within each group.
+  let groups: { key: string; label: string; items: AccountView[]; total: number }[];
+  if (mode === "bank") {
+    // One group per institution (in order of first appearance), manual last.
+    const byKey = new Map<string, AccountView[]>();
+    for (const a of accounts) {
+      const key = a.synced ? `bank:${a.institution?.trim() || "Linked bank"}` : "manual";
+      if (!byKey.has(key)) byKey.set(key, []);
+      byKey.get(key)!.push(a);
+    }
+    const ordered = [...byKey.keys()].filter((k) => k !== "manual");
+    if (byKey.has("manual")) ordered.push("manual");
+    groups = ordered.map((key) => {
+      const items = byKey.get(key)!;
+      return {
+        key,
+        label: key === "manual" ? "Manual accounts" : key.slice("bank:".length),
+        items,
+        total: totalOf(items),
+      };
+    });
+  } else {
+    const buckets: Record<GroupKey, AccountView[]> = { cash: [], invest: [], credit: [] };
+    for (const a of accounts) buckets[groupOf(a.type)].push(a);
+    groups = GROUP_ORDER.filter((key) => buckets[key].length > 0).map((key) => ({
+      key,
+      label: GROUP_LABELS[key],
+      items: buckets[key],
+      total: totalOf(buckets[key]),
+    }));
+  }
 
   return (
     <div className="bk-enter bk-page">
@@ -143,18 +197,6 @@ export function BulgaAccounts({ accounts, netWorth, accent, theme, currency = "C
         </div>
         <div className="bk-hero-actions" style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8, flexShrink: 0 }}>
           <div style={{ display: "flex", gap: 10 }}>
-          {hasLinkedBank && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleSync}
-              disabled={isSyncing}
-              aria-label="Sync linked banks"
-            >
-              <RefreshCw data-icon="inline-start" size={15} strokeWidth={2} className={isSyncing ? "bk-spin" : undefined} />
-              {isSyncing ? "Syncing…" : "Sync"}
-            </Button>
-          )}
           <Button size="sm" onClick={() => onConnect?.()} aria-label="Connect a bank">
             <Landmark data-icon="inline-start" size={16} strokeWidth={2} />
             Connect a bank
@@ -169,6 +211,45 @@ export function BulgaAccounts({ accounts, netWorth, accent, theme, currency = "C
             <Plus data-icon="inline-start" size={16} strokeWidth={2} />
             Add account
           </Button>
+          {/* Sync + grouping share one Options menu (the transactions account-
+              filter language) — both only make sense with a linked bank. */}
+          {hasLinkedBank && (
+            <Menu>
+              <MenuTrigger
+                render={
+                  <Button variant="outline" size="sm" aria-label="Account view options">
+                    {isSyncing ? (
+                      <RefreshCw data-icon="inline-start" size={15} strokeWidth={2} className="bk-spin" />
+                    ) : (
+                      <SlidersHorizontal data-icon="inline-start" size={15} strokeWidth={2} />
+                    )}
+                    {isSyncing ? "Syncing…" : "Options"}
+                    <ChevronDown size={14} strokeWidth={2.2} aria-hidden="true" />
+                  </Button>
+                }
+              />
+              <MenuContent align="end" className="min-w-[210px]">
+                <MenuItem onClick={handleSync} disabled={isSyncing}>
+                  <RefreshCw size={15} strokeWidth={2} aria-hidden="true" />
+                  <span>Sync accounts</span>
+                </MenuItem>
+                <MenuSeparator />
+                <div className="px-2.5 pt-1.5 pb-1 text-[10.5px] font-semibold uppercase tracking-[0.09em] text-[var(--color-bk-faint)]">
+                  Group by
+                </div>
+                <MenuRadioGroup value={groupBy}>
+                  <MenuRadioItem value="type" onClick={() => setGroupBy("type")}>
+                    <span>Account type</span>
+                    {groupBy === "type" && <Check size={15} strokeWidth={2.5} style={{ color: theme.accent, flexShrink: 0 }} aria-hidden="true" />}
+                  </MenuRadioItem>
+                  <MenuRadioItem value="bank" onClick={() => setGroupBy("bank")}>
+                    <span>Bank</span>
+                    {groupBy === "bank" && <Check size={15} strokeWidth={2.5} style={{ color: theme.accent, flexShrink: 0 }} aria-hidden="true" />}
+                  </MenuRadioItem>
+                </MenuRadioGroup>
+              </MenuContent>
+            </Menu>
+          )}
           </div>
           {syncError && (
             <span style={{ fontSize: 12.5, fontWeight: 500, color: "var(--color-bk-clay)", textAlign: "right", maxWidth: 320 }}>
@@ -218,7 +299,9 @@ export function BulgaAccounts({ accounts, netWorth, accent, theme, currency = "C
             >
               {grp.items.map((a, i) => {
                 const negative = a.balance < 0;
-                const fallback = tintFor(GROUP_TINT_KEY[grp.key]);
+                // Tint by the account's own type-family (not the visible group)
+                // so an account's avatar stays identical across both views.
+                const fallback = tintFor(GROUP_TINT_KEY[groupOf(a.type)]);
                 const tileBg = usableColor(a.bg) ? a.bg : fallback[0];
                 const tileInk = usableColor(a.bg) ? "#fff" : fallback[1];
                 return (
@@ -310,11 +393,13 @@ export function BulgaAccounts({ accounts, netWorth, accent, theme, currency = "C
                         )}
                       </div>
                       {(() => {
-                        // For synced accounts show institution + last update;
-                        // otherwise the number + monthly change. Join only the
-                        // parts that exist, so no dangling "· " separator.
+                        // For synced accounts show institution + last update —
+                        // except in bank view, where the institution IS the
+                        // group header, so show the account type instead.
+                        // Manual rows keep number + monthly change. Join only
+                        // the parts that exist, so no dangling "· " separator.
                         const parts = a.synced
-                          ? [a.institution, a.syncedLabel && `Updated ${a.syncedLabel}`]
+                          ? [mode === "bank" ? typeLabel(a.type) : a.institution, a.syncedLabel && `Updated ${a.syncedLabel}`]
                           : [a.num, a.change];
                         const meta = parts.filter((p) => p && String(p).trim()).join(" · ");
                         return meta ? (

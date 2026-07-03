@@ -3,8 +3,11 @@
 // A three-level priority control (Low / Medium / High) for goals. Priority is
 // stored on the goal as a numeric weight — 1, 2, or 3 — that the savings
 // allocator splits the monthly pool by. Higher priority = a bigger share.
-// Replaces the old free-form "priority weight %" field, which let unrelated
-// goals sum past 100% and read as a percentage it never was.
+// Rendered as a segmented control with one sliding accent thumb (styled by
+// .bk-priority* in globals.css) — the thumb glides between segments instead of
+// each button repainting, so the switch reads as one physical control. Sized
+// to the bk-field shell (44px) so it lines up with sibling fields and meets
+// the iOS touch-target minimum.
 
 export const PRIORITY_LEVELS = [
   { value: 1, label: "Low" },
@@ -24,39 +27,29 @@ export function PriorityPicker({
   value: number;
   onChange: (v: number) => void;
 }) {
+  const index = Math.max(
+    0,
+    PRIORITY_LEVELS.findIndex((lvl) => lvl.value === toPriorityLevel(value))
+  );
   return (
-    <div
-      role="radiogroup"
-      aria-label="Priority"
-      style={{ display: "flex", gap: 6, background: "var(--color-bk-canvas)", border: "1px solid var(--color-bk-line)", borderRadius: 12, padding: 4 }}
-    >
-      {PRIORITY_LEVELS.map((lvl) => {
-        const active = value === lvl.value;
-        return (
-          <button
-            key={lvl.value}
-            type="button"
-            role="radio"
-            aria-checked={active}
-            onClick={() => onChange(lvl.value)}
-            className="bk-num"
-            style={{
-              flex: 1,
-              padding: "8px 0",
-              borderRadius: 9,
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: "pointer",
-              border: "none",
-              transition: "background .15s, color .15s",
-              background: active ? "var(--color-primary)" : "transparent",
-              color: active ? "#fff" : "var(--color-bk-muted)",
-            }}
-          >
-            {lvl.label}
-          </button>
-        );
-      })}
+    <div role="radiogroup" aria-label="Priority" className="bk-priority">
+      <span
+        className="bk-priority-thumb"
+        aria-hidden="true"
+        style={{ transform: `translateX(${index * 100}%)` }}
+      />
+      {PRIORITY_LEVELS.map((lvl) => (
+        <button
+          key={lvl.value}
+          type="button"
+          role="radio"
+          aria-checked={value === lvl.value}
+          onClick={() => onChange(lvl.value)}
+          className="bk-priority-btn"
+        >
+          {lvl.label}
+        </button>
+      ))}
     </div>
   );
 }

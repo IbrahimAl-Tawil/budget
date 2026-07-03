@@ -106,6 +106,10 @@ export function AccountForm({ values, errors, onChange, lockBalance }: AccountFo
         <div className="flex flex-wrap gap-2">
           {ACCOUNT_COLORS.map((c) => {
             const selected = c.value === values.gradient;
+            // Ring in the swatch's OWN hue (its first gradient stop), not the
+            // app accent — a sage swatch gets a sage ring. Set via Tailwind's
+            // ring-color variable since a class can't carry a per-swatch value.
+            const ringColor = c.value.match(/oklch\([^)]+\)/)?.[0] ?? "var(--color-primary)";
             return (
               <button
                 key={c.value}
@@ -116,10 +120,10 @@ export function AccountForm({ values, errors, onChange, lockBalance }: AccountFo
                 aria-pressed={selected}
                 className={`relative w-9 h-9 rounded-full transition-transform duration-200 cursor-pointer ${
                   selected
-                    ? "scale-110 ring-2 ring-[var(--color-primary)] ring-offset-2 ring-offset-[var(--color-bk-surface)]"
+                    ? "scale-110 ring-2 ring-offset-2 ring-offset-[var(--color-bk-surface)]"
                     : "hover:scale-110"
                 }`}
-                style={{ background: c.value }}
+                style={{ background: c.value, ...(selected ? { ["--tw-ring-color" as string]: ringColor } : {}) }}
               >
                 {selected && (
                   <Check className="absolute inset-0 m-auto w-4 h-4 text-white drop-shadow-[0_1px_2px_oklch(0%_0_0/0.4)]" />

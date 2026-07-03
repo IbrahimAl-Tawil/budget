@@ -118,6 +118,10 @@
   }
   html {
     font-family: var(--font-ui), system-ui, sans-serif;
+    /* iOS: no grey flash on taps (we style our own pressed states), and no
+       automatic font inflation when rotating to landscape. */
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
   }
 }
 
@@ -166,6 +170,64 @@
     transition: opacity 0.14s;
   }
   &:hover::-webkit-calendar-picker-indicator { opacity: 0.85; }
+  /* Clicking the indicator opens the native calendar WITHOUT reliably focusing
+     the input (the popup is its own window), so bk-field's :focus accent never
+     shows on that path. :open matches a temporal input while its picker is up —
+     accent the field for that whole interaction. (Standalone rule: browsers
+     without :open just ignore it; there, tapping the field focuses it and the
+     :focus accent covers the picker anyway, e.g. iOS.) */
+  &:open { border-color: var(--color-primary); }
+}
+
+/* Priority segmented control (bulga/priority-picker.tsx) — the bk-field shell
+   with three equal segments and ONE sliding accent thumb. The thumb is an
+   absolutely-placed span the component translates by 0/100/200%, so switching
+   priority glides instead of repainting — and only `transform` animates (cheap,
+   smooth on mobile). Height matches bk-field (44px) = the iOS touch minimum. */
+.bk-priority {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  height: 44px;
+  padding: 4px;
+  border: 1px solid var(--color-bk-line);
+  border-radius: 12px;
+  background: oklch(98% 0.004 90);
+  touch-action: manipulation;
+}
+.bk-priority-thumb {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 4px;
+  width: calc((100% - 8px) / 3);
+  border-radius: 9px;
+  background: var(--color-primary);
+  transition: transform 0.28s cubic-bezier(0.22, 1.1, 0.36, 1);
+  pointer-events: none;
+}
+.bk-priority-btn {
+  position: relative;
+  z-index: 1;
+  border: none;
+  background: transparent;
+  border-radius: 9px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-bk-muted);
+  cursor: pointer;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 0.18s ease;
+}
+.bk-priority-btn[aria-checked="true"] { color: #fff; }
+@media (hover: hover) {
+  .bk-priority-btn:not([aria-checked="true"]):hover { color: var(--color-bk-ink); }
+}
+.bk-priority-btn:focus-visible { box-shadow: inset 0 0 0 2px var(--color-ring); }
+@media (prefers-reduced-motion: reduce) {
+  .bk-priority-thumb { transition: none; }
 }
 
 /* Screen enter — calm fade-up, respects reduced motion */
@@ -482,30 +544,92 @@
 .bk-page { width: 100%; max-width: 1000px; margin: 0 auto; }
 .bk-canvas { overflow-x: hidden; }
 
+/* Mobile-only bell slot — shown ≤768px (see the topbar block below). */
+.bk-bell-inline { display: none; }
+
+/* Full-viewport height with iOS honesty: 100vh on iOS Safari includes the band
+   behind the retractable toolbar, so the app's bottom edge hides under it.
+   100dvh tracks the toolbar; the 100vh line is the fallback for old engines. */
+.bk-vh { height: 100vh; height: 100dvh; }
+
 /* ── Shell ── */
 
-/* Canvas scroll padding tightens on smaller screens (desktop = inline 34px). */
+/* Canvas scroll padding tightens on smaller screens (desktop = inline 34px).
+   Horizontal padding never dips under the notch/home-indicator insets — with
+   viewport-fit=cover (layout.tsx) a landscape iPhone would otherwise tuck
+   content beneath the notch. */
 @media (max-width: 1024px) {
-  .bk-canvas { padding: 24px !important; }
-  .bk-topbar { padding: 18px 24px !important; }
+  .bk-canvas { padding: 24px max(24px, env(safe-area-inset-right)) 24px max(24px, env(safe-area-inset-left)) !important; }
+  .bk-topbar { padding: 18px max(24px, env(safe-area-inset-right)) 18px max(24px, env(safe-area-inset-left)) !important; }
 }
 /* At/below the hamburger breakpoint the topbar wraps: title (with hamburger)
    on top, controls beneath — so the picker/bell/Add never squeeze. */
 @media (max-width: 768px) {
   .bk-topbar {
     flex-wrap: wrap;
-    padding: 16px 20px !important;
+    padding: 16px max(20px, env(safe-area-inset-right)) 16px max(20px, env(safe-area-inset-left)) !important;
     gap: 12px !important;
+    transition: padding 0.3s cubic-bezier(0.22, 0.61, 0.36, 1), row-gap 0.3s cubic-bezier(0.22, 0.61, 0.36, 1);
   }
   /* Controls drop to their own row, left-aligned. The month-nav keeps its
      natural size (never stretches to fill the row) — flex:1 made it balloon. */
-  .bk-topbar-actions { width: 100%; justify-content: flex-start; }
+  .bk-topbar-actions {
+    width: 100%;
+    justify-content: flex-start;
+    max-height: 44px;
+    overflow: hidden;
+    transition: max-height 0.3s cubic-bezier(0.22, 0.61, 0.36, 1), opacity 0.22s ease;
+  }
   .bk-topbar-actions .bk-month-nav { flex: 0 1 auto; max-width: 280px; min-width: 0; }
+
+  /* Bell placement: on mobile it leaves the actions row and rides the title
+     row instead (hamburger · title · bell), right-aligned — so notifications
+     stay reachable even while the bar is collapsed. Exactly one of the two
+     rendered bells is ever visible (.bk-bell-inline default-hidden below). */
+  .bk-topbar-lead { flex: 1; }
+  .bk-bell-inline { display: block; margin-left: auto; }
+  .bk-bell-top { display: none; }
+
+  /* ── Collapse-on-scroll (data-collapsed set by BulgaChrome, phones only) ──
+     Scrolling down tucks the subtitle + the actions row away and tightens the
+     bar to one slim row (hamburger + title); scrolling up restores it. Only
+     max-height/opacity/padding move, and the popovers (month picker, bell,
+     Add) portal to <body>, so the row's overflow:hidden never clips them. */
+  .bk-topbar-title p {
+    max-height: 20px;
+    overflow: hidden;
+    transition: max-height 0.3s cubic-bezier(0.22, 0.61, 0.36, 1), opacity 0.22s ease, margin-top 0.3s cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
+  .bk-topbar[data-collapsed] {
+    padding-top: 10px !important;
+    padding-bottom: 10px !important;
+    row-gap: 0 !important;
+  }
+  .bk-topbar[data-collapsed] .bk-topbar-actions {
+    max-height: 0;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .bk-topbar[data-collapsed] .bk-topbar-title p {
+    max-height: 0;
+    opacity: 0;
+    margin-top: 0 !important;
+  }
 }
 @media (max-width: 640px) {
-  .bk-canvas { padding: 16px !important; }
-  .bk-topbar { padding: 14px 16px !important; }
+  .bk-canvas { padding: 16px max(16px, env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)) !important; }
+  .bk-topbar {
+    padding-top: 14px !important;
+    padding-bottom: 14px !important;
+    padding-left: max(16px, env(safe-area-inset-left)) !important;
+    padding-right: max(16px, env(safe-area-inset-right)) !important;
+  }
   .bk-topbar-title h1 { font-size: 18px !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bk-topbar,
+  .bk-topbar-actions,
+  .bk-topbar-title p { transition: none !important; }
 }
 
 /* Navigation: desktop shows the persistent icon rail; the hamburger is hidden.
@@ -555,13 +679,43 @@
 
 /* Bottom sheet — springs up from the bottom edge on open, drops back on close.
    Base UI keeps it mounted through data-closed so both directions animate.
-   One quiet shadow; the surface does the rest. */
+   One quiet shadow; the surface does the rest. The max-height uses dvh where
+   supported so the sheet clears iOS Safari's retracting toolbar (the class
+   carries max-h-[86vh] as the fallback). */
 .bk-sheet {
+  max-height: 86dvh;
   transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1);
   box-shadow: 0 -8px 40px oklch(20% 0.02 80 / 0.12);
 }
-.bk-sheet[data-closed] { transform: translateY(100%); }
 .bk-sheet[data-open] { transform: translateY(0); }
+/* Off-screen while closed AND on the enter/exit transition frames — Base UI
+   sets data-starting-style alongside data-open on the first styled frame, so
+   without these the sheet pops in fully risen instead of sliding up like the
+   CRUD bottom sheets. (Placed after the data-open rule so they win that frame.) */
+.bk-sheet[data-closed],
+.bk-sheet[data-starting-style],
+.bk-sheet[data-ending-style] { transform: translateY(100%); }
+
+/* One scrim language for every sheet + dialog: the warm dark wash gains a soft
+   backdrop blur, lifting the sheet off the page the way iOS system sheets do. */
+.bk-sheet-backdrop,
+[data-slot="dialog-overlay"] {
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+
+/* Grab handle + the swipe-down zone around it. touch-action:none keeps the
+   browser from claiming the gesture (scroll / pull-to-refresh) so the sheet
+   can track the finger. */
+.bk-sheet-grip { touch-action: none; }
+.bk-sheet-handle {
+  display: block;
+  width: 40px;
+  height: 4px;
+  margin: 10px auto 8px;
+  border-radius: 999px;
+  background: var(--color-bk-line);
+}
 
 /* Staggered row reveal — each row eases up in sequence via its --i index,
    only on open. */
@@ -583,7 +737,9 @@
 @media (prefers-reduced-motion: reduce) {
   .bk-burger > span { transition: none; }
   .bk-sheet { transition: none; }
-  .bk-sheet[data-closed] { transform: none; opacity: 0; }
+  .bk-sheet[data-closed],
+  .bk-sheet[data-starting-style],
+  .bk-sheet[data-ending-style] { transform: none; opacity: 0; }
   .bk-sheet[data-open] .bk-nav-row { animation: none; }
 }
 
@@ -700,4 +856,45 @@
    only responsive tweak is trimming the month grid's padding on phones. */
 @media (max-width: 640px) {
   .bk-month-pop { padding: 12px !important; }
+}
+
+/* ── Modals → bottom sheets on phones ──
+   Every CRUD/settings modal shares ui/dialog.tsx, whose popup carries
+   `bk-dialog`. Below md (768) the dialog is authored as a bottom sheet: pinned
+   to the bottom edge, rounded top, safe-area padded, sliding up/down on the
+   SAME transition + data-attribute states as the nav sheet (.bk-sheet) — the
+   pattern proven to animate both directions. The component's centering and
+   zoom-fade animation classes are all md:-scoped, so nothing fights the
+   transition here (no animation/!important overrides needed) and desktop
+   keeps the centered card. Un-layered, so width/radius/padding-bottom beat
+   the sm: utility overrides that callers pass for the desktop presentation. */
+@media (max-width: 767px) {
+  .bk-dialog {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-width: 520px;            /* wide-phone band: match the nav sheet */
+    margin: 0 auto;
+    max-height: calc(100dvh - 40px);
+    border-radius: 26px 26px 0 0;
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+    padding-bottom: max(28px, env(safe-area-inset-bottom));
+    transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  .bk-dialog[data-open] { transform: translateY(0); }
+  /* After the open rule so the off-screen start wins the first styled frame
+     (Base UI sets data-starting-style alongside data-open on enter). */
+  .bk-dialog[data-closed],
+  .bk-dialog[data-starting-style],
+  .bk-dialog[data-ending-style] { transform: translateY(100%); }
+  @media (prefers-reduced-motion: reduce) {
+    .bk-dialog { transition: none; }
+    .bk-dialog[data-closed],
+    .bk-dialog[data-starting-style],
+    .bk-dialog[data-ending-style] { transform: none; opacity: 0; }
+  }
 }

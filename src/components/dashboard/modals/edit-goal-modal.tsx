@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { EmojiPicker } from "@/components/bulga/emoji-picker";
 import { PriorityPicker, toPriorityLevel } from "@/components/bulga/priority-picker";
+import { DateInput } from "@/components/bulga/form";
 import { ConfirmButton } from "@/components/bulga/confirm-button";
 import { Trash2 } from "lucide-react";
 import type { GoalView } from "@/lib/types";
@@ -102,8 +103,10 @@ export function EditGoalModal({
     });
   };
 
-  if (!goal) return null;
-
+  // Render the Dialog even with no goal: unmounting the Root here would skip
+  // Base UI's enter/exit transitions (mounted-already-open pops in; instant
+  // unmount kills the slide-out). The JSX reads only local state, and every
+  // handler guards on `goal`, so a null goal renders an inert closed dialog.
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="sm:max-w-[480px] p-6 sm:p-9">
@@ -147,19 +150,16 @@ export function EditGoalModal({
               />
             </div>
           </div>
-          <div className="flex gap-3">
-            <div className="flex-1">
+          {/* Priority wants the full row on phones — three tappable segments
+              don't fit half a sheet width. Side-by-side again from sm up. */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
               <label className="block text-[11px] font-semibold tracking-[0.09em] uppercase text-[var(--color-bk-faint)] mb-1.5">Priority</label>
               <PriorityPicker value={priority} onChange={setPriority} />
             </div>
-            <div className="flex-1">
+            <div>
               <label className="block text-[11px] font-semibold tracking-[0.09em] uppercase text-[var(--color-bk-faint)] mb-1.5">Deadline</label>
-              <input
-                type="date"
-                value={deadline}
-                onChange={(e) => setDeadline(e.target.value)}
-                className="bk-field bk-field-date"
-              />
+              <DateInput value={deadline} onChange={(e) => setDeadline(e.target.value)} />
             </div>
           </div>
           <p className="text-[12px] text-[var(--color-bk-muted)]">

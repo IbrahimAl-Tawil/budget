@@ -8,6 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { DateInput } from "@/components/bulga/form";
 import { ConfirmButton } from "@/components/bulga/confirm-button";
 import { Trash2, ChevronDown } from "lucide-react";
 import type { TransactionView } from "@/lib/types";
@@ -104,8 +105,10 @@ export function EditTransactionModal({
     });
   };
 
-  if (!transaction) return null;
-
+  // Render the Dialog even with no transaction: unmounting the Root here would
+  // skip Base UI's enter/exit transitions (mounted-already-open pops in;
+  // instant unmount kills the slide-out). The JSX reads only local state, and
+  // every handler guards on `transaction`.
   const displayCategories =
     categories.length > 0
       ? categories
@@ -181,12 +184,7 @@ export function EditTransactionModal({
             <label className="block text-[11px] font-semibold tracking-[0.09em] uppercase text-[var(--color-bk-faint)] mb-1.5">
               Date (leave blank to keep current)
             </label>
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="bk-field bk-field-date"
-            />
+            <DateInput value={date} onChange={(e) => setDate(e.target.value)} />
           </div>
         </div>
 
