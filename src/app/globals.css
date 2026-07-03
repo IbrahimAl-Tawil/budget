@@ -119,7 +119,10 @@
   html {
     font-family: var(--font-ui), system-ui, sans-serif;
     /* iOS: no grey flash on taps (we style our own pressed states), and no
-       automatic font inflation when rotating to landscape. */
+       automatic font inflation when rotating to landscape. The background
+       shows through rubber-band overscroll (and tints Safari's retracted
+       chrome) — warm canvas, never default white. */
+    background: var(--color-bk-canvas);
     -webkit-tap-highlight-color: transparent;
     -webkit-text-size-adjust: 100%;
   }
@@ -542,7 +545,10 @@
    any residual sub-pixel spill. Grid/flex text cells still need their own
    min-width:0 (added inline where they hold ellipsised text). */
 .bk-page { width: 100%; max-width: 1000px; margin: 0 auto; }
-.bk-canvas { overflow-x: hidden; }
+.bk-canvas { overflow-y: auto; overflow-x: hidden; }
+/* Desktop scrolls the canvas div inside a fixed-height shell; phones flip both
+   (see the ≤768px block) so the DOCUMENT scrolls instead. */
+.bk-shell { overflow: hidden; }
 
 /* Mobile-only bell slot — shown ≤768px (see the topbar block below). */
 .bk-bell-inline { display: none; }
@@ -559,15 +565,36 @@
    viewport-fit=cover (layout.tsx) a landscape iPhone would otherwise tuck
    content beneath the notch. */
 @media (max-width: 1024px) {
-  .bk-canvas { padding: 24px max(24px, env(safe-area-inset-right)) 24px max(24px, env(safe-area-inset-left)) !important; }
+  .bk-canvas { padding: 24px max(24px, env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left)) !important; }
   .bk-topbar { padding: 18px max(24px, env(safe-area-inset-right)) 18px max(24px, env(safe-area-inset-left)) !important; }
 }
 /* At/below the hamburger breakpoint the topbar wraps: title (with hamburger)
    on top, controls beneath — so the picker/bell/Add never squeeze. */
 @media (max-width: 768px) {
+  /* ── Document scrolling on phones ──
+     iOS Safari only retracts its chrome (URL bar / tab bar) when the DOCUMENT
+     scrolls — an inner overflow div never triggers it, leaving the app boxed
+     inside the safe edges. So on phones the shell grows to its content and the
+     page itself scrolls; the topbar goes sticky. This also restores native
+     behaviors that only the document scroller gets: tap-the-status-bar to
+     scroll to top, and scroll position restore on back-nav. */
+  /* clip, NOT hidden — overflow-x: hidden would turn body into a scroll
+     container, which silently un-sticks the sticky topbar below. */
+  html, body { overflow-x: clip; }
+  .bk-shell { height: auto; min-height: 100dvh; overflow: visible; }
+  .bk-shell > main { height: auto; min-height: 100dvh; }
+  /* overflow-x: clip (not hidden) — hidden would silently promote overflow-y
+     to auto, re-creating the inner scroll container this block removes. */
+  .bk-canvas { overflow-y: visible; overflow-x: clip; }
   .bk-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background: var(--color-bk-surface);
     flex-wrap: wrap;
-    padding: 16px max(20px, env(safe-area-inset-right)) 16px max(20px, env(safe-area-inset-left)) !important;
+    /* When Safari's chrome retracts the page extends under the status bar
+       (viewport-fit=cover) — env(safe-area-inset-top) keeps the title clear. */
+    padding: max(16px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) 16px max(20px, env(safe-area-inset-left)) !important;
     gap: 12px !important;
     transition: padding 0.3s cubic-bezier(0.22, 0.61, 0.36, 1), row-gap 0.3s cubic-bezier(0.22, 0.61, 0.36, 1);
   }
@@ -601,7 +628,7 @@
     transition: max-height 0.3s cubic-bezier(0.22, 0.61, 0.36, 1), opacity 0.22s ease, margin-top 0.3s cubic-bezier(0.22, 0.61, 0.36, 1);
   }
   .bk-topbar[data-collapsed] {
-    padding-top: 10px !important;
+    padding-top: max(10px, env(safe-area-inset-top)) !important;
     padding-bottom: 10px !important;
     row-gap: 0 !important;
   }
@@ -619,7 +646,7 @@
 @media (max-width: 640px) {
   .bk-canvas { padding: 16px max(16px, env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)) !important; }
   .bk-topbar {
-    padding-top: 14px !important;
+    padding-top: max(14px, env(safe-area-inset-top)) !important;
     padding-bottom: 14px !important;
     padding-left: max(16px, env(safe-area-inset-left)) !important;
     padding-right: max(16px, env(safe-area-inset-right)) !important;

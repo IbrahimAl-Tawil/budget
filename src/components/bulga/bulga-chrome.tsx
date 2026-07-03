@@ -8,7 +8,7 @@
 // active route from usePathname, so deep links, back/forward and code-splitting
 // all work. Shared client state is published through BulgaChromeContext.
 
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -178,28 +178,38 @@ export function BulgaChrome({
   // Direction-aware topbar collapse for phones: scrolling down tucks the
   // subtitle + actions row away (CSS `.bk-topbar[data-collapsed]`, ≤768px only
   // — desktop ignores the attribute); scrolling up, or landing near the top,
-  // brings them back. The listener lives on the scroll canvas (the app scrolls
-  // an inner div, not the window). The canvas is keyed by route, so the node is
-  // recreated on nav — re-attach per pathname and start each page expanded.
-  const canvasRef = useRef<HTMLDivElement | null>(null);
+  // brings them back. Phones scroll the DOCUMENT (see the ≤768px block in
+  // globals.css — that's what lets Safari retract its chrome), so the listener
+  // lives on the window; on desktop the window never scrolls and the attribute
+  // is inert, so the listener simply stays quiet there.
+  //
+  // Collapsing changes the bar's height, which changes the document's max
+  // scroll offset WHILE the 0.3s animation runs — the browser then re-clamps
+  // scrollTop, firing scroll events the user never made. Read as direction
+  // changes, those bounce the bar open/closed in a loop on short pages and at
+  // the bottom edge. Two guards break the cycle: only collapse when there's
+  // meaningfully more scroll room than the ~80px the bar gives back, and
+  // freeze the state inside the bottom band where clamp-induced deltas live.
   const [navCollapsed, setNavCollapsed] = useState(false);
   useEffect(() => {
     setNavCollapsed(false);
-    const el = canvasRef.current;
-    if (!el) return;
-    let lastY = el.scrollTop;
+    const doc = document.scrollingElement;
+    if (!doc) return;
+    let lastY = Math.max(0, doc.scrollTop);
     const onScroll = () => {
+      const max = doc.scrollHeight - doc.clientHeight;
       // Clamp: iOS rubber-banding reports negative/overshot offsets that would
       // otherwise read as a direction change and flicker the bar.
-      const y = Math.max(0, Math.min(el.scrollTop, el.scrollHeight - el.clientHeight));
+      const y = Math.max(0, Math.min(doc.scrollTop, max));
       const dy = y - lastY;
       lastY = y;
       if (y < 40) setNavCollapsed(false);
-      else if (dy > 4) setNavCollapsed(true);
+      else if (y > max - 80) return; // bottom band — hold state
+      else if (dy > 4 && max > 160) setNavCollapsed(true);
       else if (dy < -4) setNavCollapsed(false);
     };
-    el.addEventListener("scroll", onScroll, { passive: true });
-    return () => el.removeEventListener("scroll", onScroll);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
   }, [pathname]);
 
   // Mutations live in the modals; refetch server data by re-running the active RSC.
@@ -391,13 +401,12 @@ export function BulgaChrome({
       {/* .bk-vh = 100dvh with a 100vh fallback — plain 100vh on iOS Safari
           includes the retracted-toolbar band, cutting the bottom of the app. */}
       <div
-        className="bk-vh"
+        className="bk-shell bk-vh"
         style={
           {
             ...themeVars(theme),
             display: "flex",
             background: "var(--color-bk-canvas)",
-            overflow: "hidden",
           } as React.CSSProperties
         }
       >
@@ -559,7 +568,7 @@ export function BulgaChrome({
           </header>
 
           {/* scroll canvas — keyed by route so each page gets the bk-enter mount animation */}
-          <div ref={canvasRef} className="bk-scroll bk-canvas" style={{ flex: 1, overflowY: "auto", padding: 34 }} key={pathname}>
+          <div className="bk-scroll bk-canvas" style={{ flex: 1, padding: 34 }} key={pathname}>
             {children}
           </div>
         </main>
