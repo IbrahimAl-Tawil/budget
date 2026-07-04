@@ -159,7 +159,6 @@ export function BulgaOverview({ overview, theme, onNavigate }: BulgaOverviewProp
         className="bk-nw-hero"
         style={{
           position: "relative",
-          overflow: "hidden",
           display: "grid",
           gridTemplateColumns: "1.15fr 1fr",
           gap: 28,
@@ -167,7 +166,11 @@ export function BulgaOverview({ overview, theme, onNavigate }: BulgaOverviewProp
           padding: "0 4px 36px",
         }}
       >
-        <GuillochePattern accent={theme.accent} accentDeep={theme.accentDeep} fade="left" opacity={0.16} />
+        {/* Clip only the backdrop, not the section — so the sparkline tooltip
+            can overflow past the hero edges instead of getting cut off. */}
+        <div style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none" }}>
+          <GuillochePattern accent={theme.accent} accentDeep={theme.accentDeep} fade="left" opacity={0.16} />
+        </div>
         <div style={{ position: "relative" }}>
           <div
             style={{

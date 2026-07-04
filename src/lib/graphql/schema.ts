@@ -13,6 +13,7 @@ import "./resolvers/categories";
 import "./resolvers/allocations";
 import "./resolvers/recurring";
 import "./resolvers/insights";
+import "./resolvers/advisor";
 import "./resolvers/settings";
 import "./resolvers/plaid";
 import "./resolvers/imports";
