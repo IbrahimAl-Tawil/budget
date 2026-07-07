@@ -224,5 +224,44 @@ export interface DashboardOverview {
   recentTransactions: TransactionView[];
 }
 
+/**
+ * A grounded reference the Advisor drew on for an answer. Every source is built
+ * from a record actually returned by a read-only tool call during the turn — so
+ * a source can't be hallucinated (unlike a figure the model might state). The UI
+ * renders these as chips beneath the assistant's reply.
+ */
+export interface AdvisorSource {
+  kind: "account" | "transaction" | "category" | "goal" | "subscription" | "summary";
+  /** Stable id where the record has one (account/transaction/goal/subscription). */
+  id?: string;
+  /** Short chip label (e.g. the account or merchant name). */
+  label: string;
+  /** Secondary line (e.g. formatted amount + date). */
+  detail?: string;
+}
+
+/** One turn in an Advisor conversation. */
+export interface AdvisorMessage {
+  role: "user" | "assistant";
+  content: string;
+  /** Present on assistant turns — the records the answer was grounded in. */
+  sources?: AdvisorSource[];
+}
+
+/** A saved advisor chat, as shown in the conversation sidebar. */
+export interface AdvisorConversationSummary {
+  id: string;
+  title: string;
+  /** ISO timestamp of the last activity — the sidebar orders by this. */
+  updatedAt: string;
+}
+
+/** A full advisor thread returned when a past conversation is reopened. */
+export interface AdvisorConversation {
+  id: string;
+  title: string;
+  messages: AdvisorMessage[];
+}
+
 export const TABS = ["Overview", "Spending", "Goals", "Transactions", "Subscriptions", "Accounts", "Insights"] as const;
 export type Tab = (typeof TABS)[number];

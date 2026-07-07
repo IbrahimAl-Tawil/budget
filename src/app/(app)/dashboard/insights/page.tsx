@@ -5,5 +5,5 @@ import { InsightsView } from "@/components/bulga/pages/insights-view";
 export default async function InsightsPage() {
   const user = await requireUser();
   const insights = await getInsights(user.id).catch(() => []);
-  return <InsightsView insights={insights} />;
+  return <InsightsView insights={insights} currency={user.currency ?? "CAD"} />;
 }

@@ -240,6 +240,35 @@
 }
 .bk-enter { animation: bkIn 0.5s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
 
+/* Rolling ticker — swap one line of text with a vertical roll: the outgoing line
+   shifts up and out while the incoming line rises from below into its place
+   (e.g. the advisor's cycling "thinking" phrase). Both live in a 1-line,
+   overflow-hidden container, stacked. */
+@keyframes bkRollIn {
+  from { opacity: 0; transform: translateY(100%); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes bkRollOut {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(-100%); }
+}
+.bk-roll-in { animation: bkRollIn 0.36s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.bk-roll-out { animation: bkRollOut 0.36s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+
+/* Typing caret — the blinking bar at the end of text being "typed out" in the
+   advisor reply. currentColor so it takes the text tone. */
+@keyframes bkBlink { 50% { opacity: 0; } }
+.bk-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1.05em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background: currentColor;
+  opacity: 0.65;
+  animation: bkBlink 1s step-end infinite;
+}
+
 /* Spinner — for in-progress actions (e.g. generating insights) */
 @keyframes bkSpin { to { transform: rotate(360deg); } }
 .bk-spin { animation: bkSpin 0.8s linear infinite; transform-origin: center; }
@@ -421,6 +450,9 @@
 
 @media (prefers-reduced-motion: reduce) {
   .bk-enter { animation: none; }
+  .bk-roll-in { animation: none; }
+  .bk-roll-out { display: none; }
+  .bk-caret { animation: none; }
   .bk-pop { animation: none; }
   .bk-spin { animation-duration: 1.4s; }
   .bk-skel::after { animation: none; }
@@ -576,6 +608,14 @@
    behind the retractable toolbar, so the app's bottom edge hides under it.
    100dvh tracks the toolbar; the 100vh line is the fallback for old engines. */
 .bk-vh { height: 100vh; height: 100dvh; }
+
+/* Full-bleed page — cancel the shell's canvas gutter so a page fills the content
+   region edge to edge (the full-screen advisor). Desktop/tablet cancel the
+   canvas padding with matching negative margins + calc height; on phones the
+   shell document-scrolls, so the page just flows with a min-height. */
+.bk-fullbleed { height: calc(100% + 68px); margin: -34px; }
+@media (max-width: 1024px) { .bk-fullbleed { height: calc(100% + 48px); margin: -24px; } }
+@media (max-width: 768px) { .bk-fullbleed { height: auto; min-height: 68dvh; margin: 0; } }
 
 /* ── Shell ── */
 

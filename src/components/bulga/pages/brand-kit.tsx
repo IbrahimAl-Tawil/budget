@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Field, TextInput, SelectInput } from "@/components/bulga/form";
 import { ProgressBar, ProgressRing } from "@/components/bulga/progress";
 import { StatPill } from "@/components/bulga/stat-pill";
+import { GuillocheLoader } from "@/components/bulga/guilloche-loader";
 
 interface BulgaBrandKitProps {
   accent: string;
@@ -38,6 +39,14 @@ export function BulgaBrandKit({ accent, theme, onAccentChange }: BulgaBrandKitPr
   const [schemeIdx, setSchemeIdx] = useState(0);
   const activeScheme = BANKNOTE_SCHEMES[schemeIdx];
   const barWidths = [18, 16, 28, 20, 18];
+
+  // Live tuner for the guilloché loader (the "opening an old chat" spinner).
+  // Seeded at the values the app actually ships — the maxed, energetic look —
+  // so this documents the real thing and lets you dial it from here. `speed`
+  // is a global multiplier over the base breathing (0.9 rad/s) and the spin.
+  const [loaderSpeed, setLoaderSpeed] = useState(2);
+  const [loaderSwing, setLoaderSwing] = useState(3.2);
+  const [loaderSpin, setLoaderSpin] = useState(40);
 
   // Derive the previewed theme the SAME way the app does when you actually pick
   // a scheme (deriveTheme → themeVars), from the variation's $20 green (index 2).
@@ -481,6 +490,75 @@ export function BulgaBrandKit({ accent, theme, onAccentChange }: BulgaBrandKitPr
         </div>
       </section>
 
+      {/* ── 5b · loader (live tuner) ── */}
+      <section
+        style={{
+          background: "var(--color-bk-surface)",
+          border: "1px solid var(--color-bk-line)",
+          borderRadius: 20,
+          padding: 28,
+          marginBottom: 16,
+        }}
+      >
+        <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700 }}>Loader</h3>
+        <p style={{ margin: "0 0 22px", fontSize: 13.5, color: muted }}>
+          The guilloché seal, alive — the spinner shown while a chat loads. Its
+          rosette breathes and revolves in an endless rolling shift. Dial it in
+          below; it follows the active accent.
+        </p>
+
+        <div
+          className="bk-loader-tuner"
+          style={{ display: "grid", gridTemplateColumns: "180px 1fr", gap: 28, alignItems: "center" }}
+        >
+          {/* preview on the current accent */}
+          <div style={{ display: "grid", placeItems: "center" }}>
+            <div style={{ width: 132, height: 132 }} aria-hidden>
+              <GuillocheLoader
+                accent={previewTheme.accent}
+                accentDeep={previewTheme.accentDeep}
+                penSwing={loaderSwing}
+                swingHz={0.9 * loaderSpeed}
+                spinDps={loaderSpin * loaderSpeed}
+              />
+            </div>
+          </div>
+
+          {/* controls */}
+          <div style={{ display: "grid", gap: 16 }}>
+            <TunerSlider
+              label="Speed"
+              value={loaderSpeed}
+              min={0.25}
+              max={2}
+              step={0.05}
+              suffix="×"
+              accent={previewTheme.accent}
+              onChange={setLoaderSpeed}
+            />
+            <TunerSlider
+              label="Swing"
+              value={loaderSwing}
+              min={0}
+              max={3.2}
+              step={0.1}
+              accent={previewTheme.accent}
+              onChange={setLoaderSwing}
+            />
+            <TunerSlider
+              label="Spin"
+              value={loaderSpin}
+              min={0}
+              max={40}
+              step={1}
+              suffix="°/s"
+              accent={previewTheme.accent}
+              onChange={setLoaderSpin}
+            />
+          </div>
+        </div>
+      </section>
+
       {/* ── 6 · motion & feel ── */}
       <section
         style={{
@@ -513,5 +591,44 @@ export function BulgaBrandKit({ accent, theme, onAccentChange }: BulgaBrandKitPr
         </div>
       </section>
     </div>
+  );
+}
+
+function TunerSlider({
+  label,
+  value,
+  min,
+  max,
+  step,
+  suffix = "",
+  accent,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  suffix?: string;
+  accent: string;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <label style={{ display: "grid", gridTemplateColumns: "64px 1fr 56px", alignItems: "center", gap: 12 }}>
+      <span style={{ fontSize: 13, fontWeight: 600 }}>{label}</span>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        style={{ width: "100%", accentColor: accent, cursor: "pointer" }}
+      />
+      <span className="bk-num" style={{ fontSize: 12.5, color: "oklch(54% 0.012 80)", textAlign: "right" }}>
+        {value}
+        {suffix}
+      </span>
+    </label>
   );
 }

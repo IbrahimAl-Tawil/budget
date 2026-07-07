@@ -13,7 +13,7 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { gqlClient } from "@/lib/graphql/client";
-import { Home, List, CreditCard, Target, Sparkles, Bell, Plus, Settings, LogOut, PieChart, Repeat, Lightbulb, Landmark } from "lucide-react";
+import { Home, List, CreditCard, Target, Sparkles, Bell, Plus, Settings, LogOut, PieChart, Repeat, MessageCircle, Landmark } from "lucide-react";
 import { AddTransactionModal } from "@/components/dashboard/modals/add-transaction-modal";
 import { ImportModal } from "@/components/dashboard/modals/import-modal";
 import { EditTransactionModal } from "@/components/dashboard/modals/edit-transaction-modal";
@@ -62,7 +62,7 @@ const PRIMARY_NAV: NavItem[] = [
   { href: "/dashboard/subscriptions", label: "Subscriptions", Icon: Repeat },
   { href: "/dashboard/accounts", label: "Accounts", Icon: CreditCard },
   { href: "/dashboard/goals", label: "Goals", Icon: Target },
-  { href: "/dashboard/insights", label: "Insights", Icon: Lightbulb },
+  { href: "/dashboard/insights", label: "Insights", Icon: MessageCircle },
 ];
 
 const SECONDARY_NAV: NavItem[] = [{ href: "/dev/brand-kit", label: "Brand kit", Icon: Sparkles }];
@@ -85,7 +85,7 @@ const TITLES: Record<string, RouteMeta> = {
   "/dashboard/subscriptions": { title: "Subscriptions", sub: () => "What’s on repeat" },
   "/dashboard/accounts": { title: "Accounts", sub: () => "Everything in one place" },
   "/dashboard/goals": { title: "Goals", sub: () => "Saving with intent" },
-  "/dashboard/insights": { title: "Insights", sub: () => "AI-powered reads on your money" },
+  "/dashboard/insights": { title: "Insights", sub: () => "Ask your advisor" },
   "/dev/brand-kit": { title: "Brand kit", sub: () => "The Bulga design system" },
 };
 
@@ -376,6 +376,9 @@ export function BulgaChrome({
   // month); fall back to the layout's current-month count before it reports.
   const pageSub = meta.sub({ monthLabel, txThisMonth: txCount ?? txThisMonth });
   const showPicker = routeIsPeriodic;
+  // Insights is a chat/AI workspace, not a place to add records — hide the Add
+  // menu there and leave just the notifications bell.
+  const showAddMenu = pathname !== "/dashboard/insights";
 
   // Memoized so context consumers (every routed page) don't re-render on every
   // chrome render (modal open, menu toggle, period transition). The state
@@ -548,31 +551,34 @@ export function BulgaChrome({
               <span className="bk-bell-top">{bell}</span>
 
               {/* add — Base UI Menu owns open state, scrim, focus & Escape; its
-                  positioner keeps the menu on-screen at any viewport. */}
-              <Menu>
-                <MenuTrigger
-                  render={
-                    <Button size="sm" aria-label="Add">
-                      <Plus data-icon="inline-start" size={16} strokeWidth={2.4} aria-hidden="true" />
-                      Add
-                    </Button>
-                  }
-                />
-                <MenuContent>
-                  <MenuItem onClick={() => setShowAdd(true)}>
-                    <Plus size={15} strokeWidth={2} aria-hidden="true" />
-                    <span>New transaction</span>
-                  </MenuItem>
-                  <MenuItem onClick={() => setShowImport(true)}>
-                    <List size={15} strokeWidth={2} aria-hidden="true" />
-                    <span>Import statement</span>
-                  </MenuItem>
-                  <MenuItem onClick={() => setShowConnectBank(true)}>
-                    <Landmark size={15} strokeWidth={2} aria-hidden="true" />
-                    <span>Connect a bank</span>
-                  </MenuItem>
-                </MenuContent>
-              </Menu>
+                  positioner keeps the menu on-screen at any viewport. Hidden on
+                  Insights, which is a chat workspace, not a records surface. */}
+              {showAddMenu && (
+                <Menu>
+                  <MenuTrigger
+                    render={
+                      <Button size="sm" aria-label="Add">
+                        <Plus data-icon="inline-start" size={16} strokeWidth={2.4} aria-hidden="true" />
+                        Add
+                      </Button>
+                    }
+                  />
+                  <MenuContent>
+                    <MenuItem onClick={() => setShowAdd(true)}>
+                      <Plus size={15} strokeWidth={2} aria-hidden="true" />
+                      <span>New transaction</span>
+                    </MenuItem>
+                    <MenuItem onClick={() => setShowImport(true)}>
+                      <List size={15} strokeWidth={2} aria-hidden="true" />
+                      <span>Import statement</span>
+                    </MenuItem>
+                    <MenuItem onClick={() => setShowConnectBank(true)}>
+                      <Landmark size={15} strokeWidth={2} aria-hidden="true" />
+                      <span>Connect a bank</span>
+                    </MenuItem>
+                  </MenuContent>
+                </Menu>
+              )}
             </div>
           </header>
 

@@ -1,30 +1,46 @@
-import { Card } from "@/components/bulga/card";
-import { SkeletonPage, Skel } from "@/components/bulga/skeleton";
+import { Skel } from "@/components/bulga/skeleton";
 
-// Insights: tinted AI-overview hero card with the Generate action, then the
-// insight list (tag chip + body lines per row).
+// Insights page: a single top bar (New chat + centered toggle, no divider) above
+// a full-screen chat workspace (sidebar + thread), with a continuous side line.
 export default function Loading() {
   return (
-    <SkeletonPage>
-      <Card className="mb-4 px-7 py-8">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0 flex-1">
-            <Skel className="h-3 w-24 rounded-md" />
-            <Skel className="mt-4 h-4 w-4/5 rounded-md" />
-            <Skel className="mt-2.5 h-4 w-3/5 rounded-md" />
-          </div>
-          <Skel className="h-9 w-40 shrink-0 rounded-full" />
+    <div
+      role="status"
+      aria-label="Loading page"
+      className="bk-fullbleed flex flex-col"
+      style={{ background: "var(--color-bk-surface)" }}
+    >
+      {/* top bar */}
+      <div className="relative flex h-14 shrink-0 items-center">
+        <div className="flex h-full w-[248px] shrink-0 items-center gap-2 border-r border-[var(--color-bk-line-soft)] px-3">
+          <Skel className="h-8 w-8 rounded-full" />
+          <Skel className="h-9 w-28 rounded-full" />
         </div>
-      </Card>
-      <Card className="p-6">
-        {Array.from({ length: 4 }, (_, i) => (
-          <div key={i} className={i > 0 ? "border-t border-[var(--color-bk-line-soft)] py-4" : "pb-4"}>
-            <Skel className="h-5 w-20 rounded-full" />
-            <Skel className="mt-3 h-3.5 w-full rounded-md" />
-            <Skel className="mt-2 h-3.5 w-2/3 rounded-md" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+          <Skel className="h-[46px] w-[262px] rounded-full" />
+        </div>
+      </div>
+
+      {/* workspace */}
+      <div className="flex min-h-0 flex-1">
+        <aside className="hidden w-[248px] shrink-0 flex-col gap-2 border-r border-[var(--color-bk-line-soft)] p-3 md:flex">
+          {Array.from({ length: 8 }, (_, i) => (
+            <Skel key={i} className="h-11 w-full rounded-[10px]" />
+          ))}
+        </aside>
+        <div className="flex flex-1 flex-col">
+          <div className="flex flex-1 flex-col justify-end gap-5 p-6">
+            <div className="mx-auto flex w-full max-w-[720px] flex-col gap-5">
+              <Skel className="h-12 w-3/5 self-end rounded-2xl" />
+              <Skel className="h-28 w-full rounded-2xl" />
+              <Skel className="h-12 w-2/5 self-end rounded-2xl" />
+            </div>
           </div>
-        ))}
-      </Card>
-    </SkeletonPage>
+          <div className="border-t border-[var(--color-bk-line-soft)] p-5">
+            <Skel className="mx-auto h-14 w-full max-w-[720px] rounded-2xl" />
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
