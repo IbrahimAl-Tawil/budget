@@ -31,10 +31,12 @@ const hanken = Hanken_Grotesk({
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  // Home renders an absolute title; every other page slots into the template.
+  // Brand always leads the title (visible first in the tab and search result);
+  // the descriptor follows. Home renders an absolute title; every other page
+  // slots into the template after the brand.
   title: {
-    default: `${SITE_NAME} · ${SITE_TAGLINE} — AI Budgeting App`,
-    template: `%s · ${SITE_NAME}`,
+    default: `${SITE_NAME} — AI Budgeting App`,
+    template: `${SITE_NAME} · %s`,
   },
   description: SITE_DESCRIPTION,
   applicationName: SITE_NAME,

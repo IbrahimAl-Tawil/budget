@@ -4,11 +4,11 @@ import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/db/prisma";
 import { LandingView } from "@/components/landing/landing-view";
 import { JsonLd } from "@/components/seo/json-ld";
-import { SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE, faqLd } from "@/lib/seo";
+import { SITE_DESCRIPTION, SITE_NAME, faqLd } from "@/lib/seo";
 
 export const metadata: Metadata = {
   title: {
-    absolute: `${SITE_NAME} · ${SITE_TAGLINE} — Free AI Budgeting App`,
+    absolute: `${SITE_NAME} — Free AI Budgeting App`,
   },
   description: SITE_DESCRIPTION,
   alternates: { canonical: "/" },
