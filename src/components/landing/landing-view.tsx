@@ -1322,7 +1322,12 @@ function HowItWorksSection() {
     Surrounding spaces live inside the string segments, so no bare-JSX-space
     trimming to worry about. */
 function withWordmark(text: string) {
-  const parts = text.split("otterfund");
+  // Split on the whole word only (\b guards against "otterfunds" firing
+  // mid-word) and case-insensitively (a sentence-leading "Otterfund" still
+  // becomes the wordmark, which always renders lowercase). <Wordmark> supplies
+  // its own text, so the matched token is dropped; surrounding spaces live in
+  // the string segments, so spacing is preserved.
+  const parts = text.split(/\botterfund\b/i);
   return parts.map((part, i) => (
     <Fragment key={i}>
       {part}

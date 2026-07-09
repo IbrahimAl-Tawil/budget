@@ -39,3 +39,20 @@ export async function maintenanceToken(): Promise<string> {
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
 }
+
+/**
+ * Constant-time string compare — no early-out on the first differing byte, so
+ * response timing doesn't leak how much of a guess was correct. Runs in both
+ * the Edge proxy (token compare) and the Node route (password compare), so it's
+ * a plain JS loop rather than node:crypto.timingSafeEqual. Unequal lengths
+ * return fast, but the comparands here (a fixed-length hex digest; the fixed
+ * configured password) don't vary in length across guesses.
+ */
+export function safeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return diff === 0;
+}

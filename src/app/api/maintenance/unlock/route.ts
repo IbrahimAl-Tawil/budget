@@ -4,6 +4,7 @@ import {
   MAINTENANCE_MAX_AGE,
   isMaintenanceMode,
   maintenanceToken,
+  safeEqual,
 } from "@/lib/maintenance";
 
 // Validates the admin password and, on success, sets the bypass cookie so the
@@ -33,7 +34,7 @@ export async function POST(request: Request) {
     // Malformed body → empty password → fails the check below.
   }
 
-  if (password !== configured) {
+  if (!safeEqual(password, configured)) {
     return NextResponse.json(
       { error: "That password is not correct." },
       { status: 401 },
