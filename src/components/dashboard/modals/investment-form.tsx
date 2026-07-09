@@ -14,7 +14,7 @@
 // the chosen data back into `values`, so the parent's submit contract is
 // unchanged.
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, Search, X } from "lucide-react";
 import { Field, TextInput, SelectInput } from "@/components/otterfund/form";
 import { MerchantAvatar } from "@/components/otterfund/merchant-avatar";
@@ -265,6 +265,35 @@ export function InvestmentForm({ values, errors, onChange, open, idPrefix }: Inv
   const showDropdown =
     phase === "search" && focused && !!search.trim() && (searching || searchError || results != null);
 
+  // Flat render list: a header entry per asset class followed by its items, in
+  // the backend's ranked order (a class appears at its first hit, so the leading
+  // type — BTC for "bitcoin", Apple for "AAPL" — stays on top). Grouping separates
+  // the types visually so a same-ticker match in another class is never mistaken
+  // for the one the user meant. Kept FLAT (one .map in JSX below) so each row's
+  // onMouseDown reads as a real event handler — a nested map trips the
+  // react-hooks/refs rule on selectMatch's ref access.
+  const rows = useMemo(() => {
+    if (!results) return [];
+    const order: string[] = [];
+    const byClass = new Map<string, SecurityMatch[]>();
+    for (const m of results) {
+      if (!byClass.has(m.assetClass)) {
+        byClass.set(m.assetClass, []);
+        order.push(m.assetClass);
+      }
+      byClass.get(m.assetClass)!.push(m);
+    }
+    const out: (
+      | { kind: "header"; assetClass: string }
+      | { kind: "item"; assetClass: string; m: SecurityMatch }
+    )[] = [];
+    for (const assetClass of order) {
+      out.push({ kind: "header", assetClass });
+      for (const m of byClass.get(assetClass)!) out.push({ kind: "item", assetClass, m });
+    }
+    return out;
+  }, [results]);
+
   // Typing shares recomputes the stored value from the live price.
   const setShares = (v: string) => {
     const patch: Partial<InvestmentFormValues> = { quantity: v };
@@ -322,7 +351,7 @@ export function InvestmentForm({ values, errors, onChange, open, idPrefix }: Inv
   };
 
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 space-y-4">
       {/* ── Search panel ── */}
       {phase === "search" && (
         <div className="relative">
@@ -341,6 +370,10 @@ export function InvestmentForm({ values, errors, onChange, open, idPrefix }: Inv
                 className="pl-10"
                 value={search}
                 autoComplete="off"
+                role="combobox"
+                aria-expanded={showDropdown}
+                aria-controls={`${idPrefix}-listbox`}
+                aria-autocomplete="list"
                 onChange={(e) => setSearch(e.target.value)}
                 onFocus={() => setFocused(true)}
                 // Delay so a row's onClick lands before the dropdown unmounts.
@@ -352,7 +385,15 @@ export function InvestmentForm({ values, errors, onChange, open, idPrefix }: Inv
 
           {showDropdown && (
             <div
-              className="of-scroll absolute z-30 mt-1.5 max-h-72 w-full overflow-y-auto rounded-xl bg-[var(--color-of-surface)] py-1.5 shadow-lg"
+              id={`${idPrefix}-listbox`}
+              role="listbox"
+              aria-label="Search results"
+              // In-flow (not an absolute overlay) so it isn't clipped by the
+              // dialog's overflow and doesn't stack a second scroll on top of the
+              // dialog's. Its own bounded max-height keeps the list compact and
+              // scrollable in place, so the modal itself stays put, and the list
+              // is the single scroll surface.
+              className="of-scroll mt-1.5 max-h-72 w-full overflow-y-auto overflow-x-hidden rounded-xl bg-[var(--color-of-surface)] py-1.5"
               style={{ border: "1px solid var(--color-of-line-soft)" }}
             >
               {searching && (
@@ -362,38 +403,47 @@ export function InvestmentForm({ values, errors, onChange, open, idPrefix }: Inv
                 </div>
               )}
               {!searching &&
-                results?.map((m) => (
-                  <button
-                    key={m.symbol}
-                    type="button"
-                    // onMouseDown fires before the input's onBlur, so the pick registers.
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      selectMatch(m);
-                    }}
-                    className="flex w-full items-center gap-3 px-3.5 py-2 text-left transition-colors hover:bg-[var(--color-of-canvas)]"
-                  >
-                    <MerchantAvatar
-                      name={m.name}
-                      domain={m.domain}
-                      bg="var(--color-of-canvas)"
-                      ink="var(--color-of-ink)"
-                      size={30}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-semibold text-[var(--color-of-ink)]">
-                        {m.name}
-                      </div>
-                      <div className="truncate text-xs text-[var(--color-of-muted)]">
-                        {m.symbol}
-                        {m.exchange ? ` · ${m.exchange}` : ""}
-                      </div>
+                rows.map((row) =>
+                  row.kind === "header" ? (
+                    <div
+                      key={`h:${row.assetClass}`}
+                      role="presentation"
+                      className="px-3.5 pt-2.5 pb-1 text-[11px] font-semibold uppercase tracking-[0.07em] text-[var(--color-of-faint)]"
+                    >
+                      {row.assetClass}
                     </div>
-                    <span className="shrink-0 rounded-full bg-[var(--color-of-canvas)] px-2 py-0.5 text-[11px] font-medium text-[var(--color-of-muted)]">
-                      {m.assetClass}
-                    </span>
-                  </button>
-                ))}
+                  ) : (
+                    <button
+                      key={`${row.assetClass}:${row.m.symbol}`}
+                      type="button"
+                      role="option"
+                      aria-selected={false}
+                      // onMouseDown fires before the input's onBlur, so the pick registers.
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        selectMatch(row.m);
+                      }}
+                      className="flex w-full min-w-0 items-center gap-3 px-3.5 py-2 text-left transition-colors hover:bg-[var(--color-of-canvas)]"
+                    >
+                      <MerchantAvatar
+                        name={row.m.name}
+                        domain={row.m.domain}
+                        bg="var(--color-of-canvas)"
+                        ink="var(--color-of-ink)"
+                        size={30}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-semibold text-[var(--color-of-ink)]">
+                          {row.m.name}
+                        </div>
+                        <div className="truncate text-xs text-[var(--color-of-muted)]">
+                          {row.m.symbol}
+                          {row.m.exchange ? ` · ${row.m.exchange}` : ""}
+                        </div>
+                      </div>
+                    </button>
+                  ),
+                )}
               {!searching && searchError && (
                 <div className="px-3.5 py-2.5 text-sm text-[var(--color-of-clay)]">
                   Search is unavailable right now. Try again, or enter details manually.
