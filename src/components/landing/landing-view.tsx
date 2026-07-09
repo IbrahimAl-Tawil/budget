@@ -17,19 +17,21 @@ import Link from "next/link";
 import {
   ArrowRight,
   Check,
+  Home,
   Landmark,
   ListChecks,
   Lock,
+  type LucideIcon,
   PieChart,
   ShieldCheck,
   Sparkles,
   Target,
+  TrendingUp,
   Upload,
   Wallet,
 } from "lucide-react";
 
 import { Card, CardLabel } from "@/components/bulga/card";
-import { GuillocheSeal } from "@/components/bulga/guilloche";
 import { GuillocheFlow } from "@/components/bulga/guilloche-flow";
 import { DonutChart } from "@/components/bulga/donut-chart";
 import { ProgressRing } from "@/components/bulga/progress";
@@ -175,23 +177,29 @@ function useScrolled(y = 8) {
   return scrolled;
 }
 
-/** Eased count-up toward `target` once `run` flips true; jumps straight to the
-    final figure under reduced motion. */
-function useCountUp(target: number, run: boolean, duration = 1600) {
+/** Eased tween that animates from its *previous* value to `target` whenever the
+    target changes (once `run` flips true) — so it works both for the first
+    count-up and for the looping hand-off between scenes. Jumps straight to the
+    figure under reduced motion. */
+function useTween(target: number, run: boolean, duration = 1100) {
   const [value, setValue] = useState(0);
+  const fromRef = useRef(0);
   useEffect(() => {
     if (!run) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      fromRef.current = target;
       setValue(target);
       return;
     }
+    const from = fromRef.current;
     let raf: number;
     const t0 = performance.now();
     const tick = (t: number) => {
       const p = Math.min(1, (t - t0) / duration);
       const eased = 1 - Math.pow(1 - p, 3);
-      setValue(target * eased);
+      setValue(from + (target - from) * eased);
       if (p < 1) raf = requestAnimationFrame(tick);
+      else fromRef.current = target;
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
@@ -199,27 +207,107 @@ function useCountUp(target: number, run: boolean, duration = 1600) {
   return value;
 }
 
-// ── dashboard preview data (illustrative, mirrors the real Overview) ────────
+// The trailing noun of the hero headline cycles so "Your money, in ___." reads
+// as a loop of the outcomes Bulga delivers. Static first word under reduced
+// motion (RotatingWord holds on index 0 when the interval never starts).
+const HERO_WORDS = ["balance.", "focus.", "order.", "reach."];
+
+/** Swaps the trailing headline noun on a loop, each new word rising in via
+    `bk-hero-word` (remounted by `key`). */
+function RotatingWord({ words, interval = 2600 }: { words: string[]; interval?: number }) {
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const id = setInterval(() => setI((n) => (n + 1) % words.length), interval);
+    return () => clearInterval(id);
+  }, [words.length, interval]);
+  return (
+    <span key={words[i]} className="bk-hero-word inline-block">
+      {words[i]}
+    </span>
+  );
+}
+
+// ── hero deck data (illustrative, mirrors the real app tabs) ────────────────
+// The right of the hero is a small floating "deck": one glassmorphic card per
+// app tab (Overview · Investments · Goals). All three hover together and the
+// loop lifts each to the front in turn, so every surface gets its moment.
 
 const SP_W = 560;
 const SP_H = 120;
-const TREND = [18.2, 18.9, 18.4, 19.6, 20.3, 19.9, 21.2, 22.1, 21.8, 22.9, 23.6, 24.18];
 
-const SPARK = (() => {
-  const mn = Math.min(...TREND);
-  const mx = Math.max(...TREND);
+/** Build the sparkline geometry (line path, filled-area path, end-point) for a
+    12-point net-worth trend, normalized into the SP_W × SP_H viewbox. */
+function buildSpark(trend: number[]) {
+  const mn = Math.min(...trend);
+  const mx = Math.max(...trend);
   const rg = mx - mn || 1;
-  const pts = TREND.map(
+  const pts = trend.map(
     (d, i) =>
       [
-        (i / (TREND.length - 1)) * SP_W,
+        (i / (trend.length - 1)) * SP_W,
         SP_H - 8 - ((d - mn) / rg) * (SP_H - 24),
       ] as const
   );
   const line = "M" + pts.map((p) => `${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join("L");
   const [lx, ly] = pts[pts.length - 1];
   return { line, area: `${line}L${SP_W} ${SP_H}L0 ${SP_H}Z`, lx, ly };
-})();
+}
+
+// Net-worth trend (Overview card) + its sparkline.
+const NW_TREND = [18.2, 18.9, 18.4, 19.6, 20.3, 19.9, 21.2, 22.1, 21.8, 22.9, 23.6, 24.18];
+const NW_SPARK = buildSpark(NW_TREND);
+
+// Holdings shown on the Investments card. `chg` is today's % move (green up /
+// clay down, universal gain-loss semantics regardless of the card's accent).
+const HOLDINGS = [
+  { sym: "VEQT", name: "All-Equity ETF", value: 7420.5, chg: 1.8 },
+  { sym: "AAPL", name: "Apple Inc.", value: 3960.0, chg: -0.6 },
+  { sym: "BTC", name: "Bitcoin", value: 2240.0, chg: 3.2 },
+];
+
+// Goals shown on the Goals card.
+const HERO_GOALS = [
+  { name: "Japan trip", saved: 4600, target: 10000, pct: 46 },
+  { name: "Emergency fund", saved: 9400, target: 12000, pct: 78 },
+];
+
+/** A small self-drawing net-worth/portfolio sparkline for a deck card. The
+    line + area draw once when the deck scrolls into view (bk-lp-* under the
+    ancestor's `data-in`). `gradId` must be unique per instance. */
+function MiniSpark({
+  spark,
+  color,
+  gradId,
+  heightClass = "h-[58px]",
+}: {
+  spark: ReturnType<typeof buildSpark>;
+  color: string;
+  gradId: string;
+  heightClass?: string;
+}) {
+  return (
+    <svg viewBox={`0 0 ${SP_W} ${SP_H}`} preserveAspectRatio="none" className={cn("w-full", heightClass)} aria-hidden="true">
+      <defs>
+        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.16" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path className="bk-lp-area" d={spark.area} fill={`url(#${gradId})`} />
+      <path
+        className="bk-lp-line"
+        d={spark.line}
+        pathLength={1}
+        fill="none"
+        stroke={color}
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
 
 // `word` fills the "Built to make money feel ___." headline while the card is
 // hovered — each feature names the feeling it delivers ("quiet." is the resting
@@ -255,120 +343,155 @@ const PANEL_BUCKET: Record<"needs" | "wants" | "savings", string> = {
 
 // ── pieces ──────────────────────────────────────────────────────────────────
 
-/** The showpiece — a live-feeling slice of the real Overview page: counting
-    net-worth figure, self-drawing sparkline, this-month stat tiles. */
+/** Small header for a deck card: a tinted tab-icon tile + its uppercase label.
+    `align="right"` flips it (label then tile, hugging the right edge) for the
+    Goals card, whose visible portion pokes out on the right. */
+function DeckHeader({ Icon, label, t, align = "left" }: { Icon: LucideIcon; label: string; t: BulgaTheme; align?: "left" | "right" }) {
+  return (
+    <div className={cn("flex items-center gap-2.5 mb-3", align === "right" && "flex-row-reverse")}>
+      <span
+        className="grid place-items-center w-8 h-8 rounded-[10px]"
+        style={{ background: t.accentTint, color: t.accentDeep }}
+      >
+        <Icon className="w-[18px] h-[18px]" strokeWidth={2} />
+      </span>
+      <CardLabel>{label}</CardLabel>
+    </div>
+  );
+}
+
+/** The showpiece — a centered hero composition: a large, solid Overview card up
+    front, with the Investments and Goals cards fanned behind it as calm,
+    dimmed context. All three drift gently (desynced); the Overview figure
+    counts up and its sparkline draws when the composition scrolls into view.
+    Under reduced motion nothing moves — the cards simply rest in place. */
 function DashboardPreview() {
   const { ref, inView } = useInView<HTMLDivElement>(0.35);
-  const netWorth = useCountUp(24180.62, inView);
-  const income = useCountUp(6450, inView, 1200);
-  const spending = useCountUp(4012.55, inView, 1350);
-  const leftover = useCountUp(2437.45, inView, 1500);
-  // The three this-month tiles carry the banknote palette ($5 blue, $10 purple,
-  // $20 green) as a set — so the hero picks up the page's multi-colour system
-  // while the net-worth figure and sparkline stay the evergreen anchor.
+
+  // Each card carries its own hue from the banknote palette (evergreen /
+  // blue / purple), so the trio picks up the app's multi-colour system while
+  // every figure stays anchored in ink.
+  const green = BRAND_THEME;
   const blue = deriveTheme(SCHEMES[0].value);
   const purple = deriveTheme(SCHEMES[1].value);
+
+  const netWorth = useTween(inView ? 24180.62 : 0, inView, 1300);
+  const nwDelta = useTween(inView ? 1240.18 : 0, inView, 1300);
+
+  const gain = green.accentDeep;
+  const loss = "var(--color-bk-clay)";
+
+  // Shared surface for the two background cards: glassy, softened, and pushed
+  // back so they read as context behind the star.
+  const backCard = "rounded-[28px] border p-7 text-left backdrop-blur-md";
+  const backStyle: React.CSSProperties = {
+    background: "oklch(99% 0.004 95 / 0.7)",
+    borderColor: "oklch(100% 0 0 / 0.55)",
+    boxShadow: "0 22px 55px oklch(20% 0.04 80 / 0.14)",
+    opacity: 0.82,
+  };
+
   return (
-    <div ref={ref} data-in={inView ? "" : undefined} className="w-full">
-      <Card className="relative overflow-hidden p-6 sm:p-8 text-left shadow-[0_24px_60px_oklch(20%_0.02_80/0.10)]">
-        <div className="flex items-start justify-between mb-1">
-          <CardLabel>Net worth</CardLabel>
-          <div className="w-11 h-11 -mt-1 opacity-80">
-            {/* The brand kit's "Verified seal" geometry (13/4/4). */}
-            <GuillocheSeal accent={BRAND_THEME.accent} accentDeep={BRAND_THEME.accentDeep} petals={13} inner={4} pen={4} label="$" />
-          </div>
-        </div>
-
-        <div
-          className="bk-num text-[clamp(36px,4.6vw,50px)] tracking-[-0.03em] leading-none"
-          style={{ fontWeight: 500 }}
-        >
-          {fmt(netWorth)}
-        </div>
-        <div
-          className="inline-flex items-center gap-1.5 mt-3 px-3 py-1.5 rounded-full text-[12.5px] font-semibold"
-          style={{ background: BRAND_THEME.accentTint, color: BRAND_THEME.accentDeep }}
-        >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M7 17 17 7M9 7h8v8" />
-          </svg>
-          <span className="bk-num">+{fmt(1240.18)}</span>
-          <span>this month</span>
-        </div>
-
-        <div className="relative mt-6">
-          <svg
-            viewBox={`0 0 ${SP_W} ${SP_H}`}
-            preserveAspectRatio="none"
-            className="w-full h-[104px]"
-            aria-hidden="true"
-          >
-            <defs>
-              <linearGradient id="lp-nw-grad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={BRAND_THEME.accent} stopOpacity="0.16" />
-                <stop offset="100%" stopColor={BRAND_THEME.accent} stopOpacity="0" />
-              </linearGradient>
-            </defs>
-            <path className="bk-lp-area" d={SPARK.area} fill="url(#lp-nw-grad)" />
-            <path
-              className="bk-lp-line"
-              d={SPARK.line}
-              pathLength={1}
-              fill="none"
-              stroke={BRAND_THEME.accent}
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-          {/* End dot + pulse live outside the SVG: preserveAspectRatio="none"
-              stretches it horizontally, which would turn circles into ellipses.
-              HTML circles stay round. */}
-          <span
-            className="absolute w-0 h-0"
-            style={{ left: `${(SPARK.lx / SP_W) * 100}%`, top: `${(SPARK.ly / SP_H) * 100}%` }}
-            aria-hidden
-          >
-            <span
-              className="bk-lp-pulse absolute block w-7 h-7 -left-3.5 -top-3.5 rounded-full"
-              style={{ border: `1.5px solid ${BRAND_THEME.accent}` }}
-            />
-            <span
-              className="bk-lp-dot absolute block w-[11px] h-[11px] -left-[5.5px] -top-[5.5px] rounded-full border-2 border-white"
-              style={{ background: BRAND_THEME.accent }}
-            />
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6">
-          <div
-            className="rounded-2xl border px-5 py-4"
-            style={{ background: blue.accentTint, borderColor: blue.accentTintBorder }}
-          >
-            <div className="text-[12px] font-medium text-[var(--color-bk-muted)]">Income</div>
-            <div className="bk-num text-[22px] tracking-[-0.02em] mt-1 whitespace-nowrap" style={{ color: blue.accentDeep }}>
-              {fmt(income)}
+    <div ref={ref} data-in={inView ? "" : undefined} className="relative mx-auto w-full max-w-[480px]">
+      {/* ── Background — Investments, fanned upper-left ── */}
+      <div
+        className="bk-hero-float pointer-events-none absolute left-0 top-0 w-full z-10"
+        style={{ animationDelay: "-3.2s" }}
+        aria-hidden
+      >
+        <div style={{ transform: "translate(-42%, -22%) rotate(-8deg) scale(0.86)", transformOrigin: "center" }}>
+          <div className={backCard} style={backStyle}>
+            <DeckHeader Icon={TrendingUp} label="Investments" t={blue} />
+            <div className="text-[12px] font-medium text-[var(--color-bk-muted)]">Portfolio</div>
+            <div className="flex items-end justify-between">
+              <div className="bk-num text-[26px] tracking-[-0.03em] leading-none mt-1" style={{ fontWeight: 500 }}>
+                {fmt(13620.5)}
+              </div>
+              <span
+                className="bk-num text-[12px] font-semibold px-2 py-0.5 rounded-full"
+                style={{ background: green.accentTint, color: green.accentDeep }}
+              >
+                +{fmt(312.4)}
+              </span>
+            </div>
+            <div className="mt-4 space-y-3">
+              {HOLDINGS.slice(0, 2).map((h) => (
+                <div key={h.sym} className="flex items-center justify-between">
+                  <div className="min-w-0">
+                    <div className="text-[13px] font-semibold text-[var(--color-bk-ink)] leading-tight">{h.sym}</div>
+                    <div className="text-[11px] text-[var(--color-bk-faint)] leading-tight truncate">{h.name}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="bk-num text-[13px] text-[var(--color-bk-ink)] leading-tight">{fmt(h.value)}</div>
+                    <div className="bk-num text-[11px] font-semibold leading-tight" style={{ color: h.chg >= 0 ? gain : loss }}>
+                      {h.chg >= 0 ? "+" : ""}
+                      {h.chg.toFixed(1)}%
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-          <div
-            className="rounded-2xl border px-5 py-4"
-            style={{ background: purple.accentTint, borderColor: purple.accentTintBorder }}
-          >
-            <div className="text-[12px] font-medium text-[var(--color-bk-muted)]">Spending</div>
-            <div className="bk-num text-[22px] tracking-[-0.02em] mt-1 whitespace-nowrap" style={{ color: purple.accentDeep }}>
-              {fmt(spending)}
+        </div>
+      </div>
+
+      {/* ── Background — Goals, fanned upper-right ── */}
+      <div
+        className="bk-hero-float pointer-events-none absolute left-0 top-0 w-full z-10"
+        style={{ animationDelay: "-1.6s" }}
+        aria-hidden
+      >
+        <div style={{ transform: "translate(46%, -20%) rotate(9deg) scale(0.86)", transformOrigin: "center" }}>
+          {/* Content is right-aligned so it lives on the card's right side — the
+              part that pokes out past the front card and stays visible. */}
+          <div className={backCard} style={backStyle}>
+            <DeckHeader Icon={Target} label="Goals" t={purple} align="right" />
+            <div className="text-[12px] font-medium text-[var(--color-bk-muted)] text-right">Saving with intent</div>
+            <div className="mt-4 space-y-4">
+              {HERO_GOALS.map((g) => (
+                <div key={g.name} className="flex items-center justify-end gap-3">
+                  <div className="min-w-0 text-right">
+                    <div className="text-[13px] font-semibold text-[var(--color-bk-ink)] leading-tight truncate">{g.name}</div>
+                    <div className="bk-num text-[11.5px] text-[var(--color-bk-muted)] leading-tight">
+                      {fmtWhole(g.saved)} of {fmtWhole(g.target)}
+                    </div>
+                  </div>
+                  <ProgressRing value={g.pct} size={46} stroke={5} color={purple.accent}>
+                    <span className="bk-num text-[11px] font-semibold" style={{ color: purple.accentDeep }}>
+                      {g.pct}%
+                    </span>
+                  </ProgressRing>
+                </div>
+              ))}
             </div>
           </div>
-          <div className="rounded-2xl px-5 py-4 text-white" style={{ background: BRAND_THEME.accent }}>
-            <div className="text-[12px] font-medium opacity-85">Left over</div>
-            <div className="bk-num text-[22px] tracking-[-0.02em] mt-1 whitespace-nowrap">+{fmt(leftover)}</div>
+        </div>
+      </div>
+
+      {/* ── Front — Overview, the prominent star (a touch smaller than the
+          background cards' reference width so the fan reads clearly) ── */}
+      <div className="bk-hero-float relative z-30 mx-auto w-[88%]">
+        <div className="rounded-[28px] border border-[var(--color-bk-line)] bg-[var(--color-bk-surface)] p-7 sm:p-8 text-left shadow-[0_40px_90px_oklch(20%_0.05_80/0.22)]">
+          <DeckHeader Icon={Home} label="Overview" t={green} />
+          <div className="text-[13px] font-medium text-[var(--color-bk-muted)]">Net worth</div>
+          <div className="bk-num text-[clamp(32px,4vw,44px)] tracking-[-0.03em] leading-none mt-1.5" style={{ fontWeight: 500 }}>
+            {fmt(netWorth)}
+          </div>
+          <div
+            className="inline-flex items-center gap-1.5 mt-3 px-3 py-1.5 rounded-full text-[12px] font-semibold"
+            style={{ background: green.accentTint, color: green.accentDeep }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M7 17 17 7M9 7h8v8" />
+            </svg>
+            <span className="bk-num">+{fmt(nwDelta)}</span>
+            <span className="opacity-80">this month</span>
+          </div>
+          <div className="mt-4">
+            <MiniSpark spark={NW_SPARK} color={green.accent} gradId="lp-deck-ov" heightClass="h-[88px]" />
           </div>
         </div>
-
-        <span className="absolute bottom-3 right-5 text-[9.5px] font-semibold tracking-[0.14em] uppercase text-[var(--color-bk-faint)] opacity-70 select-none">
-          Series 2026
-        </span>
-      </Card>
+      </div>
     </div>
   );
 }
@@ -1163,19 +1286,23 @@ export function LandingView() {
 
       <main className="flex-1 flex flex-col items-center px-7 pb-28">
         {/* ── Hero ── */}
-        <section className="relative w-full max-w-[1120px] pt-12 sm:pt-24">
-          {/* Gentle drifting banknote line-work behind the hero — freezes under
-              prefers-reduced-motion. */}
-          <div className="absolute -inset-x-10 -top-10 bottom-0" aria-hidden>
+        <section className="relative w-full max-w-[1120px] pt-14 sm:pt-24 pb-6 sm:pb-10">
+          {/* Gentle drifting banknote line-work behind the hero. It fades in on
+              mount (bk-lp-guilloche) so the texture arrives *with* the headline's
+              float-up instead of a dash segment marching into view seconds later
+              (which read as a "tail" randomly spawning). Slow drift so it never
+              visibly regenerates that segment. Freezes under reduced motion. */}
+          <div className="bk-lp-guilloche absolute -inset-x-10 -top-10 bottom-0" aria-hidden>
             <GuillocheFlow
               accent={BRAND_THEME.accent}
               accentDeep={BRAND_THEME.accentDeep}
               fade="radial"
               opacity={0.06}
+              speed={2}
             />
           </div>
 
-          <div className="relative grid items-center gap-16 lg:grid-cols-[1.02fr_1fr] lg:gap-20">
+          <div className="relative grid items-center gap-16 lg:min-h-[500px] lg:grid-cols-[1.02fr_1fr] lg:gap-20">
             {/* pitch */}
             <div className="text-center lg:text-left">
               <h1
@@ -1183,8 +1310,8 @@ export function LandingView() {
                 style={{ ...SERIF, fontWeight: 500, animationDelay: "140ms" }}
               >
                 Your money,{" "}
-                <em className="text-[var(--color-primary)]" style={{ fontStyle: "italic" }}>
-                  in balance.
+                  <em className="whitespace-nowrap text-[var(--color-primary)]" style={{ fontStyle: "italic" }}>
+                    in <RotatingWord words={HERO_WORDS} />
                 </em>
               </h1>
               <p

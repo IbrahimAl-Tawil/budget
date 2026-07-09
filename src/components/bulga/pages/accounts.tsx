@@ -24,7 +24,7 @@ import {
 
 import type { AccountView } from "@/lib/types";
 import { fmt } from "@/lib/format";
-import { ACCOUNT_TYPES } from "@/lib/constants";
+import { ACCOUNT_TYPES, accountGroupOf, type AccountGroup } from "@/lib/constants";
 import { tintFor, type BulgaTheme } from "@/components/bulga/theme";
 import { GuillochePattern } from "@/components/bulga/guilloche";
 import { gqlClient, errMessage } from "@/lib/graphql/client";
@@ -46,33 +46,25 @@ interface BulgaAccountsProps {
   onSynced?: () => void;
 }
 
-type GroupKey = "cash" | "invest" | "credit";
+type GroupKey = AccountGroup;
 
 const GROUP_LABELS: Record<GroupKey, string> = {
   cash: "Cash & savings",
+  loans: "Loans & mortgages",
   invest: "Investments",
   credit: "Credit",
 };
 
 // Render order — groups appear top-to-bottom in this sequence.
-const GROUP_ORDER: GroupKey[] = ["cash", "invest", "credit"];
+const GROUP_ORDER: GroupKey[] = ["cash", "loans", "invest", "credit"];
 
 // Avatar tint keys, chosen so the group's accounts read as a coherent family.
 const GROUP_TINT_KEY: Record<GroupKey, string> = {
   cash: "Bills",
+  loans: "Housing",
   invest: "Subscriptions",
   credit: "Entertainment",
 };
-
-/** Derive the section a free-string account type belongs to. */
-function groupOf(type: string): GroupKey {
-  // Normalize so both "credit-card" (stored) and "credit card" match.
-  const t = type.trim().toLowerCase().replace(/-/g, " ");
-  if (t === "tfsa" || t === "rrsp" || t === "fhsa" || t === "investment") return "invest";
-  if (t === "credit card") return "credit";
-  // Chequing, Savings, Other-cash, and anything unknown fall into cash.
-  return "cash";
-}
 
 /** Canonical display label for a stored account type ("credit-card" → "Credit Card"). */
 function typeLabel(type: string): string {
@@ -145,8 +137,8 @@ export function BulgaAccounts({ accounts, netWorth, accent, theme, currency = "C
       };
     });
   } else {
-    const buckets: Record<GroupKey, AccountView[]> = { cash: [], invest: [], credit: [] };
-    for (const a of accounts) buckets[groupOf(a.type)].push(a);
+    const buckets: Record<GroupKey, AccountView[]> = { cash: [], loans: [], invest: [], credit: [] };
+    for (const a of accounts) buckets[accountGroupOf(a.type)].push(a);
     groups = GROUP_ORDER.filter((key) => buckets[key].length > 0).map((key) => ({
       key,
       label: GROUP_LABELS[key],
@@ -301,7 +293,7 @@ export function BulgaAccounts({ accounts, netWorth, accent, theme, currency = "C
                 const negative = a.balance < 0;
                 // Tint by the account's own type-family (not the visible group)
                 // so an account's avatar stays identical across both views.
-                const fallback = tintFor(GROUP_TINT_KEY[groupOf(a.type)]);
+                const fallback = tintFor(GROUP_TINT_KEY[accountGroupOf(a.type)]);
                 const tileBg = usableColor(a.bg) ? a.bg : fallback[0];
                 const tileInk = usableColor(a.bg) ? "#fff" : fallback[1];
                 return (

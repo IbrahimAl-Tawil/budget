@@ -12,8 +12,9 @@ import {
   computeSubscriptionBudgetImpact,
 } from "./subscription-intelligence";
 import { fmt } from "@/lib/format";
-import { getBudgetPlan, bucketOf } from "@/lib/constants";
+import { getBudgetPlan, bucketOf, accountGroupOf } from "@/lib/constants";
 import { allocatePool } from "./goal-allocation";
+import { getQuotes, type Quote } from "@/lib/market/prices";
 import type {
   DashboardOverview,
   SpendCategory,
@@ -27,7 +28,9 @@ import type {
   BillView,
   SubscriptionView,
   AccountView,
+  InvestmentView,
   InsightView,
+  InsightDetail,
   NetWorthPoint,
 } from "@/lib/types";
 
@@ -39,6 +42,8 @@ const ACCOUNT_GRADIENTS: Record<string, string> = {
   fhsa: "linear-gradient(135deg, oklch(58% 0.09 210), oklch(50% 0.08 220))",
   "credit-card": "linear-gradient(135deg, oklch(55% 0.09 38), oklch(65% 0.1 50))",
   investment: "linear-gradient(135deg, oklch(50% 0.08 180), oklch(60% 0.09 190))",
+  loan: "linear-gradient(135deg, oklch(50% 0.06 100), oklch(42% 0.06 95))",
+  mortgage: "linear-gradient(135deg, oklch(48% 0.07 90), oklch(40% 0.07 85))",
   other: "linear-gradient(135deg, oklch(60% 0.05 80), oklch(50% 0.05 80))",
 };
 
@@ -108,10 +113,16 @@ export async function getDashboardOverview(
   // Synced accounts store Plaid's reported balance directly (bank truth, immune
   // to local tx edits); manual accounts are a starting balance plus their tx net.
   // Must match getAccounts so net worth and the accounts page agree.
-  const netWorth = accounts.reduce(
-    (sum, a) => sum + (a.plaidItemId ? a.balance : a.balance + (accountBalances.get(a.id) ?? 0)),
-    0
-  );
+  const balanceOf = (a: (typeof accounts)[number]) =>
+    a.plaidItemId ? a.balance : a.balance + (accountBalances.get(a.id) ?? 0);
+  const netWorth = accounts.reduce((sum, a) => sum + balanceOf(a), 0);
+  // Cash & savings total — every account in the accounts-page "cash" group
+  // (chequing, savings, other/uncategorized cash). Excludes loans/mortgages,
+  // registered/investment accounts, and credit. Uses the shared grouping so
+  // this figure equals the accounts page's "Cash & savings" subtotal.
+  const cash = accounts
+    .filter((a) => accountGroupOf(a.type) === "cash")
+    .reduce((sum, a) => sum + balanceOf(a), 0);
   const monthlyIncome = summary.income;
   const monthlySpend = summary.spending;
   const monthlySurplus = summary.surplus;
@@ -229,6 +240,7 @@ export async function getDashboardOverview(
   return {
     netWorth,
     netWorthChange,
+    cash,
     monthlyIncome,
     monthlySpend,
     monthlySurplus,
@@ -681,6 +693,63 @@ export async function getAccounts(userId: string): Promise<AccountView[]> {
   }));
 }
 
+export async function getInvestments(userId: string): Promise<InvestmentView[]> {
+  const [investments, user] = await Promise.all([
+    prisma.investment.findMany({
+      where: { userId },
+      include: { account: { select: { name: true } } },
+      orderBy: { value: "desc" },
+    }),
+    getUserRow(userId),
+  ]);
+  const currency = user?.currency ?? "CAD";
+
+  // Live quotes for holdings that carry a ticker + a share count. Everything
+  // degrades gracefully: no key / unknown symbol / offline → no quote, and the
+  // holding falls back to its stored value.
+  const quotable = investments
+    .filter((i) => i.symbol?.trim() && i.quantity != null && i.quantity > 0)
+    .map((i) => ({ symbol: i.symbol as string, assetClass: i.assetClass }));
+  const quotes: Map<string, Quote> = quotable.length ? await getQuotes(quotable, currency) : new Map();
+
+  // First pass: resolve each holding's current value (live price × shares when we
+  // have a quote, else the stored value) so the portfolio total is consistent.
+  const items = investments.map((i) => {
+    const sym = i.symbol?.trim().toUpperCase();
+    const q = sym && i.quantity != null && i.quantity > 0 ? quotes.get(sym) : undefined;
+    const value = q ? q.price * (i.quantity as number) : i.value;
+    return { i, q, value };
+  });
+  // Portfolio total drives each holding's allocation share.
+  const total = items.reduce((sum, x) => sum + x.value, 0);
+
+  return items.map(({ i, q, value }) => {
+    // A cost basis of 0 (or absent) means "no performance to show" — the > 0
+    // guard also avoids a divide-by-zero in the percent.
+    const hasCost = i.costBasis != null && i.costBasis > 0;
+    const gain = hasCost ? value - (i.costBasis as number) : undefined;
+    return {
+      id: i.id,
+      name: i.name,
+      symbol: i.symbol ?? "",
+      assetClass: i.assetClass,
+      value,
+      costBasis: i.costBasis ?? undefined,
+      quantity: i.quantity ?? undefined,
+      domain: i.domain ?? undefined,
+      accountId: i.accountId ?? undefined,
+      accountName: i.account?.name ?? undefined,
+      gain,
+      gainPct: hasCost ? (gain! / (i.costBasis as number)) * 100 : undefined,
+      allocationPct: total > 0 ? (value / total) * 100 : 0,
+      live: !!q,
+      livePrice: q ? q.price : undefined,
+      dayChange: q ? q.change * (i.quantity as number) : undefined,
+      dayChangePct: q ? q.changePct : undefined,
+    };
+  });
+}
+
 export async function getInsights(userId: string): Promise<InsightView[]> {
   const insights = await prisma.insight.findMany({
     where: { userId },
@@ -694,5 +763,146 @@ export async function getInsights(userId: string): Promise<InsightView[]> {
     body: i.body,
     tagColor: i.tagColor || "oklch(60% 0.09 155)",
     tagBg: i.tagBg || "oklch(93% 0.04 155)",
+    focusType: i.focusType,
+    focusKey: i.focusKey,
   }));
+}
+
+const CYCLE_PER_YEAR: Record<string, number> = {
+  weekly: 52,
+  biweekly: 26,
+  monthly: 12,
+  quarterly: 4,
+  yearly: 1,
+  annual: 1,
+};
+
+/**
+ * The real data behind one insight, resolved from its stored focus. Uses the
+ * SAME 3-month window as generation so drilled totals reconcile with the number
+ * the card quotes. Returns null when the insight has no focus (legacy rows) or
+ * the focused entity can no longer be found.
+ */
+export async function getInsightDetail(
+  userId: string,
+  insightId: string
+): Promise<InsightDetail | null> {
+  const insight = await prisma.insight.findFirst({
+    where: { id: insightId, userId },
+  });
+  if (!insight || !insight.focusType) return null;
+
+  const threeMonthsAgo = new Date();
+  threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+
+  if (insight.focusType === "category" && insight.focusKey) {
+    const category = await prisma.category.findFirst({
+      where: { userId, name: insight.focusKey },
+    });
+    if (!category) return null;
+
+    // Expenses only (negative amounts) — matches how generation totalled spend.
+    const txns = await prisma.transaction.findMany({
+      where: { userId, categoryId: category.id, amount: { lt: 0 }, date: { gte: threeMonthsAgo } },
+      include: { account: true },
+      orderBy: { date: "desc" },
+    });
+    if (txns.length === 0) {
+      return { kind: "category", label: category.name, total: 0, count: 0, dateRange: null, byAccount: [], transactions: [] };
+    }
+
+    const total = txns.reduce((s, t) => s + Math.abs(t.amount), 0);
+    const dates = txns.map((t) => t.date.getTime());
+    const byAccountMap = new Map<string, { total: number; count: number }>();
+    for (const t of txns) {
+      const name = t.account?.name ?? "Unlinked";
+      const e = byAccountMap.get(name) || { total: 0, count: 0 };
+      e.total += Math.abs(t.amount);
+      e.count += 1;
+      byAccountMap.set(name, e);
+    }
+
+    return {
+      kind: "category",
+      label: category.name,
+      total,
+      count: txns.length,
+      dateRange: { from: formatDate(new Date(Math.min(...dates))), to: formatDate(new Date(Math.max(...dates))) },
+      byAccount: Array.from(byAccountMap.entries())
+        .map(([account, v]) => ({ account, ...v }))
+        .sort((a, b) => b.total - a.total),
+      transactions: [...txns]
+        .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount))
+        .slice(0, 15)
+        .map((t) => ({
+          id: t.id,
+          name: t.name,
+          amount: t.amount,
+          date: formatDate(t.date),
+          account: t.account?.name ?? null,
+        })),
+    };
+  }
+
+  if (insight.focusType === "subscription" && insight.focusKey) {
+    const sub = await prisma.subscription.findFirst({
+      where: { userId, name: insight.focusKey },
+      include: { category: true },
+    });
+    if (!sub) return null;
+    const perYear = CYCLE_PER_YEAR[sub.cycle.toLowerCase()] ?? 12;
+    return {
+      kind: "subscription",
+      label: sub.name,
+      subscription: {
+        amount: sub.amount,
+        cycle: sub.cycle,
+        annualized: sub.amount * perYear,
+        category: sub.category?.name ?? null,
+        lastCharged: sub.lastTransactionDate ? formatDate(sub.lastTransactionDate) : null,
+      },
+    };
+  }
+
+  if (insight.focusType === "goal" && insight.focusKey) {
+    const goal = await prisma.goal.findFirst({
+      where: { userId, name: insight.focusKey },
+      include: { allocations: { orderBy: [{ year: "desc" }, { month: "desc" }], take: 6 } },
+    });
+    if (!goal) return null;
+    return {
+      kind: "goal",
+      label: goal.name,
+      goal: {
+        saved: goal.saved,
+        target: goal.target,
+        pct: goal.target > 0 ? Math.round((goal.saved / goal.target) * 100) : 0,
+        allocations: goal.allocations.map((a) => ({
+          label: `${MONTH_NAMES[a.month - 1]} ${a.year}`,
+          amount: a.amount,
+          status: a.status,
+        })),
+      },
+    };
+  }
+
+  // income — monthly income vs expenses over the window.
+  const txns = await prisma.transaction.findMany({
+    where: { userId, date: { gte: threeMonthsAgo } },
+  });
+  const monthly = new Map<string, { income: number; expenses: number }>();
+  for (const t of txns) {
+    const key = `${t.date.getFullYear()}-${t.date.getMonth()}`;
+    const e = monthly.get(key) || { income: 0, expenses: 0 };
+    if (t.amount > 0) e.income += t.amount;
+    else e.expenses += Math.abs(t.amount);
+    monthly.set(key, e);
+  }
+  const months = Array.from(monthly.entries())
+    .sort((a, b) => (a[0] < b[0] ? -1 : 1))
+    .map(([key, v]) => {
+      const [, m] = key.split("-");
+      return { label: MONTH_NAMES[Number(m)], income: v.income, expenses: v.expenses, net: v.income - v.expenses };
+    });
+  return { kind: "income", label: "Income & spending", months };
 }

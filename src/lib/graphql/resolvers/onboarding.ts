@@ -330,7 +330,7 @@ builder.mutationField("autoOnboardFromFiles", (t) =>
         max_tokens: 16384,
         system: `You are a financial analyst. Analyze these bank transactions to extract a complete financial profile. Return ONLY valid JSON with this structure:
 {
-  "accounts": [{"name": "Bank Name - Account Type", "type": "chequing|savings|credit-card|tfsa|rrsp|fhsa|investment|other", "balance": 0}],
+  "accounts": [{"name": "Bank Name - Account Type", "type": "chequing|savings|credit-card|tfsa|rrsp|fhsa|investment|loan|mortgage|other", "balance": 0}],
   "recurringExpenses": [{"name": "Merchant", "amount": 99.99, "cycle": "Monthly|Annual|Weekly", "dueDay": 15}],
   "estimatedMonthlyIncome": 5000,
   "estimatedMonthlySpend": 3500,
@@ -340,7 +340,8 @@ builder.mutationField("autoOnboardFromFiles", (t) =>
 Rules for accounts:
 - Infer the bank name and account type from transaction descriptions, headers, or file names
 - If you can't determine the balance, set it to 0
-- Common types: chequing, savings, credit-card, tfsa, rrsp, investment
+- Common types: chequing, savings, credit-card, tfsa, rrsp, investment, loan, mortgage
+- Use "loan" for student/auto/personal loans and "mortgage" for home mortgages (a name containing "loan" or "mortgage" is a strong signal); loan/mortgage balances are debt, so set them negative
 
 Rules for recurring expenses:
 - Look for transactions that appear multiple times with similar amounts

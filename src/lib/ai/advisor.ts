@@ -1,5 +1,6 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { anthropic } from "./client";
+import { addUsage, emptyUsage, type TokenUsage } from "./usage";
 import { prisma } from "@/lib/db/prisma";
 import { getUserRow } from "@/lib/db/user";
 import {
@@ -28,6 +29,7 @@ import type { AdvisorSource } from "@/lib/types";
 //     all capped; the answer is length-clamped before it leaves the server.
 
 const MODEL = "claude-sonnet-4-6";
+const TITLE_MODEL = "claude-haiku-4-5"; // cheap/fast model for chat titles
 const MAX_TOKENS = 2048;
 const MAX_STEPS = 6; // tool-call rounds before we force a final text answer
 const MAX_ANSWER_CHARS = 4000;
@@ -361,9 +363,12 @@ export async function askAdvisor(
   userId: string,
   message: string,
   history: AdvisorTurn[] = [],
-): Promise<{ answer: string; sources: AdvisorSource[] }> {
+): Promise<{ answer: string; sources: AdvisorSource[]; usage: TokenUsage; model: string }> {
   const user = await getUserRow(userId);
   const ctx: ToolCtx = { userId, currency: user?.currency || "CAD" };
+  // Token usage summed across every model call this turn (the tool loop below
+  // plus the forced-final), attributed to the advisor chat for cost tracking.
+  const usage = emptyUsage();
 
   // Build the conversation. Drop any leading assistant turns so the transcript
   // starts on a user turn (the API requires it).
@@ -392,11 +397,12 @@ export async function askAdvisor(
       tools: TOOLS,
       messages,
     });
+    addUsage(usage, res.usage);
 
     messages.push({ role: "assistant", content: res.content });
 
     if (res.stop_reason !== "tool_use") {
-      return finalize(textOf(res.content), sourceMap, res.stop_reason);
+      return finalize(textOf(res.content), sourceMap, usage, res.stop_reason);
     }
 
     const toolUses = res.content.filter(
@@ -418,12 +424,14 @@ export async function askAdvisor(
     system: SYSTEM,
     messages,
   });
-  return finalize(textOf(final.content), sourceMap, final.stop_reason);
+  addUsage(usage, final.usage);
+  return finalize(textOf(final.content), sourceMap, usage, final.stop_reason);
 }
 
 function finalize(
   answer: string,
   sourceMap: Map<string, AdvisorSource>,
+  usage: TokenUsage,
   stopReason?: string | null,
 ) {
   let text =
@@ -432,7 +440,7 @@ function finalize(
   // Signal an incomplete generation rather than presenting a cut-off answer as
   // complete.
   if (stopReason === "max_tokens" && answer) text += "\n\n…(response cut off)";
-  return { answer: text, sources: Array.from(sourceMap.values()).slice(0, MAX_SOURCES) };
+  return { answer: text, sources: Array.from(sourceMap.values()).slice(0, MAX_SOURCES), usage, model: MODEL };
 }
 
 /**
@@ -440,11 +448,13 @@ function finalize(
  * Uses the cheap/fast model; falls back to the truncated question if the call
  * fails, so a new chat always gets a usable label.
  */
-export async function generateAdvisorTitle(message: string): Promise<string> {
+export async function generateAdvisorTitle(
+  message: string,
+): Promise<{ title: string; usage: TokenUsage | null; model: string }> {
   const fallback = message.trim().replace(/\s+/g, " ").slice(0, 48) || "New chat";
   try {
     const res = await anthropic.messages.create({
-      model: "claude-haiku-4-5",
+      model: TITLE_MODEL,
       max_tokens: 24,
       system:
         "Write a very short title (3–6 words, Title Case, no quotes, no trailing punctuation) summarizing the user's personal-finance question. Reply with ONLY the title.",
@@ -454,8 +464,8 @@ export async function generateAdvisorTitle(message: string): Promise<string> {
       .replace(/^["'#\s]+/, "")
       .replace(/["'.\s]+$/, "")
       .slice(0, 60);
-    return title || fallback;
+    return { title: title || fallback, usage: addUsage(emptyUsage(), res.usage), model: TITLE_MODEL };
   } catch {
-    return fallback;
+    return { title: fallback, usage: null, model: TITLE_MODEL };
   }
 }

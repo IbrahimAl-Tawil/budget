@@ -65,6 +65,59 @@ export async function assignAvailableSurplus(
 }
 
 /**
+ * Assigns a *specific* amount of this month's remaining surplus to a *single*
+ * goal — the manual counterpart to `assignAvailableSurplus`. The requested
+ * amount is clamped server-side to what's actually available (surplus − already
+ * assigned this month) and to the goal's remaining need (target − saved), so a
+ * client can neither overspend the surplus nor overfund a goal. Increments the
+ * goal's `saved` and bumps its month's applied allocation by the same amount in
+ * one transaction. Server-authoritative: the ceiling is derived here.
+ *
+ * @param userId - Owner of the goal.
+ * @param goalId - The goal to fund (must belong to `userId`).
+ * @param requested - The amount the client asked to assign.
+ * @param month - 1-indexed month.
+ * @param year - 4-digit year.
+ * @returns The amount actually assigned (0 when nothing is available, the goal
+ *          is already funded, or the goal doesn't belong to the user).
+ */
+export async function assignSurplusToGoal(
+  userId: string,
+  goalId: string,
+  requested: number,
+  month: number,
+  year: number
+): Promise<{ assigned: number }> {
+  const [summary, goal, assignedAgg] = await Promise.all([
+    computeMonthlySurplus(userId, month, year),
+    prisma.goal.findFirst({ where: { id: goalId, userId } }),
+    prisma.goalAllocation.aggregate({
+      where: { userId, month, year, status: "applied" },
+      _sum: { amount: true },
+    }),
+  ]);
+  if (!goal) return { assigned: 0 };
+
+  const surplus = Math.max(0, summary.surplus);
+  const already = assignedAgg._sum.amount ?? 0;
+  const available = Math.max(0, Math.round((surplus - already) * 100) / 100);
+  const remaining = Math.max(0, Math.round((goal.target - goal.saved) * 100) / 100);
+  const amt = Math.round(Math.max(0, Math.min(requested, available, remaining)) * 100) / 100;
+  if (amt <= 0) return { assigned: 0 };
+
+  await prisma.$transaction(async (tx) => {
+    await tx.goal.update({ where: { id: goalId }, data: { saved: { increment: amt } } });
+    await tx.goalAllocation.upsert({
+      where: { userId_goalId_month_year: { userId, goalId, month, year } },
+      create: { userId, goalId, month, year, amount: amt, status: "applied" },
+      update: { amount: { increment: amt }, status: "applied" },
+    });
+  });
+
+  return { assigned: amt };
+}
+
+/**
  * Computes how the current month's surplus should be split across active
  * (under-funded) goals. Splits proportionally by priority weight; when all
  * priorities are zero, splits evenly. Caps each goal at `target - saved`

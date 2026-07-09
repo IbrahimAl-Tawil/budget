@@ -3,7 +3,7 @@ import { requireUser, notFound, badRequest } from "../errors";
 import { GoalRef } from "../types/views";
 import { MutationResultRef } from "../types/results";
 import { getGoals } from "@/lib/db/queries";
-import { assignAvailableSurplus } from "@/lib/db/goal-allocation";
+import { assignAvailableSurplus, assignSurplusToGoal } from "@/lib/db/goal-allocation";
 import { prisma } from "@/lib/db/prisma";
 import { okString, okMoney, okColor, LIMITS } from "@/lib/validate";
 
@@ -122,6 +122,28 @@ builder.mutationField("assignSavingsToGoals", (t) =>
       const now = new Date();
       await assignAvailableSurplus(userId, now.getMonth() + 1, now.getFullYear());
       return { ok: true, id: userId };
+    },
+  }),
+);
+
+// Assigns a specific amount of this month's remaining surplus to ONE goal — the
+// manual allocation flow. The amount is clamped server-side to the available
+// surplus and the goal's remaining need, so the client can't overspend.
+builder.mutationField("assignSurplusToGoal", (t) =>
+  t.field({
+    type: MutationResultRef,
+    args: {
+      goalId: t.arg.id({ required: true }),
+      amount: t.arg.float({ required: true }),
+    },
+    resolve: async (_root, { goalId, amount }, ctx) => {
+      const userId = requireUser(ctx);
+      if (!okMoney(amount) || amount <= 0) badRequest("Amount is out of range.");
+      const goal = await prisma.goal.findFirst({ where: { id: String(goalId), userId } });
+      if (!goal) notFound();
+      const now = new Date();
+      await assignSurplusToGoal(userId, String(goalId), amount, now.getMonth() + 1, now.getFullYear());
+      return { ok: true, id: String(goalId) };
     },
   }),
 );

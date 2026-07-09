@@ -5,6 +5,7 @@ import type {
   GoalView,
   SubscriptionView,
   AccountView,
+  InvestmentView,
   InsightView,
   BillView,
   DashboardOverview,
@@ -92,6 +93,30 @@ export const AccountRef = builder.objectRef<AccountView>("Account").implement({
   }),
 });
 
+export const InvestmentRef = builder
+  .objectRef<InvestmentView>("Investment")
+  .implement({
+    fields: (t) => ({
+      id: t.exposeID("id"),
+      name: t.exposeString("name"),
+      symbol: t.exposeString("symbol"),
+      assetClass: t.exposeString("assetClass"),
+      value: t.exposeFloat("value"),
+      costBasis: t.exposeFloat("costBasis", { nullable: true }),
+      quantity: t.exposeFloat("quantity", { nullable: true }),
+      domain: t.exposeString("domain", { nullable: true }),
+      accountId: t.exposeID("accountId", { nullable: true }),
+      accountName: t.exposeString("accountName", { nullable: true }),
+      gain: t.exposeFloat("gain", { nullable: true }),
+      gainPct: t.exposeFloat("gainPct", { nullable: true }),
+      allocationPct: t.exposeFloat("allocationPct"),
+      live: t.exposeBoolean("live", { nullable: true }),
+      livePrice: t.exposeFloat("livePrice", { nullable: true }),
+      dayChange: t.exposeFloat("dayChange", { nullable: true }),
+      dayChangePct: t.exposeFloat("dayChangePct", { nullable: true }),
+    }),
+  });
+
 export const InsightRef = builder.objectRef<InsightView>("Insight").implement({
   fields: (t) => ({
     id: t.exposeID("id"),
@@ -99,6 +124,8 @@ export const InsightRef = builder.objectRef<InsightView>("Insight").implement({
     body: t.exposeString("body"),
     tagColor: t.exposeString("tagColor"),
     tagBg: t.exposeString("tagBg"),
+    focusType: t.exposeString("focusType", { nullable: true }),
+    focusKey: t.exposeString("focusKey", { nullable: true }),
   }),
 });
 
@@ -138,6 +165,7 @@ export const DashboardOverviewRef = builder
     fields: (t) => ({
       netWorth: t.exposeFloat("netWorth"),
       netWorthChange: t.exposeFloat("netWorthChange"),
+      cash: t.exposeFloat("cash"),
       monthlyIncome: t.exposeFloat("monthlyIncome"),
       monthlySpend: t.exposeFloat("monthlySpend"),
       monthlySurplus: t.exposeFloat("monthlySurplus"),

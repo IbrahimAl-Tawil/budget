@@ -2,7 +2,18 @@ import { builder } from "../builder";
 import { requireUser, rateLimited } from "../errors";
 import { prisma } from "@/lib/db/prisma";
 import { generateInsightsForUser } from "@/lib/ai/generate-insights";
+import { getInsightDetail } from "@/lib/db/queries";
 import { rateLimit, MINUTE } from "@/lib/rate-limit";
+
+// The real data behind one insight card, resolved from its stored focus.
+builder.queryField("insightDetail", (t) =>
+  t.field({
+    type: "JSON",
+    args: { id: t.arg.id({ required: true }) },
+    resolve: (_root, args, ctx) =>
+      getInsightDetail(requireUser(ctx), String(args.id)),
+  }),
+);
 
 // Generate AI insights, rate-limited to one generation per calendar day; returns
 // the day's insights (freshly generated or cached). JSON return matches the shape
@@ -36,6 +47,8 @@ builder.mutationField("generateInsights", (t) =>
             body: i.body,
             tagColor: i.tagColor || "oklch(60% 0.09 155)",
             tagBg: i.tagBg || "oklch(25% 0.06 155)",
+            focusType: i.focusType,
+            focusKey: i.focusKey,
           })),
           cached: true,
         };

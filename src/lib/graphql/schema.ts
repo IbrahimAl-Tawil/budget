@@ -9,6 +9,7 @@ import "./resolvers/transactions";
 import "./resolvers/goals";
 import "./resolvers/accounts";
 import "./resolvers/subscriptions";
+import "./resolvers/investments";
 import "./resolvers/categories";
 import "./resolvers/allocations";
 import "./resolvers/recurring";

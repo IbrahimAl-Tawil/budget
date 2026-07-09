@@ -166,6 +166,31 @@ export function accentFamilyTint(index: number, accent: string = DEFAULT_ACCENT)
   return [`oklch(95% 0.035 ${hue})`, `oklch(40% 0.09 ${hue})`];
 }
 
+/**
+ * A cohesive multi-segment palette in the active accent's hue family — for the
+ * donut / pie slices where a page needs N distinguishable-but-related fills (the
+ * Investments allocation chart). Unlike `accentFamilyTint` (pale avatar tints),
+ * these are chart-weight colours: lightness steps deep → light so the ramp reads
+ * as one family, with a gentle alternating hue nudge so neighbouring slices stay
+ * legible. Re-tints with the scheme like everything else. Returns N oklch strings.
+ */
+export function accentRamp(n: number, accent: string = DEFAULT_ACCENT): string[] {
+  if (n <= 0) return [];
+  const base = Number(hueOf(accent)) || 158;
+  // Small alternating offsets keep neighbours distinct without leaving the hue's
+  // neighbourhood; cycles if there are more slices than offsets.
+  const hueOffsets = [0, 22, -18, 40, -34, 12, -8];
+  const out: string[] = [];
+  for (let i = 0; i < n; i++) {
+    const t = n === 1 ? 0 : i / (n - 1); // 0 = deepest (largest slice), 1 = lightest
+    const light = 42 + t * 34; // 42% … 76%
+    const chroma = 0.11 - t * 0.03; // deeper tones a touch more saturated
+    const hue = base + hueOffsets[i % hueOffsets.length];
+    out.push(`oklch(${light.toFixed(1)}% ${chroma.toFixed(3)} ${hue})`);
+  }
+  return out;
+}
+
 /** Per-category tints for transaction / account avatars: [bg, ink]. */
 export const CATEGORY_TINTS: Record<string, [string, string]> = {
   Groceries: ["oklch(94.5% 0.03 155)", "oklch(43% 0.08 155)"],
