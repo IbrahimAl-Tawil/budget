@@ -265,12 +265,14 @@ export function InvestmentForm({ values, errors, onChange, open, idPrefix }: Inv
   const showDropdown =
     phase === "search" && focused && !!search.trim() && (searching || searchError || results != null);
 
-  // Cluster results into labeled sections (Stocks / ETFs / Crypto …), preserving
-  // the backend's ranked order: a section appears in the position of its first
-  // hit, so the leading asset class (BTC for "bitcoin", Apple for "AAPL") stays on
-  // top. Grouping separates the types visually so a same-ticker match in another
-  // class is never mistaken for the one the user meant.
-  const groups = useMemo(() => {
+  // Flat render list: a header entry per asset class followed by its items, in
+  // the backend's ranked order (a class appears at its first hit, so the leading
+  // type — BTC for "bitcoin", Apple for "AAPL" — stays on top). Grouping separates
+  // the types visually so a same-ticker match in another class is never mistaken
+  // for the one the user meant. Kept FLAT (one .map in JSX below) so each row's
+  // onMouseDown reads as a real event handler — a nested map trips the
+  // react-hooks/refs rule on selectMatch's ref access.
+  const rows = useMemo(() => {
     if (!results) return [];
     const order: string[] = [];
     const byClass = new Map<string, SecurityMatch[]>();
@@ -281,7 +283,15 @@ export function InvestmentForm({ values, errors, onChange, open, idPrefix }: Inv
       }
       byClass.get(m.assetClass)!.push(m);
     }
-    return order.map((assetClass) => ({ assetClass, items: byClass.get(assetClass)! }));
+    const out: (
+      | { kind: "header"; assetClass: string }
+      | { kind: "item"; assetClass: string; m: SecurityMatch }
+    )[] = [];
+    for (const assetClass of order) {
+      out.push({ kind: "header", assetClass });
+      for (const m of byClass.get(assetClass)!) out.push({ kind: "item", assetClass, m });
+    }
+    return out;
   }, [results]);
 
   // Typing shares recomputes the stored value from the live price.
@@ -393,44 +403,47 @@ export function InvestmentForm({ values, errors, onChange, open, idPrefix }: Inv
                 </div>
               )}
               {!searching &&
-                groups.map((g) => (
-                  <div key={g.assetClass} role="group" aria-label={g.assetClass}>
-                    <div className="px-3.5 pt-2.5 pb-1 text-[11px] font-semibold uppercase tracking-[0.07em] text-[var(--color-of-faint)]">
-                      {g.assetClass}
+                rows.map((row) =>
+                  row.kind === "header" ? (
+                    <div
+                      key={`h:${row.assetClass}`}
+                      role="presentation"
+                      className="px-3.5 pt-2.5 pb-1 text-[11px] font-semibold uppercase tracking-[0.07em] text-[var(--color-of-faint)]"
+                    >
+                      {row.assetClass}
                     </div>
-                    {g.items.map((m) => (
-                      <button
-                        key={`${m.assetClass}:${m.symbol}`}
-                        type="button"
-                        role="option"
-                        aria-selected={false}
-                        // onMouseDown fires before the input's onBlur, so the pick registers.
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          selectMatch(m);
-                        }}
-                        className="flex w-full min-w-0 items-center gap-3 px-3.5 py-2 text-left transition-colors hover:bg-[var(--color-of-canvas)]"
-                      >
-                        <MerchantAvatar
-                          name={m.name}
-                          domain={m.domain}
-                          bg="var(--color-of-canvas)"
-                          ink="var(--color-of-ink)"
-                          size={30}
-                        />
-                        <div className="min-w-0 flex-1">
-                          <div className="truncate text-sm font-semibold text-[var(--color-of-ink)]">
-                            {m.name}
-                          </div>
-                          <div className="truncate text-xs text-[var(--color-of-muted)]">
-                            {m.symbol}
-                            {m.exchange ? ` · ${m.exchange}` : ""}
-                          </div>
+                  ) : (
+                    <button
+                      key={`${row.assetClass}:${row.m.symbol}`}
+                      type="button"
+                      role="option"
+                      aria-selected={false}
+                      // onMouseDown fires before the input's onBlur, so the pick registers.
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        selectMatch(row.m);
+                      }}
+                      className="flex w-full min-w-0 items-center gap-3 px-3.5 py-2 text-left transition-colors hover:bg-[var(--color-of-canvas)]"
+                    >
+                      <MerchantAvatar
+                        name={row.m.name}
+                        domain={row.m.domain}
+                        bg="var(--color-of-canvas)"
+                        ink="var(--color-of-ink)"
+                        size={30}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-semibold text-[var(--color-of-ink)]">
+                          {row.m.name}
                         </div>
-                      </button>
-                    ))}
-                  </div>
-                ))}
+                        <div className="truncate text-xs text-[var(--color-of-muted)]">
+                          {row.m.symbol}
+                          {row.m.exchange ? ` · ${row.m.exchange}` : ""}
+                        </div>
+                      </div>
+                    </button>
+                  ),
+                )}
               {!searching && searchError && (
                 <div className="px-3.5 py-2.5 text-sm text-[var(--color-of-clay)]">
                   Search is unavailable right now. Try again, or enter details manually.
