@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
+import {
+  MAINTENANCE_COOKIE,
+  isMaintenanceMode,
+  maintenanceToken,
+} from "@/lib/maintenance";
 
 // Next 16 middleware (Proxy). Auth gate + refreshes the Supabase session cookie
 // on every request. Onboarding gating is NOT done here — it needs the profile
@@ -9,6 +14,24 @@ import { updateSession } from "@/lib/supabase/middleware";
 // enforce onboarding instead. Do not delete this file — it is auto-discovered.
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // Maintenance gate — takes precedence over everything, including auth and the
+  // API. When MAINTENANCE_MODE=true the whole site is rewritten to /maintenance
+  // unless this browser carries a valid bypass cookie (set after a dev enters
+  // the admin password). The maintenance page and its unlock endpoint stay
+  // reachable so devs can get in; static assets bypass via config.matcher.
+  if (isMaintenanceMode()) {
+    const isGateRoute =
+      pathname === "/maintenance" || pathname === "/api/maintenance/unlock";
+    if (!isGateRoute) {
+      const token = request.cookies.get(MAINTENANCE_COOKIE)?.value;
+      const expected = await maintenanceToken();
+      const unlocked = !!expected && token === expected;
+      if (!unlocked) {
+        return NextResponse.rewrite(new URL("/maintenance", request.url));
+      }
+    }
+  }
 
   // Refresh the session; `response` carries the refreshed auth cookies.
   const { response, user } = await updateSession(request);

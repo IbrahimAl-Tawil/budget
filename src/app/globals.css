@@ -96,6 +96,9 @@
   --chart-4: oklch(50% 0.13 300);
   --chart-5: oklch(54% 0.1 70);
   --radius: 0.75rem;                            /* soft corners */
+  /* let height:auto animate (FAQ <details> open/close) — ignored where
+     unsupported, so the accordion just snaps open there (still fully usable). */
+  interpolate-size: allow-keywords;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
@@ -134,6 +137,16 @@
 .of-num {
   font-family: var(--font-num), Georgia, serif;
   font-feature-settings: "tnum" 1, "lnum" 1;
+}
+
+/* The otterfund name, set in the signature wordmark face (Space Grotesk). Used
+   only via <Wordmark> so the brand reads consistently everywhere it appears.
+   Inherits size + color; the slightly tightened tracking and medium weight give
+   it a settled, premium feel whether standalone or inline in a sentence. */
+.of-wordmark {
+  font-family: var(--font-brand), var(--font-ui), system-ui, sans-serif;
+  font-weight: 500;
+  letter-spacing: -0.018em;
 }
 
 /* The one system field — every modal input/select shares this. No per-modal
@@ -180,6 +193,46 @@
      without :open just ignore it; there, tapping the field focuses it and the
      :focus accent covers the picker anyway, e.g. iOS.) */
   &:open { border-color: var(--color-primary); }
+}
+
+/* FAQ accordion (landing FaqSection). Native <details> so the answers stay
+   crawlable + JS-free; this adds the brand surface + a smooth open/close.
+   The row is a resting card that lifts on hover and accents when open; the
+   answer height animates via ::details-content (needs interpolate-size on
+   :root). Where ::details-content is unsupported it simply snaps — no JS. */
+@utility of-faq {
+  border: 1px solid var(--color-of-line);
+  border-radius: 16px;
+  background: var(--color-of-surface);
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+/* hover (closed rows): the card stays put; the cues are the green question
+   text (markup) + the chevron button lighting up — a soft accent-tint fill,
+   green glyph, and a small scale bump. Light fill keeps it clearly a "hover"
+   state, distinct from the open state's solid-green filled button. */
+.of-faq:hover:not([open]) summary > span {
+  background: color-mix(in oklch, var(--color-accent) 65%, var(--color-of-canvas));
+  color: var(--color-primary);
+  transform: scale(1.08);
+}
+/* open: strong, unmistakable — accent border + soft accent-tint wash. */
+.of-faq[open] {
+  border-color: color-mix(in oklch, var(--color-primary) 55%, var(--color-of-line));
+  background: color-mix(in oklch, var(--color-accent) 55%, var(--color-of-surface));
+}
+.of-faq::details-content {
+  height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: height 0.3s ease, opacity 0.3s ease, content-visibility 0.3s allow-discrete;
+}
+.of-faq[open]::details-content {
+  height: auto;
+  opacity: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .of-faq,
+  .of-faq::details-content { transition: none; }
 }
 
 /* Priority segmented control (otterfund/priority-picker.tsx) — the of-field shell
