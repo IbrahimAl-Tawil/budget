@@ -1,18 +1,45 @@
 import { anthropic } from "./client";
 import { prisma } from "@/lib/db/prisma";
 import { okColor } from "@/lib/validate";
+import { addUsage, emptyUsage } from "./usage";
+import { recordAiUsage } from "@/lib/db/ai-usage";
 
 const INSIGHT_TAGS = ["Spending Pattern", "Alert", "Opportunity", "Trend"];
+const FOCUS_TYPES = ["category", "subscription", "goal", "income"];
 const DEFAULT_TAG_COLOR = "oklch(60% 0.09 155)";
 const DEFAULT_TAG_BG = "oklch(25% 0.06 155)";
+const INSIGHTS_MODEL = "claude-sonnet-4-5";
 
-/** Treat model output as untrusted: clamp tag/body and reject non-color styles. */
-function sanitizeInsight(i: { tag: string; body: string; tagColor: string; tagBg: string }) {
+/**
+ * Treat model output as untrusted: clamp tag/body, reject non-color styles, and
+ * resolve the drill-down focus against entities that actually exist. `known`
+ * carries the real category/subscription/goal names so a hallucinated focusKey
+ * is dropped rather than producing a broken drill-down. income needs no key.
+ */
+function sanitizeInsight(
+  i: { tag: string; body: string; tagColor: string; tagBg: string; focusType?: string; focusKey?: string },
+  known: { categories: Set<string>; subscriptions: Set<string>; goals: Set<string> },
+) {
+  let focusType: string | null = FOCUS_TYPES.includes(i.focusType ?? "") ? i.focusType! : null;
+  let focusKey: string | null = typeof i.focusKey === "string" ? i.focusKey : null;
+
+  if (focusType === "income") {
+    focusKey = null;
+  } else if (focusType === "category" && !(focusKey && known.categories.has(focusKey))) {
+    focusType = focusKey = null;
+  } else if (focusType === "subscription" && !(focusKey && known.subscriptions.has(focusKey))) {
+    focusType = focusKey = null;
+  } else if (focusType === "goal" && !(focusKey && known.goals.has(focusKey))) {
+    focusType = focusKey = null;
+  }
+
   return {
     tag: INSIGHT_TAGS.includes(i.tag) ? i.tag : "Spending Pattern",
     body: typeof i.body === "string" ? i.body.slice(0, 500) : "",
     tagColor: okColor(i.tagColor) ? i.tagColor : DEFAULT_TAG_COLOR,
     tagBg: okColor(i.tagBg) ? i.tagBg : DEFAULT_TAG_BG,
+    focusType,
+    focusKey,
   };
 }
 
@@ -77,7 +104,7 @@ export async function generateInsightsForUser(userId: string) {
   };
 
   const response = await anthropic.messages.create({
-    model: "claude-sonnet-4-5",
+    model: INSIGHTS_MODEL,
     max_tokens: 2048,
     system: `You are Bulga, a calm, plain-spoken personal finance advisor. From the user's data, write 4-6 insights that are genuinely useful. Each should tell the user something they can act on this week, not just restate a number back to them.
 
@@ -96,10 +123,17 @@ Rules for every insight (this is what makes them useful, not random):
 6. No two insights should make the same point. Keep each to 1-2 tight sentences.
 7. Never use em-dashes (—) in the insight text. Use commas, colons, or separate sentences instead.
 
+Every insight must also name the ONE data lever it is about, so the app can drill into the real transactions behind it:
+- "focusType": one of "category", "subscription", "goal", or "income".
+- "focusKey": the EXACT name of that entity as it appears in the data (a categorySpending key, a subscription name, or a goal name). Use null for focusType "income".
+Pick the single most central lever. If an insight is about a category (e.g. "Other", "Dining Out"), use focusType "category" with that category's name. Match the name character-for-character, or the drill-down breaks.
+
 Respond with ONLY a valid JSON array, most important first:
 [{
   "tag": "Alert",
   "body": "Your insight: specific lever, dollar impact, and one next step.",
+  "focusType": "category",
+  "focusKey": "Other",
   "tagColor": "oklch(75% 0.1 38)",
   "tagBg": "oklch(22% 0.06 38)"
 }, ...]
@@ -117,6 +151,12 @@ Tag colors (use exactly these):
     ],
   });
 
+  // Record token usage + cost for this generation (best-effort). Runs whether
+  // or not parsing below succeeds — the API call was billed either way.
+  await recordAiUsage([
+    { userId, kind: "insights", model: INSIGHTS_MODEL, usage: addUsage(emptyUsage(), response.usage) },
+  ]);
+
   const text =
     response.content[0].type === "text" ? response.content[0].text : "";
 
@@ -129,13 +169,24 @@ Tag colors (use exactly these):
       body: string;
       tagColor: string;
       tagBg: string;
+      focusType?: string;
+      focusKey?: string;
     }[];
+
+    // Entities the drill-down can actually resolve — a focus must match one of
+    // these by name or it's dropped in sanitizeInsight (category keys mirror
+    // exactly what the model saw in `categorySpending`).
+    const known = {
+      categories: new Set(categorySpend.keys()),
+      subscriptions: new Set(subscriptions.map((s) => s.name)),
+      goals: new Set(goals.map((g) => g.name)),
+    };
 
     // Store insights in DB (model output sanitized — body/tag clamped, styles
     // validated — since tagColor/tagBg render into an inline style prop).
     const created = await Promise.all(
       parsed.map((insight) => {
-        const s = sanitizeInsight(insight);
+        const s = sanitizeInsight(insight, known);
         return prisma.insight.create({
           data: {
             userId,
@@ -143,6 +194,8 @@ Tag colors (use exactly these):
             body: s.body,
             tagColor: s.tagColor,
             tagBg: s.tagBg,
+            focusType: s.focusType,
+            focusKey: s.focusKey,
           },
         });
       })
@@ -154,6 +207,8 @@ Tag colors (use exactly these):
       body: i.body,
       tagColor: i.tagColor || "oklch(60% 0.09 155)",
       tagBg: i.tagBg || "oklch(25% 0.06 155)",
+      focusType: i.focusType,
+      focusKey: i.focusKey,
     }));
   } catch {
     return [];

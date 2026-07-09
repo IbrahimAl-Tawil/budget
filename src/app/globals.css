@@ -240,6 +240,16 @@
 }
 .bk-enter { animation: bkIn 0.5s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
 
+/* Drawer entrance — the scrim fades and the right panel slides in from the edge
+   (insight drill-down). Paired so the overlay reads as one gesture. */
+@keyframes bkFadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes bkDrawerIn {
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: none; }
+}
+.bk-fade-in { animation: bkFadeIn 0.24s ease both; }
+.bk-drawer-in { animation: bkDrawerIn 0.32s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+
 /* Rolling ticker — swap one line of text with a vertical roll: the outgoing line
    shifts up and out while the incoming line rises from below into its place
    (e.g. the advisor's cycling "thinking" phrase). Both live in a 1-line,
@@ -254,6 +264,20 @@
 }
 .bk-roll-in { animation: bkRollIn 0.36s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
 .bk-roll-out { animation: bkRollOut 0.36s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+
+/* Allocation drill-down — horizontal slide between the accounts overview and one
+   account's holdings. Forward (drill in) enters from the right; back enters from
+   the left, so the motion mirrors the navigation direction. */
+@keyframes bkSlideInRight {
+  from { opacity: 0; transform: translateX(28px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes bkSlideInLeft {
+  from { opacity: 0; transform: translateX(-28px); }
+  to { opacity: 1; transform: none; }
+}
+.bk-slide-in-right { animation: bkSlideInRight 0.3s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+.bk-slide-in-left { animation: bkSlideInLeft 0.3s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
 
 /* Typing caret — the blinking bar at the end of text being "typed out" in the
    advisor reply. currentColor so it takes the text tone. */
@@ -450,6 +474,10 @@
 
 @media (prefers-reduced-motion: reduce) {
   .bk-enter { animation: none; }
+  .bk-fade-in { animation: none; }
+  .bk-drawer-in { animation: none; }
+  .bk-slide-in-right { animation: none; }
+  .bk-slide-in-left { animation: none; }
   .bk-roll-in { animation: none; }
   .bk-roll-out { display: none; }
   .bk-caret { animation: none; }
@@ -497,6 +525,11 @@
 /* CTA arrow nudges right on hover. */
 .bk-lp-cta .bk-lp-arrow { transition: transform 0.25s cubic-bezier(0.22, 0.61, 0.36, 1); }
 .bk-lp-cta:hover .bk-lp-arrow { transform: translateX(3px); }
+
+/* Hero line-work eases in on mount — synced with the headline entrance — so the
+   texture arrives together with the pitch instead of a dash segment ("tail")
+   drifting into the corner a beat later. */
+.bk-lp-guilloche { animation: bkFadeIn 1.1s ease 0.12s both; }
 
 /* Dashboard preview: the sparkline draws itself once the card scrolls in
    (pathLength=1 normalizes the dash to one unit), then the area wash and the
@@ -583,6 +616,29 @@
 .bk-ticker-clip:hover .bk-ticker { animation-play-state: paused; }
 @keyframes bkTicker { to { transform: translateX(-50%); } }
 
+/* Hero loop — the rotating headline noun, cycling month label, and floating
+   goal-card name all rise in softly on remount (React re-keys them each cycle),
+   sharing the "Why Bulga" word-swap motion. */
+.bk-hero-word {
+  display: inline-block;
+  animation: bkWordIn 0.5s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+/* The floating goal chip drifts a few pixels on a slow loop, so the hero reads
+   as a live surface with depth rather than a flat screenshot. */
+.bk-hero-float { animation: bkFloat 6.5s ease-in-out infinite; }
+@keyframes bkFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-9px); }
+}
+
+/* Live badge dot — a soft ring pings outward on a loop, echoing the chart's
+   end-dot pulse. */
+.bk-ping { animation: bkPing 2.4s cubic-bezier(0, 0, 0.2, 1) infinite; }
+@keyframes bkPing {
+  75%, 100% { transform: scale(2.4); opacity: 0; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .bk-reveal { opacity: 1; transform: none; transition: none; }
   .bk-lp-cta .bk-lp-arrow { transition: none; }
@@ -593,6 +649,10 @@
   .bk-seal-spin { animation: none; }
   .bk-step-track { display: none; }
   .bk-word-swap { animation: none; }
+  .bk-hero-word { animation: none; }
+  .bk-hero-float { animation: none; }
+  .bk-ping { animation: none; }
+  .bk-lp-guilloche { animation: none; }
   .bk-ticker { animation: none; }
   /* No sweep under reduced motion — the wash just cross-fades. */
   .bk-wave-wash { clip-path: none; transition: opacity 0.3s ease; }
@@ -634,11 +694,26 @@
 
 /* Full-bleed page — cancel the shell's canvas gutter so a page fills the content
    region edge to edge (the full-screen advisor). Desktop/tablet cancel the
-   canvas padding with matching negative margins + calc height; on phones the
-   shell document-scrolls, so the page just flows with a min-height. */
+   canvas padding with matching negative margins + calc height. Phones document-
+   scroll the shell, so height:100% can't resolve — the page (insights) measures
+   its own top and pins an exact px height via JS to fill the viewport under the
+   topbar; here we only cancel the gutter (matching each breakpoint's canvas
+   padding, safe-areas included) and provide a min-height fallback for the frame
+   before that measurement lands. */
 .bk-fullbleed { height: calc(100% + 68px); margin: -34px; }
 @media (max-width: 1024px) { .bk-fullbleed { height: calc(100% + 48px); margin: -24px; } }
-@media (max-width: 768px) { .bk-fullbleed { height: auto; min-height: 68dvh; margin: 0; } }
+@media (max-width: 768px) {
+  .bk-fullbleed {
+    height: auto;
+    min-height: 60dvh;
+    margin: -24px calc(-1 * max(24px, env(safe-area-inset-right))) calc(-1 * (24px + env(safe-area-inset-bottom))) calc(-1 * max(24px, env(safe-area-inset-left)));
+  }
+}
+@media (max-width: 640px) {
+  .bk-fullbleed {
+    margin: -16px calc(-1 * max(16px, env(safe-area-inset-right))) calc(-1 * (16px + env(safe-area-inset-bottom))) calc(-1 * max(16px, env(safe-area-inset-left)));
+  }
+}
 
 /* ── Shell ── */
 

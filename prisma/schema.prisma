@@ -37,6 +37,8 @@ model User {
   plaidLinkEvents  PlaidLinkEvent[]
   advisorChats     AdvisorConversation[]
   advisorMessages  AdvisorMessage[]
+  investments      Investment[]
+  aiUsageEvents    AiUsageEvent[]
 }
 
 model Account {
@@ -63,6 +65,7 @@ model Account {
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions Transaction[]
   plaidItem    PlaidItem?    @relation(fields: [plaidItemId], references: [id], onDelete: Cascade)
+  investments  Investment[]
 }
 
 // One connected bank login (Plaid "Item"). Holds the encrypted access token
@@ -196,6 +199,32 @@ model Subscription {
   category Category? @relation(fields: [categoryId], references: [id])
 }
 
+// A single investment holding — a position the user holds (stock, ETF, crypto,
+// bond, cash, …), optionally linked to the Account that custodies it. `domain`
+// mirrors Subscription.domain: the resolved company domain used to fetch a real
+// logo (see lib/merchant/resolve). `value` is the current market value the user
+// maintains; `costBasis` (optional) enables gain/loss; `quantity` (optional) is
+// units/shares held.
+model Investment {
+  id         String   @id @default(cuid())
+  userId     String
+  accountId  String?
+  name       String
+  symbol     String?
+  assetClass String
+  value      Float
+  costBasis  Float?
+  quantity   Float?
+  domain     String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account Account? @relation(fields: [accountId], references: [id])
+
+  @@index([userId])
+}
+
 // Universal, cross-user merchant cache. Keyed by a normalized merchant name so
 // a given merchant is resolved to a company/domain ONCE (via the seed dictionary
 // or a Haiku call) and reused by every user forever. `domain` null means
@@ -246,6 +275,11 @@ model Insight {
   body      String
   tagColor  String?
   tagBg     String?
+  // The data lever this insight is about, so the card can drill down into the
+  // real transactions behind it. focusType ∈ category|subscription|goal|income;
+  // focusKey is the entity's name (null for income). Null on legacy rows.
+  focusType String?
+  focusKey  String?
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
 
@@ -297,4 +331,27 @@ model AdvisorMessage {
   user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([conversationId, createdAt])
+}
+
+// One AI generation "job" (a chat turn, its title, or an insights run) with the
+// token usage and derived USD cost. Written server-side after a successful call
+// (lib/db/ai-usage), so failures/cached returns record nothing. Used only for
+// internal usage/cost tracking (the /dev/usage page) — never user-facing.
+model AiUsageEvent {
+  id                       String   @id @default(cuid())
+  userId                   String
+  kind                     String // "advisor" | "advisor_title" | "insights"
+  model                    String
+  inputTokens              Int      @default(0)
+  outputTokens             Int      @default(0)
+  cacheReadInputTokens     Int      @default(0)
+  cacheCreationInputTokens Int      @default(0)
+  costUsd                  Float    @default(0)
+  conversationId           String? // links an advisor turn to its chat (null for insights)
+  createdAt                DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([kind, createdAt])
 }

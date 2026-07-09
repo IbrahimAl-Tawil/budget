@@ -17,13 +17,7 @@ import { Button } from "@/components/ui/button";
 import { ProgressRing } from "@/components/bulga/progress";
 import { GuillochePattern, GuillocheSeal } from "@/components/bulga/guilloche";
 import { useBulgaChrome } from "@/components/bulga/chrome-context";
-import { gqlClient } from "@/lib/graphql/client";
-
-const ASSIGN_SAVINGS = /* GraphQL */ `
-  mutation AssignSavingsToGoals {
-    assignSavingsToGoals { ok }
-  }
-`;
+import { AllocateSavingsModal } from "@/components/dashboard/modals/allocate-savings-modal";
 
 interface BulgaGoalsProps {
   plan: GoalsPlanView;
@@ -76,33 +70,17 @@ export function BulgaGoals({ plan, accent, theme, onAdd, onEdit }: BulgaGoalsPro
   const hasPool = monthlySavings > 0;
 
   const { refreshData } = useBulgaChrome();
-  const [assigning, setAssigning] = useState(false);
+  const [allocateOpen, setAllocateOpen] = useState(false);
 
-  // Assign this month's remaining real surplus across goals. The server derives
-  // and records the amount, so once the surplus is spent `assignable` is 0 and
-  // this can't run again (no double-spending cash you don't have).
-  const handleAssign = async () => {
-    if (assignable <= 0 || assigning) return;
-    setAssigning(true);
-    try {
-      await gqlClient.request(ASSIGN_SAVINGS);
-      refreshData();
-    } catch {
-      // Non-fatal: leave figures as-is if the assignment fails.
-    } finally {
-      setAssigning(false);
-    }
-  };
-
-  // Assign is only actionable when there's real cash left AND a goal to take it.
-  // Otherwise the button stays visible but grayed, with a reason on hover.
+  // Allocate is only actionable when there's real cash left AND a goal to take
+  // it. Otherwise the button stays visible but grayed, with a reason on hover.
   const canAssign = assignable > 0 && goals.some((g) => g.remaining > 0);
   const assignReason =
     surplus <= 0
-      ? "No surplus to assign this month"
+      ? "No surplus to allocate this month"
       : assignable <= 0
-        ? "Already assigned this month"
-        : "All goals are funded";
+        ? "Surplus already allocated for the month"
+        : "All goals are fully funded";
 
   return (
     <div className="bk-enter bk-page">
@@ -137,8 +115,8 @@ export function BulgaGoals({ plan, accent, theme, onAdd, onEdit }: BulgaGoalsPro
             of {fmt0(totalTarget)} target · {goals.length} active {goals.length === 1 ? "goal" : "goals"}
             {hasPool && (
               <>
-                {" · funding "}
-                <span className="bk-num" style={{ color: theme.accentDeep }}>{fmt0(monthlySavings)}</span>/mo
+                {" · "}
+                <span className="bk-num" style={{ color: theme.accentDeep }}>{fmt0(monthlySavings)}</span>/mo to set aside
               </>
             )}
           </div>
@@ -146,12 +124,21 @@ export function BulgaGoals({ plan, accent, theme, onAdd, onEdit }: BulgaGoalsPro
 
         <div style={{ position: "relative", flexShrink: 0, alignSelf: "flex-start", display: "flex", gap: 8 }}>
           {goals.length > 0 && hasPool && (
-            // Wrapper carries the title so the tooltip shows even while the
-            // button is disabled (disabled controls don't fire hover events).
-            <span title={canAssign ? undefined : assignReason} style={{ display: "inline-flex" }}>
-              <Button size="sm" onClick={handleAssign} disabled={assigning || !canAssign}>
-                {assigning ? "Assigning…" : "Assign"}
+            // group/relative wrapper carries the tooltip so it shows even while
+            // the button is disabled (disabled controls don't fire hover events).
+            <span className="group relative inline-flex">
+              <Button size="sm" onClick={() => setAllocateOpen(true)} disabled={!canAssign}>
+                Allocate
               </Button>
+              {!canAssign && (
+                <span
+                  role="tooltip"
+                  className="pointer-events-none absolute right-0 top-full z-50 mt-2 w-max max-w-[260px] translate-y-1 whitespace-normal rounded-[9px] px-2.5 py-1.5 text-left text-[12px] font-medium leading-snug opacity-0 transition-[opacity,transform] duration-150 group-hover:translate-y-0 group-hover:opacity-100"
+                  style={{ background: "oklch(26% 0.012 75)", color: "#fff", boxShadow: "0 8px 24px oklch(20% 0.02 80 / 0.3)" }}
+                >
+                  {assignReason}
+                </span>
+              )}
             </span>
           )}
           <Button variant="outline" size="sm" onClick={() => onAdd?.()} className="border-dashed">
@@ -205,6 +192,16 @@ export function BulgaGoals({ plan, accent, theme, onAdd, onEdit }: BulgaGoalsPro
           </div>
         </>
       )}
+
+      <AllocateSavingsModal
+        open={allocateOpen}
+        onClose={() => setAllocateOpen(false)}
+        onAllocated={refreshData}
+        goals={goals}
+        assignable={assignable}
+        currency={currency}
+        theme={theme}
+      />
     </div>
   );
 }
@@ -332,8 +329,9 @@ function GoalCard({
           <span style={{ color: theme.accentDeep, fontWeight: 500 }}>Fully funded 🎉</span>
         ) : g.monthlyContribution > 0 ? (
           <span>
-            <span className="bk-num" style={{ color: theme.accentDeep, fontWeight: 500 }}>+{fmt0(g.monthlyContribution)}</span>/mo
-            {g.etaLabel && <> · on track to finish <span style={{ color: "var(--color-bk-ink)" }}>{g.etaLabel}</span></>}
+            Set aside{" "}
+            <span className="bk-num" style={{ color: theme.accentDeep, fontWeight: 500 }}>{fmt0(g.monthlyContribution)}</span>/mo
+            {g.etaLabel && <> to finish by <span style={{ color: "var(--color-bk-ink)" }}>{g.etaLabel}</span></>}
           </span>
         ) : hasPool ? (
           <span>Not funded this month. Raise its priority to allocate savings here.</span>

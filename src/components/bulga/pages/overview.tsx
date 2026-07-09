@@ -138,6 +138,11 @@ export function BulgaOverview({ overview, theme, onNavigate }: BulgaOverviewProp
   const hoverPt = hover !== null ? spark.pts[hover] : null;
   const hasTrend = overview.netWorthTrend.length > 0;
 
+  // Hero can show two figures: net worth (default, with trend) or the cash &
+  // savings total (matching the accounts page group). Toggled via the eyebrow.
+  const [heroView, setHeroView] = useState<"networth" | "cash">("networth");
+  const showingCash = heroView === "cash";
+
   const cats = overview.spendingByCategory.slice(0, 5);
   const goals = overview.goals.slice(0, 4);
   const recent = overview.recentTransactions.slice(0, 5);
@@ -174,14 +179,43 @@ export function BulgaOverview({ overview, theme, onNavigate }: BulgaOverviewProp
         <div style={{ position: "relative" }}>
           <div
             style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
               fontSize: 12,
               fontWeight: 600,
               letterSpacing: "0.07em",
               textTransform: "uppercase",
-              color: "var(--color-bk-faint)",
             }}
           >
-            Net worth
+            {(
+              [
+                ["networth", "Net worth"],
+                ["cash", "Cash flow"],
+              ] as const
+            ).map(([key, label], i) => (
+              <span key={key} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {i > 0 && <span style={{ color: "var(--color-bk-faint)" }} aria-hidden="true">/</span>}
+                <button
+                  type="button"
+                  onClick={() => setHeroView(key)}
+                  aria-pressed={heroView === key}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    padding: 0,
+                    cursor: "pointer",
+                    font: "inherit",
+                    letterSpacing: "inherit",
+                    textTransform: "inherit",
+                    transition: "color 140ms ease",
+                    color: heroView === key ? theme.accentDeep : "var(--color-bk-faint)",
+                  }}
+                >
+                  {label}
+                </button>
+              </span>
+            ))}
           </div>
           <div
             className="bk-num"
@@ -193,21 +227,28 @@ export function BulgaOverview({ overview, theme, onNavigate }: BulgaOverviewProp
               marginTop: 12,
             }}
           >
-            {money(overview.netWorth)}
+            {money(showingCash ? overview.cash : overview.netWorth)}
           </div>
           <div style={{ marginTop: 14 }}>
-            <StatPill
-              theme={theme}
-              figure={signed(overview.netWorthChange)}
-              label="this month"
-              icon={
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                  <path d={nwDown ? "M7 7 17 17M9 17h8V9" : "M7 17 17 7M9 7h8v8"} />
-                </svg>
-              }
-            />
+            {showingCash ? (
+              <div style={{ fontSize: 13, color: "var(--color-bk-muted)" }}>
+                Total across your cash &amp; savings accounts
+              </div>
+            ) : (
+              <StatPill
+                theme={theme}
+                figure={signed(overview.netWorthChange)}
+                label="this month"
+                icon={
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                    <path d={nwDown ? "M7 7 17 17M9 17h8V9" : "M7 17 17 7M9 7h8v8"} />
+                  </svg>
+                }
+              />
+            )}
           </div>
         </div>
+        {!showingCash && (
         <div
           className="bk-nw-spark"
           style={{ position: "relative", width: "100%", height: 110 }}
@@ -299,6 +340,7 @@ export function BulgaOverview({ overview, theme, onNavigate }: BulgaOverviewProp
             </>
           )}
         </div>
+        )}
       </section>
 
       {/* ── this-month stats ── */}

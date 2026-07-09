@@ -127,6 +127,12 @@ interface AdvisorChatProps {
   resizing: boolean;
   /** Toggles the dragging state up so the rail can suspend its transition too. */
   onResizingChange: (v: boolean) => void;
+  /** True at the phone breakpoint — the drawer becomes a sliding overlay (with a
+   *  backdrop) instead of an inline push, and the resize handle is dropped. */
+  mobile: boolean;
+  /** Close the conversation drawer (owned by the page). Used by the mobile
+   *  overlay's backdrop and to auto-close when a conversation is opened. */
+  onCloseSidebar: () => void;
 }
 
 const SIDEBAR_MIN = 220;
@@ -140,6 +146,8 @@ export function AdvisorChat({
   onSidebarWidth,
   resizing,
   onResizingChange,
+  mobile,
+  onCloseSidebar,
 }: AdvisorChatProps) {
   const [conversations, setConversations] = useState<AdvisorConversationSummary[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -233,6 +241,7 @@ export function AdvisorChat({
 
   const openConversation = async (id: string) => {
     if (id === activeId || sending) return;
+    if (mobile) onCloseSidebar(); // reveal the thread — the drawer is an overlay here
     setLoadingThread(true);
     setActiveId(id);
     setMessages([]);
@@ -299,41 +308,83 @@ export function AdvisorChat({
   return (
     <div
       style={{
+        position: "relative", // anchors the mobile drawer overlay + backdrop
         display: "flex",
         height: "100%",
         background: "var(--color-bk-surface)",
         overflow: "hidden",
       }}
     >
-      {/* ── sidebar · saved conversations (sliding, resizable drawer) ──
-          Always mounted so it can animate: the shell clips to an easing width
-          (0 ⇆ sidebarWidth) — the chat column grows/shrinks with it via flexbox
-          — while the inner panel slides so it reads as a drawer gliding out and
-          back rather than a snap. Drag the right edge to resize; during a drag
-          `resizing` freezes the transition so it tracks the cursor 1:1. */}
-      <aside
-        aria-hidden={!showChats}
-        style={{
-          position: "relative",
-          width: showChats ? sidebarWidth : 0,
-          flexShrink: 0,
-          overflow: "hidden",
-          borderRight: `1px solid ${showChats ? "var(--color-bk-line-soft)" : "transparent"}`,
-          background: "oklch(99% 0.003 90)",
-          transition: resizing ? "border-color 360ms ease" : "width 360ms cubic-bezier(.4,0,.2,1), border-color 360ms ease",
-        }}
-      >
+      {/* ── sidebar · saved conversations (sliding drawer) ──
+          Desktop: an inline, resizable rail — the shell clips to an easing width
+          (0 ⇆ sidebarWidth), the chat column grows/shrinks with it via flexbox,
+          and the inner panel slides so it reads as a drawer gliding out. Drag the
+          right edge to resize; `resizing` freezes the transition so it tracks the
+          cursor 1:1.
+          Phones: the same list, but as an OVERLAY — it slides in over the thread
+          on top of a tap-to-dismiss backdrop, so it never crushes the column. */}
+      {mobile && (
         <div
+          aria-hidden
+          onClick={onCloseSidebar}
           style={{
-            width: sidebarWidth,
-            height: "100%",
-            display: "flex",
-            flexDirection: "column",
-            transform: showChats ? "translateX(0)" : "translateX(-100%)",
+            position: "absolute",
+            inset: 0,
+            zIndex: 29,
+            background: "oklch(20% 0.02 80 / 0.32)",
+            backdropFilter: "blur(2px)",
+            WebkitBackdropFilter: "blur(2px)",
             opacity: showChats ? 1 : 0,
             pointerEvents: showChats ? "auto" : "none",
-            transition: resizing ? "none" : "transform 360ms cubic-bezier(.4,0,.2,1), opacity 300ms ease",
+            transition: "opacity 300ms ease",
           }}
+        />
+      )}
+      <aside
+        aria-hidden={!showChats}
+        style={
+          mobile
+            ? {
+                position: "absolute",
+                top: 0,
+                left: 0,
+                bottom: 0,
+                zIndex: 30,
+                width: "min(320px, 86vw)",
+                overflow: "hidden",
+                borderRight: "1px solid var(--color-bk-line-soft)",
+                background: "oklch(99% 0.003 90)",
+                transform: showChats ? "translateX(0)" : "translateX(-100%)",
+                boxShadow: showChats ? "8px 0 40px oklch(20% 0.02 80 / 0.18)" : "none",
+                pointerEvents: showChats ? "auto" : "none",
+                transition: "transform 320ms cubic-bezier(.4,0,.2,1), box-shadow 320ms ease",
+              }
+            : {
+                position: "relative",
+                width: showChats ? sidebarWidth : 0,
+                flexShrink: 0,
+                overflow: "hidden",
+                borderRight: `1px solid ${showChats ? "var(--color-bk-line-soft)" : "transparent"}`,
+                background: "oklch(99% 0.003 90)",
+                transition: resizing ? "border-color 360ms ease" : "width 360ms cubic-bezier(.4,0,.2,1), border-color 360ms ease",
+              }
+        }
+      >
+        <div
+          style={
+            mobile
+              ? { width: "100%", height: "100%", display: "flex", flexDirection: "column" }
+              : {
+                  width: sidebarWidth,
+                  height: "100%",
+                  display: "flex",
+                  flexDirection: "column",
+                  transform: showChats ? "translateX(0)" : "translateX(-100%)",
+                  opacity: showChats ? 1 : 0,
+                  pointerEvents: showChats ? "auto" : "none",
+                  transition: resizing ? "none" : "transform 360ms cubic-bezier(.4,0,.2,1), opacity 300ms ease",
+                }
+          }
         >
           <div className="bk-scroll" style={{ flex: 1, overflowY: "auto", padding: "12px 8px" }}>
             {conversations.length === 0 ? (
@@ -389,7 +440,11 @@ export function AdvisorChat({
                         type="button"
                         onClick={() => removeConversation(c.id)}
                         aria-label="Delete chat"
-                        className="opacity-0 transition-opacity group-hover:opacity-100"
+                        className={
+                          mobile
+                            ? "transition-opacity"
+                            : "opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+                        }
                         style={{
                           flexShrink: 0,
                           display: "inline-flex",
@@ -415,8 +470,9 @@ export function AdvisorChat({
         </div>
 
         {/* resize handle — a thin grab strip over the right edge; the divider
-            line brightens on hover/drag so it reads as adjustable. */}
-        {showChats && (
+            line brightens on hover/drag so it reads as adjustable. Desktop only:
+            the mobile drawer is a fixed-width overlay with nothing to drag. */}
+        {showChats && !mobile && (
           <div
             role="separator"
             aria-orientation="vertical"
@@ -453,8 +509,10 @@ export function AdvisorChat({
           composer stays pinned to the bottom (rather than collapsing to content
           height, which floats everything up to the top). */}
       <div style={{ flex: 1, minWidth: 0, height: "100%", minHeight: 0, display: "flex", flexDirection: "column" }}>
-        {/* thread */}
-        <div className="bk-scroll" style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "24px 20px" }}>
+        {/* thread — extra top padding on desktop clears the toggle island, which
+            hovers just below the top bar and would otherwise crowd the first
+            message; phones keep it tight (the island sits inside the bar there) */}
+        <div className="bk-scroll" style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: mobile ? "18px 16px 16px" : "56px 20px 24px" }}>
           {loadingThread ? (
             <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <div style={{ width: 76, height: 76 }} aria-hidden>
@@ -574,7 +632,7 @@ export function AdvisorChat({
         </div>
 
         {/* composer */}
-        <div style={{ padding: "12px 20px 18px", borderTop: "1px solid var(--color-bk-line-soft)" }}>
+        <div style={{ padding: mobile ? "10px 14px 14px" : "12px 20px 18px", borderTop: "1px solid var(--color-bk-line-soft)" }}>
           <div style={{ maxWidth: COLUMN, margin: "0 auto" }}>
             <div
               style={{

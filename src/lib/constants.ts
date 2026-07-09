@@ -9,13 +9,43 @@ export const ACCOUNT_TYPES = [
   "FHSA",
   "Credit Card",
   "Investment",
+  "Loan",
+  "Mortgage",
   "Other",
 ] as const;
+
+/**
+ * The section an account rolls up into on the Accounts page. Derived from the
+ * (free-string, stored lowercase-hyphenated) account type. Shared so the client
+ * grouping and server-side cash total can't drift apart.
+ */
+export type AccountGroup = "cash" | "loans" | "invest" | "credit";
+
+export function accountGroupOf(type: string): AccountGroup {
+  // Normalize so both "credit-card" (stored) and "credit card" match.
+  const t = type.trim().toLowerCase().replace(/-/g, " ");
+  if (t === "tfsa" || t === "rrsp" || t === "fhsa" || t === "investment") return "invest";
+  if (t === "credit card") return "credit";
+  if (t === "loan" || t === "mortgage") return "loans";
+  // Chequing, Savings, Other-cash, and anything unknown fall into cash.
+  return "cash";
+}
 
 export const CURRENCIES = ["CAD", "USD", "EUR", "GBP"] as const;
 
 /** Billing cadences a subscription can have. */
 export const SUBSCRIPTION_CYCLES = ["Monthly", "Annual"] as const;
+
+/** Asset classes a single investment holding can belong to. */
+export const ASSET_CLASSES = [
+  "Stocks",
+  "ETFs",
+  "Crypto",
+  "Bonds",
+  "Real Estate",
+  "Cash",
+  "Other",
+] as const;
 
 // ── Budget plans ──────────────────────────────────────────────────────────
 // A budget plan splits monthly income into three buckets — Needs, Wants, and

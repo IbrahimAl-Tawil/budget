@@ -13,7 +13,7 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { gqlClient } from "@/lib/graphql/client";
-import { Home, List, CreditCard, Target, Sparkles, Bell, Plus, Settings, LogOut, PieChart, Repeat, MessageCircle, Landmark } from "lucide-react";
+import { Home, List, CreditCard, Target, Sparkles, Bell, Plus, Settings, LogOut, PieChart, Repeat, MessageCircle, Landmark, TrendingUp, Gauge } from "lucide-react";
 import { AddTransactionModal } from "@/components/dashboard/modals/add-transaction-modal";
 import { ImportModal } from "@/components/dashboard/modals/import-modal";
 import { EditTransactionModal } from "@/components/dashboard/modals/edit-transaction-modal";
@@ -22,11 +22,13 @@ import { EditGoalModal } from "@/components/dashboard/modals/edit-goal-modal";
 import { AddAccountModal } from "@/components/dashboard/modals/add-account-modal";
 import { AddSubscriptionModal } from "@/components/dashboard/modals/add-subscription-modal";
 import { EditSubscriptionModal } from "@/components/dashboard/modals/edit-subscription-modal";
+import { AddInvestmentModal } from "@/components/dashboard/modals/add-investment-modal";
+import { EditInvestmentModal } from "@/components/dashboard/modals/edit-investment-modal";
 import { EditAccountModal } from "@/components/dashboard/modals/edit-account-modal";
 import { ConnectBankModal } from "@/components/dashboard/modals/connect-bank-modal";
 import { NotificationsPanel } from "@/components/dashboard/notifications-panel";
 import { SettingsModal } from "@/components/dashboard/modals/settings-modal";
-import type { TransactionView, GoalView, AccountView, SubscriptionView, SpendCategory, BillView } from "@/lib/types";
+import type { TransactionView, GoalView, AccountView, SubscriptionView, InvestmentView, SpendCategory, BillView } from "@/lib/types";
 import { DEFAULT_ACCENT, deriveTheme, themeVars } from "@/components/bulga/theme";
 import { LogoMark } from "@/components/bulga/logo";
 import { Button } from "@/components/ui/button";
@@ -61,11 +63,15 @@ const PRIMARY_NAV: NavItem[] = [
   { href: "/dashboard/spending", label: "Spending", Icon: PieChart },
   { href: "/dashboard/subscriptions", label: "Subscriptions", Icon: Repeat },
   { href: "/dashboard/accounts", label: "Accounts", Icon: CreditCard },
+  { href: "/dashboard/investments", label: "Investments", Icon: TrendingUp },
   { href: "/dashboard/goals", label: "Goals", Icon: Target },
   { href: "/dashboard/insights", label: "Insights", Icon: MessageCircle },
 ];
 
-const SECONDARY_NAV: NavItem[] = [{ href: "/dev/brand-kit", label: "Brand kit", Icon: Sparkles }];
+const SECONDARY_NAV: NavItem[] = [
+  { href: "/dev/brand-kit", label: "Brand kit", Icon: Sparkles },
+  { href: "/dev/usage", label: "AI usage", Icon: Gauge },
+];
 
 /**
  * Per-route topbar config — the single source of route meta. `sub` formats the
@@ -84,9 +90,11 @@ const TITLES: Record<string, RouteMeta> = {
   "/dashboard/spending": { title: "Spending", sub: ({ monthLabel }) => `Budget vs. actual · ${monthLabel}`, periodic: true },
   "/dashboard/subscriptions": { title: "Subscriptions", sub: () => "What’s on repeat" },
   "/dashboard/accounts": { title: "Accounts", sub: () => "Everything in one place" },
+  "/dashboard/investments": { title: "Investments", sub: () => "Your portfolio and holdings" },
   "/dashboard/goals": { title: "Goals", sub: () => "Saving with intent" },
   "/dashboard/insights": { title: "Insights", sub: () => "Ask your advisor" },
   "/dev/brand-kit": { title: "Brand kit", sub: () => "The Bulga design system" },
+  "/dev/usage": { title: "AI usage", sub: () => "Chat & insights cost per user" },
 };
 
 /** Icon-rail nav link with a tooltip that flies out to the right of the dark rail. */
@@ -163,6 +171,8 @@ export function BulgaChrome({
   const [showAddAccount, setShowAddAccount] = useState(false);
   const [showAddSubscription, setShowAddSubscription] = useState(false);
   const [editSubscription, setEditSubscription] = useState<SubscriptionView | null>(null);
+  const [showAddInvestment, setShowAddInvestment] = useState(false);
+  const [editInvestment, setEditInvestment] = useState<InvestmentView | null>(null);
   const [showConnectBank, setShowConnectBank] = useState(false);
   const [connectUpdateItemId, setConnectUpdateItemId] = useState<string | null>(null);
   const [editTx, setEditTx] = useState<TransactionView | null>(null);
@@ -392,6 +402,7 @@ export function BulgaChrome({
       addGoal: () => setShowAddGoal(true),
       addAccount: () => setShowAddAccount(true),
       addSubscription: () => setShowAddSubscription(true),
+      addInvestment: () => setShowAddInvestment(true),
       connectBank: (updateItemId?: string) => {
         setConnectUpdateItemId(updateItemId ?? null);
         setShowConnectBank(true);
@@ -400,6 +411,7 @@ export function BulgaChrome({
       editGoal: setEditGoal,
       editAccount: setEditAccount,
       editSubscription: setEditSubscription,
+      editInvestment: setEditInvestment,
       refreshData: refresh,
       hrefFor,
       txCount,
@@ -568,6 +580,10 @@ export function BulgaChrome({
                       <Plus size={15} strokeWidth={2} aria-hidden="true" />
                       <span>New transaction</span>
                     </MenuItem>
+                    <MenuItem onClick={() => setShowAddInvestment(true)}>
+                      <TrendingUp size={15} strokeWidth={2} aria-hidden="true" />
+                      <span>New investment</span>
+                    </MenuItem>
                     <MenuItem onClick={() => setShowImport(true)}>
                       <List size={15} strokeWidth={2} aria-hidden="true" />
                       <span>Import statement</span>
@@ -597,6 +613,8 @@ export function BulgaChrome({
         <AddAccountModal open={showAddAccount} onClose={() => setShowAddAccount(false)} onAdded={() => { setShowAddAccount(false); refresh(); }} />
         <AddSubscriptionModal open={showAddSubscription} onClose={() => setShowAddSubscription(false)} onAdded={() => { setShowAddSubscription(false); refresh(); }} />
         <EditSubscriptionModal open={!!editSubscription} subscription={editSubscription} onClose={() => setEditSubscription(null)} onUpdated={() => { setEditSubscription(null); refresh(); }} />
+        <AddInvestmentModal open={showAddInvestment} onClose={() => setShowAddInvestment(false)} onAdded={() => { setShowAddInvestment(false); refresh(); }} />
+        <EditInvestmentModal open={!!editInvestment} investment={editInvestment} onClose={() => setEditInvestment(null)} onUpdated={() => { setEditInvestment(null); refresh(); }} />
         <EditAccountModal open={!!editAccount} account={editAccount} onClose={() => setEditAccount(null)} onUpdated={() => { setEditAccount(null); refresh(); }} />
         <ConnectBankModal open={showConnectBank} updateItemId={connectUpdateItemId ?? undefined} onClose={() => setShowConnectBank(false)} onLinked={() => { refresh(); }} />
         <SettingsModal

@@ -47,6 +47,17 @@ export function normalizeKey(raw: string): string {
   return s;
 }
 
+/**
+ * Dictionary-ONLY domain lookup: no DB, no Claude. Cheap enough to run for every
+ * row of a search typeahead, where paying for resolution per candidate would be
+ * wasteful. Well-known names ("Apple", "Vanguard") get a logo instantly; anything
+ * not in the seed dictionary returns null and the UI shows a letter tile.
+ */
+export function dictionaryDomain(rawName: string): string | null {
+  const key = normalizeKey(rawName);
+  return (key && MERCHANT_DICTIONARY[key]?.domain) || null;
+}
+
 const RESOLVE_SCHEMA = {
   type: "object",
   additionalProperties: false,

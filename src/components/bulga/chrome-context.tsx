@@ -10,7 +10,7 @@
 
 import { createContext, useContext } from "react";
 import type { BulgaTheme } from "@/components/bulga/theme";
-import type { TransactionView, GoalView, AccountView, SubscriptionView } from "@/lib/types";
+import type { TransactionView, GoalView, AccountView, SubscriptionView, InvestmentView } from "@/lib/types";
 
 export interface BulgaChromeValue {
   /** Live accent (oklch) and its derived palette. */
@@ -23,9 +23,11 @@ export interface BulgaChromeValue {
   addGoal: () => void;
   addAccount: () => void;
   addSubscription: () => void;
+  addInvestment: () => void;
   /** Open the Connect-a-bank modal. Pass a Plaid itemId to reconnect (update mode). */
   connectBank: (updateItemId?: string) => void;
   editSubscription: (subscription: SubscriptionView) => void;
+  editInvestment: (investment: InvestmentView) => void;
   editTransaction: (tx: TransactionView) => void;
   editGoal: (goal: GoalView) => void;
   editAccount: (account: AccountView) => void;

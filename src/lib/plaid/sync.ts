@@ -17,7 +17,7 @@ import { decryptToken } from "@/lib/crypto";
 import { plaid } from "./client";
 import {
   mapPlaidAccountType,
-  isDebtAccount,
+  isDebtBulgaType,
   plaidCategoryToBulga,
   iconColorFor,
 } from "./mappers";
@@ -184,7 +184,8 @@ export async function syncItem(item: PlaidItem): Promise<SyncResult> {
 async function upsertAccount(item: PlaidItem, acct: AccountBase) {
   const type = mapPlaidAccountType(
     String(acct.type),
-    acct.subtype ? String(acct.subtype) : null
+    acct.subtype ? String(acct.subtype) : null,
+    acct.name || acct.official_name
   );
   const shared = {
     userId: item.userId,
@@ -250,12 +251,19 @@ async function upsertTransaction(
  * accounts are the bank's source of truth, so their displayed balance must equal
  * what Plaid reports and must NOT drift when local transactions are edited or
  * deleted (getAccounts skips the tx-sum for synced accounts). Debt accounts
- * (credit/loan) are shown negative so net worth stays correct.
+ * (credit / loan / mortgage) are shown negative so net worth stays correct.
  */
 async function reconcileAnchor(localAccountId: string, acct: AccountBase) {
   const base = acct.balances?.current ?? acct.balances?.available;
   if (base == null) return; // nothing to anchor to
-  const target = isDebtAccount(String(acct.type)) ? -Math.abs(base) : base;
+  // Sign off the Bulga type (not Plaid's raw type) so a name-inferred loan/
+  // mortgage is shown negative too, matching how it's grouped.
+  const bulgaType = mapPlaidAccountType(
+    String(acct.type),
+    acct.subtype ? String(acct.subtype) : null,
+    acct.name || acct.official_name
+  );
+  const target = isDebtBulgaType(bulgaType) ? -Math.abs(base) : base;
   await prisma.account.update({
     where: { id: localAccountId },
     data: { balance: target },

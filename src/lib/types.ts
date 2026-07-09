@@ -160,6 +160,40 @@ export interface SubscriptionView {
   flags: string[];
 }
 
+export interface InvestmentView {
+  id: string;
+  name: string;
+  /** Ticker symbol, e.g. "AAPL" — "" when not provided. */
+  symbol: string;
+  /** One of ASSET_CLASSES: Stocks | ETFs | Crypto | Bonds | Real Estate | Cash | Other. */
+  assetClass: string;
+  /** Current market value the user maintains (the "how much money"). */
+  value: number;
+  /** Total invested — optional; when set (and > 0), enables gain/loss. */
+  costBasis?: number;
+  /** Units/shares held — optional. */
+  quantity?: number;
+  /** Resolved company domain for the logo (same idea as SubscriptionView.domain). */
+  domain?: string;
+  /** Linked account — optional ("in what account"). */
+  accountId?: string;
+  accountName?: string;
+  /** value − costBasis; present only when costBasis is set (> 0). */
+  gain?: number;
+  /** Percent gain (gain / costBasis × 100); present only when costBasis > 0. */
+  gainPct?: number;
+  /** This holding's share of total portfolio value (0–100). */
+  allocationPct: number;
+  /** True when `value` came from a live market quote (ticker + shares resolved). */
+  live?: boolean;
+  /** Latest per-unit price in the display currency (live only). */
+  livePrice?: number;
+  /** Change on the day for this position, in the display currency (live only). */
+  dayChange?: number;
+  /** Percent change on the day (live only). */
+  dayChangePct?: number;
+}
+
 export interface AccountView {
   id: string;
   name: string;
@@ -184,6 +218,50 @@ export interface InsightView {
   body: string;
   tagColor: string;
   tagBg: string;
+  /** The data lever this insight is about — drives the click-to-drill-down.
+   *  One of category|subscription|goal|income; null on legacy insights. */
+  focusType?: string | null;
+  /** Name of the focused entity (category/subscription/goal); null for income. */
+  focusKey?: string | null;
+}
+
+/** One transaction row in an insight drill-down. */
+export interface InsightDetailTx {
+  id: string;
+  name: string;
+  amount: number;
+  date: string;
+  account: string | null;
+}
+
+/** The real data behind an insight, resolved from its focus. Shape varies by
+ *  `kind`; only the fields for that kind are populated. */
+export interface InsightDetail {
+  kind: "category" | "subscription" | "goal" | "income";
+  label: string;
+  /** category — the transactions that make up the focused category. */
+  total?: number;
+  count?: number;
+  dateRange?: { from: string; to: string } | null;
+  byAccount?: { account: string; total: number; count: number }[];
+  transactions?: InsightDetailTx[];
+  /** subscription */
+  subscription?: {
+    amount: number;
+    cycle: string;
+    annualized: number;
+    category: string | null;
+    lastCharged: string | null;
+  };
+  /** goal */
+  goal?: {
+    saved: number;
+    target: number;
+    pct: number;
+    allocations: { label: string; amount: number; status: string }[];
+  };
+  /** income */
+  months?: { label: string; income: number; expenses: number; net: number }[];
 }
 
 export interface MonthlySummary {
@@ -209,6 +287,8 @@ export interface NetWorthPoint {
 export interface DashboardOverview {
   netWorth: number;
   netWorthChange: number;
+  /** Cash & savings total — sum of every account in the accounts-page "cash" group (chequing, savings, other cash); excludes loans/mortgages, investments, and credit. */
+  cash: number;
   monthlyIncome: number;
   monthlySpend: number;
   monthlySurplus: number;

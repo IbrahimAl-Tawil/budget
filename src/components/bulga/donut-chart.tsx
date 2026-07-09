@@ -7,8 +7,12 @@
 // Segments are drawn as arcs of one stroked circle via strokeDasharray, so there
 // are no external chart deps. Colors are passed in by the caller (derived from
 // the active accent). Optional centered content renders upright over the ring.
+//
+// Pass `formatValue` to make it interactive: slices become hoverable and show a
+// tooltip (label · formatted value · percent), dimming the others. It's opt-in,
+// so static callers are unaffected.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMediaQuery } from "@/lib/use-media-query";
 
 export interface DonutSegment {
@@ -23,15 +27,26 @@ export function DonutChart({
   stroke = 24,
   trackColor = "var(--color-bk-track)",
   children,
+  formatValue,
+  onSelect,
 }: {
   segments: DonutSegment[];
   size?: number;
   stroke?: number;
   trackColor?: string;
   children?: React.ReactNode;
+  /** When provided, slices become hoverable and show a tooltip
+      (label · formatValue(value) · percent). Opt-in — omit for a static ring. */
+  formatValue?: (value: number) => string;
+  /** When provided, slices become clickable and report their index. */
+  onSelect?: (index: number) => void;
 }) {
   const reduced = useMediaQuery("(prefers-reduced-motion: reduce)", false);
   const [filled, setFilled] = useState(false);
+  const [hover, setHover] = useState<{ i: number; x: number; y: number } | null>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const interactive = typeof formatValue === "function";
+
   useEffect(() => {
     if (reduced) {
       setFilled(true);
@@ -46,9 +61,22 @@ export function DonutChart({
   const c = size / 2;
   const circ = 2 * Math.PI * r;
 
+  // Cursor position relative to the (unrotated) wrapper, for the tooltip.
+  const at = (e: React.MouseEvent, i: number) => {
+    const rect = wrapRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setHover({ i, x: e.clientX - rect.left, y: e.clientY - rect.top });
+  };
+
+  const hovered = interactive && hover ? segments[hover.i] : null;
+
   let start = 0; // cumulative arc length consumed by prior slices
   return (
-    <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
+    <div
+      ref={wrapRef}
+      style={{ position: "relative", width: size, height: size, flexShrink: 0 }}
+      onMouseLeave={interactive ? () => setHover(null) : undefined}
+    >
       <svg
         width={size}
         height={size}
@@ -67,6 +95,7 @@ export function DonutChart({
             const dash = filled
               ? `${len.toFixed(2)} ${(circ - len).toFixed(2)}`
               : `0 ${circ.toFixed(2)}`;
+            const dim = interactive && hover != null && hover.i !== i;
             return (
               <circle
                 key={i}
@@ -78,10 +107,15 @@ export function DonutChart({
                 strokeWidth={stroke}
                 strokeDasharray={dash}
                 strokeDashoffset={offset.toFixed(2)}
+                onMouseEnter={interactive ? (e) => at(e, i) : undefined}
+                onMouseMove={interactive ? (e) => at(e, i) : undefined}
+                onClick={onSelect ? () => onSelect(i) : undefined}
                 style={{
+                  cursor: onSelect || interactive ? "pointer" : undefined,
+                  opacity: dim ? 0.45 : 1,
                   transition: reduced
-                    ? "none"
-                    : "stroke-dasharray 0.9s cubic-bezier(.22,.61,.36,1)",
+                    ? "opacity .15s"
+                    : "stroke-dasharray 0.9s cubic-bezier(.22,.61,.36,1), opacity .15s",
                 }}
               />
             );
@@ -98,9 +132,39 @@ export function DonutChart({
             justifyContent: "center",
             gap: 2,
             textAlign: "center",
+            // Let hover events reach the slices underneath — the centre label
+            // must not swallow the pointer (otherwise the tooltip never fires).
+            pointerEvents: "none",
           }}
         >
           {children}
+        </div>
+      )}
+      {hovered && hovered.label && (
+        <div
+          role="tooltip"
+          style={{
+            position: "absolute",
+            left: hover!.x,
+            top: hover!.y,
+            transform: "translate(-50%, calc(-100% - 12px))",
+            pointerEvents: "none",
+            zIndex: 40,
+            background: "oklch(26% 0.012 75)",
+            color: "#fff",
+            borderRadius: 10,
+            padding: "7px 10px",
+            boxShadow: "0 8px 24px oklch(20% 0.02 80 / 0.3)",
+            whiteSpace: "nowrap",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600 }}>
+            <span style={{ width: 8, height: 8, borderRadius: 2, background: hovered.color, flexShrink: 0 }} />
+            {hovered.label}
+          </div>
+          <div className="bk-num" style={{ fontSize: 12, marginTop: 2, color: "oklch(85% 0.01 80)" }}>
+            {formatValue!(hovered.value)} · {total > 0 ? Math.round((Math.max(0, hovered.value) / total) * 100) : 0}%
+          </div>
         </div>
       )}
     </div>
