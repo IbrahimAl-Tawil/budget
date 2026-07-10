@@ -477,6 +477,7 @@ function HeroChip({
   value,
   valueColor,
   floatDelay,
+  enterDelay,
   pos,
 }: {
   dot: string;
@@ -484,10 +485,11 @@ function HeroChip({
   value: string;
   valueColor: string;
   floatDelay: string;
+  enterDelay: string;
   pos: React.CSSProperties;
 }) {
   return (
-    <div className="pointer-events-none absolute hidden lg:block" style={pos}>
+    <div className="of-chip-in pointer-events-none absolute hidden lg:block" style={{ ...pos, animationDelay: enterDelay }}>
       <div
         className="of-hero-float flex items-center gap-2.5 rounded-2xl border px-3.5 py-2.5 backdrop-blur-md"
         style={{
@@ -527,10 +529,10 @@ function HeroAccents() {
       {/* floating stat chips — the app's language. Income + Auto-save sit on the
           upper-middle of the two fanned side cards; Needs + Emergency fund rest
           lower in the gutters. */}
-      <HeroChip pos={{ left: "14%", top: "37%" }} floatDelay="-0.4s" dot={green.accent} label="Income" value="+$3,200" valueColor={green.accentDeep} />
-      <HeroChip pos={{ right: "17%", top: "37%" }} floatDelay="-2.1s" dot={purple.accent} label="Auto-save" value="20%" valueColor={purple.accentDeep} />
-      <HeroChip pos={{ left: "3%", top: "72%" }} floatDelay="-3.3s" dot={blue.accent} label="Needs" value="$1,610" valueColor={blue.accentDeep} />
-      <HeroChip pos={{ right: "1%", top: "74%" }} floatDelay="-1.2s" dot={clay.accent} label="Emergency fund" value="68%" valueColor={clay.accentDeep} />
+      <HeroChip pos={{ left: "14%", top: "37%" }} floatDelay="-0.4s" enterDelay="1.05s" dot={green.accent} label="Income" value="+$3,200" valueColor={green.accentDeep} />
+      <HeroChip pos={{ right: "17%", top: "37%" }} floatDelay="-2.1s" enterDelay="1.35s" dot={purple.accent} label="Auto-save" value="20%" valueColor={purple.accentDeep} />
+      <HeroChip pos={{ left: "3%", top: "72%" }} floatDelay="-3.3s" enterDelay="1.55s" dot={blue.accent} label="Needs" value="$1,610" valueColor={blue.accentDeep} />
+      <HeroChip pos={{ right: "1%", top: "74%" }} floatDelay="-1.2s" enterDelay="1.8s" dot={clay.accent} label="Emergency fund" value="68%" valueColor={clay.accentDeep} />
     </div>
   );
 }
@@ -558,12 +560,12 @@ function DashboardPreview() {
 
   // Shared surface for the two background cards: glassy, softened, and pushed
   // back so they read as context behind the star.
-  const backCard = "rounded-[28px] border p-7 text-left backdrop-blur-md";
+  const backCard = "rounded-[28px] border p-7 text-left";
   const backStyle: React.CSSProperties = {
-    background: "oklch(99% 0.004 95 / 0.7)",
-    borderColor: "oklch(100% 0 0 / 0.55)",
+    // Opaque, but dimmer than the front card so they still read as "behind."
+    background: "oklch(98.5% 0.004 95)",
+    borderColor: "oklch(88% 0.008 90)",
     boxShadow: "0 22px 55px oklch(20% 0.04 80 / 0.14)",
-    opacity: 0.82,
   };
 
   return (
@@ -575,6 +577,7 @@ function DashboardPreview() {
         aria-hidden
       >
         <div style={{ transform: "translate(-42%, -22%) rotate(-8deg) scale(0.86)", transformOrigin: "center" }}>
+          <div className="of-deck-in-l">
           <div className={backCard} style={backStyle}>
             <DeckHeader Icon={TrendingUp} label="Investments" t={blue} />
             <div className="text-[12px] font-medium text-[var(--color-of-muted)]">Portfolio</div>
@@ -607,6 +610,7 @@ function DashboardPreview() {
               ))}
             </div>
           </div>
+          </div>
         </div>
       </div>
 
@@ -619,6 +623,7 @@ function DashboardPreview() {
         <div style={{ transform: "translate(46%, -20%) rotate(9deg) scale(0.86)", transformOrigin: "center" }}>
           {/* Content is right-aligned so it lives on the card's right side — the
               part that pokes out past the front card and stays visible. */}
+          <div className="of-deck-in-r">
           <div className={backCard} style={backStyle}>
             <DeckHeader Icon={Target} label="Goals" t={purple} align="right" />
             <div className="text-[12px] font-medium text-[var(--color-of-muted)] text-right">Saving with intent</div>
@@ -639,6 +644,7 @@ function DashboardPreview() {
                 </div>
               ))}
             </div>
+          </div>
           </div>
         </div>
       </div>

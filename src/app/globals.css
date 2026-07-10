@@ -701,6 +701,30 @@
   50% { transform: translateY(-9px); }
 }
 
+/* Background deck cards drift inward to their resting fan on first paint. The
+   translate is nested inside each card's positioning transform, so it composes
+   as a small extra offset that settles to none. */
+.of-deck-in-l { animation: ofDeckInL 1.15s cubic-bezier(0.18, 0.9, 0.28, 1) both; }
+.of-deck-in-r { animation: ofDeckInR 1.15s cubic-bezier(0.18, 0.9, 0.28, 1) both; }
+@keyframes ofDeckInL {
+  from { transform: translate(-150px, 46px) rotate(-7deg) scale(0.9); opacity: 0; }
+  60% { opacity: 1; }
+  to { transform: none; opacity: 1; }
+}
+@keyframes ofDeckInR {
+  from { transform: translate(150px, 46px) rotate(7deg) scale(0.9); opacity: 0; }
+  60% { opacity: 1; }
+  to { transform: none; opacity: 1; }
+}
+
+/* Gutter stat chips pop in after the deck settles, each on its own delay so
+   they trickle into the margins rather than appearing all at once. */
+.of-chip-in { animation: ofChipIn 0.7s cubic-bezier(0.2, 0.8, 0.3, 1) both; }
+@keyframes ofChipIn {
+  from { transform: translateY(16px) scale(0.92); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
 /* Live badge dot — a soft ring pings outward on a loop, echoing the chart's
    end-dot pulse. */
 .of-ping { animation: ofPing 2.4s cubic-bezier(0, 0, 0.2, 1) infinite; }
@@ -749,6 +773,8 @@
   .of-word-swap { animation: none; }
   .of-hero-word { animation: none; }
   .of-hero-float { animation: none; }
+  .of-deck-in-l, .of-deck-in-r { animation: none; opacity: 1; }
+  .of-chip-in { animation: none; opacity: 1; }
   .of-ping { animation: none; }
   .of-lp-guilloche { animation: none; }
   .of-ticker { animation: none; }
