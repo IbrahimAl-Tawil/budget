@@ -634,7 +634,9 @@ export function PricingView({
         </section>
 
         {/* ── Tier cards ── */}
-        <section className="relative mt-10 flex w-full justify-center">
+        {/* Extra top margin so the otter poking over the featured card clears the
+            Monthly / Yearly toggle above it. */}
+        <section className="relative mt-24 flex w-full justify-center">
           {/* Backdrop that fills the plain canvas around the cards: a faint, wide
               guilloché field in the side gutters, fading before it reaches the
               cards (which sit opaque on top). */}
