@@ -21,10 +21,15 @@ export interface PlanEntitlements {
   insights: boolean;
   /** Investments tab. */
   investments: boolean;
-  /** Durable per-user daily advisor-message cap. 0 when advisor is locked,
-      `null` when unlimited (Pro). Per-minute/hour rate limits still apply as
-      abuse protection regardless. */
-  aiDailyMessages: number | null;
+  /** Durable per-user monthly advisor-message cap (one per answered question).
+      0 when advisor is locked, `null` when unlimited (Pro). Per-minute/hour rate
+      limits still apply as abuse protection regardless. Resets at the start of
+      each calendar month. */
+  aiMonthlyMessages: number | null;
+  /** Durable per-user monthly cap on AI insight *generations* (each generation
+      is a fresh batch of insight cards). 0 when insights are locked, `null` when
+      unlimited (Pro). Resets at the start of each calendar month. */
+  insightsPerMonth: number | null;
 }
 
 // Entitlement matrix — mirrors the /pricing table. Insights + advisor unlock at
@@ -35,21 +40,24 @@ export const PLAN_ENTITLEMENTS: Record<PlanTier, PlanEntitlements> = {
     advisor: false,
     insights: false,
     investments: false,
-    aiDailyMessages: 0,
+    aiMonthlyMessages: 0,
+    insightsPerMonth: 0,
   },
   standard: {
     bankAccounts: 3,
     advisor: true,
     insights: true,
     investments: false,
-    aiDailyMessages: 50,
+    aiMonthlyMessages: 20,
+    insightsPerMonth: 10,
   },
   pro: {
     bankAccounts: 10,
     advisor: true,
     insights: true,
     investments: true,
-    aiDailyMessages: null, // "Unlimited AI chats & insights" — no daily cap
+    aiMonthlyMessages: null, // "Unlimited AI chats & insights" — no monthly cap
+    insightsPerMonth: null, // unlimited
   },
 };
 

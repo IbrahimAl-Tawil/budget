@@ -52,6 +52,17 @@ export async function countAdvisorTurnsSince(userId: string, since: Date): Promi
   });
 }
 
+/**
+ * Count AI insight *generations* a user has run since `since`. One `insights`
+ * event is written per successful generation (a fresh batch of cards), so this
+ * backs the durable monthly insights cap (see the generateInsights resolver).
+ */
+export async function countInsightGenerationsSince(userId: string, since: Date): Promise<number> {
+  return prisma.aiUsageEvent.count({
+    where: { userId, kind: "insights", createdAt: { gte: since } },
+  });
+}
+
 export interface AiUsageUserRow {
   userId: string;
   name: string | null;

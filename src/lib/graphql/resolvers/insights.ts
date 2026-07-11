@@ -1,8 +1,15 @@
 import { builder } from "../builder";
-import { requireUser, rateLimited } from "../errors";
-import { requireEntitlement } from "../entitlements";
+import { rateLimited } from "../errors";
+import {
+  requireEntitlement,
+  requireEntitlementDetail,
+  startOfMonth,
+  secondsUntilNextMonth,
+  nextMonthLabel,
+} from "../entitlements";
 import { prisma } from "@/lib/db/prisma";
 import { generateInsightsForUser } from "@/lib/ai/generate-insights";
+import { countInsightGenerationsSince } from "@/lib/db/ai-usage";
 import { getInsightDetail } from "@/lib/db/queries";
 import { rateLimit, MINUTE } from "@/lib/rate-limit";
 
@@ -16,14 +23,15 @@ builder.queryField("insightDetail", (t) =>
   }),
 );
 
-// Generate AI insights, rate-limited to one generation per calendar day; returns
-// the day's insights (freshly generated or cached). JSON return matches the shape
-// the client already consumes from the old REST endpoint.
+// Generate AI insights, rate-limited to one generation per calendar day and a
+// per-plan monthly quota; returns the day's insights (freshly generated or
+// cached). JSON return matches the shape the client already consumes from the
+// old REST endpoint.
 builder.mutationField("generateInsights", (t) =>
   t.field({
     type: "JSON",
     resolve: async (_root, _args, ctx) => {
-      const userId = await requireEntitlement(ctx, "insights");
+      const { userId, entitlements } = await requireEntitlementDetail(ctx, "insights");
       // Blunt rapid concurrent calls (the day-guard below is the durable cap).
       const limit = rateLimit(`ai:insights:${userId}`, [
         { limit: 3, windowMs: MINUTE },
@@ -53,6 +61,21 @@ builder.mutationField("generateInsights", (t) =>
           })),
           cached: true,
         };
+      }
+
+      // Durable monthly cap on *fresh* generations (per-plan). Cached views above
+      // never consume quota — only a new generation does. A null limit means
+      // unlimited (Pro). Counted from the DB so it survives restarts.
+      const monthlyInsights = entitlements.insightsPerMonth;
+      if (monthlyInsights != null) {
+        const monthStart = startOfMonth();
+        const used = await countInsightGenerationsSince(userId, monthStart);
+        if (used >= monthlyInsights) {
+          rateLimited(
+            secondsUntilNextMonth(monthStart),
+            `You've used all ${monthlyInsights} insight refreshes in your plan this month. They reset on ${nextMonthLabel(monthStart)}.`,
+          );
+        }
       }
 
       const insights = await generateInsightsForUser(userId);
