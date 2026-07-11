@@ -39,6 +39,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         currency: overview?.currency ?? "CAD",
         budgetTarget: overview?.budgetTarget ?? 0,
         budgetPlan: prefs.budgetPlan ?? DEFAULT_BUDGET_PLAN_ID,
+        plan: prefs.plan ?? "free",
       }}
       notice={{
         budgetTarget: overview?.budgetTarget ?? 0,

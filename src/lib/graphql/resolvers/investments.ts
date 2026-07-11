@@ -1,5 +1,6 @@
 import { builder } from "../builder";
 import { requireUser, notFound, badRequest } from "../errors";
+import { requireEntitlement } from "../entitlements";
 import { InvestmentRef } from "../types/views";
 import { MutationResultRef } from "../types/results";
 import { getInvestments } from "@/lib/db/queries";
@@ -140,7 +141,8 @@ builder.mutationField("createInvestment", (t) =>
     type: MutationResultRef,
     args: { input: t.arg({ type: InvestmentCreateInput, required: true }) },
     resolve: async (_root, { input }, ctx) => {
-      const userId = requireUser(ctx);
+      // Investments are Pro-only — hard-gate before any write.
+      const userId = await requireEntitlement(ctx, "investments");
       if (!okString(input.name, LIMITS.NAME) || !input.name.trim()) {
         badRequest("Give the investment a name.");
       }
@@ -198,7 +200,7 @@ builder.mutationField("updateInvestment", (t) =>
       input: t.arg({ type: InvestmentUpdateInput, required: true }),
     },
     resolve: async (_root, { id, input }, ctx) => {
-      const userId = requireUser(ctx);
+      const userId = await requireEntitlement(ctx, "investments");
       if (input.name != null && (!okString(input.name, LIMITS.NAME) || !input.name.trim())) {
         badRequest("Give the investment a name.");
       }

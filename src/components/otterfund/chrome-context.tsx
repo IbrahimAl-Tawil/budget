@@ -11,6 +11,7 @@
 import { createContext, useContext } from "react";
 import type { OtterfundTheme } from "@/components/otterfund/theme";
 import type { TransactionView, GoalView, AccountView, SubscriptionView, InvestmentView } from "@/lib/types";
+import type { Feature, PlanTier } from "@/lib/plans";
 
 export interface OtterfundChromeValue {
   /** Live accent (oklch) and its derived palette. */
@@ -18,6 +19,12 @@ export interface OtterfundChromeValue {
   theme: OtterfundTheme;
   /** Switch + persist the accent (used by the Brand kit). */
   setAccent: (accent: string) => void;
+  /** The user's billing tier — pages read it to render locked states. */
+  plan: PlanTier;
+  /** Gate an action: true = proceed; false = plan lacks it (opens the paywall). */
+  requireFeature: (feature: Feature) => boolean;
+  /** Open the upgrade paywall for a specific gated feature. */
+  openPaywall: (feature: Feature) => void;
   /** Open the chrome-owned modals. */
   addTransaction: () => void;
   addGoal: () => void;

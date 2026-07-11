@@ -26,6 +26,7 @@ import { AddInvestmentModal } from "@/components/dashboard/modals/add-investment
 import { EditInvestmentModal } from "@/components/dashboard/modals/edit-investment-modal";
 import { EditAccountModal } from "@/components/dashboard/modals/edit-account-modal";
 import { ConnectBankModal } from "@/components/dashboard/modals/connect-bank-modal";
+import { PaywallModal } from "@/components/dashboard/modals/paywall-modal";
 import { NotificationsPanel } from "@/components/dashboard/notifications-panel";
 import { SettingsModal } from "@/components/dashboard/modals/settings-modal";
 import type { TransactionView, GoalView, AccountView, SubscriptionView, InvestmentView, SpendCategory, BillView } from "@/lib/types";
@@ -39,10 +40,17 @@ import { MobileNav } from "@/components/otterfund/mobile-nav";
 import { OtterfundChromeProvider } from "@/components/otterfund/chrome-context";
 import { MONTH_NAMES } from "@/lib/constants";
 import { resolvePeriod, type Period } from "@/lib/period";
+import { canUse, toPlanTier, PLAN_META, type Feature, type PlanTier } from "@/lib/plans";
 
 const UPDATE_ACCENT = /* GraphQL */ `
   mutation UpdateAccent($accent: String) {
     updateSettings(input: { accent: $accent }) { ok }
+  }
+`;
+
+const CREATE_PORTAL = /* GraphQL */ `
+  mutation CreatePortal {
+    createBillingPortalSession
   }
 `;
 
@@ -130,6 +138,8 @@ export interface ChromeUser {
   currency: string;
   budgetTarget: number;
   budgetPlan: string;
+  /** Billing tier (free | standard | pro) — drives paywalls + the plan label. */
+  plan: string;
 }
 
 /** Notification inputs — read from the overview on the server. */
@@ -175,6 +185,8 @@ export function OtterfundChrome({
   const [editInvestment, setEditInvestment] = useState<InvestmentView | null>(null);
   const [showConnectBank, setShowConnectBank] = useState(false);
   const [connectUpdateItemId, setConnectUpdateItemId] = useState<string | null>(null);
+  // The gated feature whose paywall is currently open (null = closed).
+  const [paywallFeature, setPaywallFeature] = useState<Feature | null>(null);
   const [editTx, setEditTx] = useState<TransactionView | null>(null);
   const [editGoal, setEditGoal] = useState<GoalView | null>(null);
   const [editAccount, setEditAccount] = useState<AccountView | null>(null);
@@ -238,6 +250,45 @@ export function OtterfundChrome({
     await createClient().auth.signOut();
     window.location.href = "/login";
   };
+
+  const plan: PlanTier = toPlanTier(user.plan);
+
+  // Open the paywall for a locked feature.
+  const openPaywall = useCallback((feature: Feature) => setPaywallFeature(feature), []);
+
+  // Gate an action: returns true (proceed) when the plan includes the feature,
+  // otherwise opens the paywall and returns false. Callers do
+  // `if (!requireFeature("bank_sync")) return;` before the gated action.
+  const requireFeature = useCallback(
+    (feature: Feature) => {
+      if (canUse(plan, feature)) return true;
+      setPaywallFeature(feature);
+      return false;
+    },
+    [plan],
+  );
+
+  // Send the user to Stripe's hosted portal to manage/cancel their plan.
+  const openBillingPortal = useCallback(() => {
+    gqlClient
+      .request<{ createBillingPortalSession: string }>(CREATE_PORTAL)
+      .then((r) => {
+        window.location.href = r.createBillingPortalSession;
+      })
+      .catch(() => router.push("/pricing"));
+  }, [router]);
+
+  // After returning from Stripe Checkout (?checkout=success), the webhook has
+  // (usually) already written the new plan — re-run the RSC tree to pick it up,
+  // then strip the query param so a refresh doesn't re-trigger.
+  useEffect(() => {
+    if (searchParams.get("checkout") !== "success") return;
+    router.refresh();
+    const url = new URL(window.location.href);
+    url.searchParams.delete("checkout");
+    router.replace(url.pathname + url.search, { scroll: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   // Switch the accent live AND persist it (fire-and-forget — UI already applied).
   const setAccent = useCallback((next: string) => {
@@ -398,12 +449,21 @@ export function OtterfundChrome({
       accent,
       theme,
       setAccent,
+      plan,
+      requireFeature,
+      openPaywall,
       addTransaction: () => setShowAdd(true),
       addGoal: () => setShowAddGoal(true),
       addAccount: () => setShowAddAccount(true),
       addSubscription: () => setShowAddSubscription(true),
-      addInvestment: () => setShowAddInvestment(true),
+      addInvestment: () => {
+        if (!requireFeature("investments")) return;
+        setShowAddInvestment(true);
+      },
       connectBank: (updateItemId?: string) => {
+        // Reconnect (update mode) is for an existing linked item — allow it even
+        // at/over the plan cap. A brand-new connection is gated on bank sync.
+        if (!updateItemId && !requireFeature("bank_sync")) return;
         setConnectUpdateItemId(updateItemId ?? null);
         setShowConnectBank(true);
       },
@@ -417,7 +477,7 @@ export function OtterfundChrome({
       txCount,
       setTxCount,
     }),
-    [accent, theme, setAccent, hrefFor, txCount]
+    [accent, theme, setAccent, hrefFor, txCount, plan, requireFeature, openPaywall]
   );
 
   return (
@@ -493,9 +553,21 @@ export function OtterfundChrome({
                   <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-of-ink)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                     {userName ?? "Your account"}
                   </div>
-                  <div style={{ fontSize: 11.5, color: "var(--color-of-faint)" }}>Free plan</div>
+                  <div style={{ fontSize: 11.5, color: "var(--color-of-faint)" }}>{PLAN_META[plan].label}</div>
                 </div>
                 <div style={{ height: 1, background: "var(--color-of-line-soft)", margin: "2px 0 4px" }} />
+                {plan !== "pro" && (
+                  <MenuItem onClick={() => router.push("/pricing")}>
+                    <Sparkles size={15} strokeWidth={2} aria-hidden="true" />
+                    <span>Upgrade plan</span>
+                  </MenuItem>
+                )}
+                {plan !== "free" && (
+                  <MenuItem onClick={openBillingPortal}>
+                    <CreditCard size={15} strokeWidth={2} aria-hidden="true" />
+                    <span>Manage billing</span>
+                  </MenuItem>
+                )}
                 <MenuItem onClick={() => setShowSettings(true)}>
                   <Settings size={15} strokeWidth={2} aria-hidden="true" />
                   <span>Settings</span>
@@ -530,6 +602,9 @@ export function OtterfundChrome({
                 theme={theme}
                 userName={userName}
                 initials={initials}
+                planLabel={PLAN_META[plan].label}
+                onUpgrade={plan !== "pro" ? () => router.push("/pricing") : undefined}
+                onManageBilling={plan !== "free" ? openBillingPortal : undefined}
                 onOpenSettings={() => setShowSettings(true)}
                 onSignOut={handleSignOut}
               />
@@ -580,7 +655,7 @@ export function OtterfundChrome({
                       <Plus size={15} strokeWidth={2} aria-hidden="true" />
                       <span>New transaction</span>
                     </MenuItem>
-                    <MenuItem onClick={() => setShowAddInvestment(true)}>
+                    <MenuItem onClick={() => { if (requireFeature("investments")) setShowAddInvestment(true); }}>
                       <TrendingUp size={15} strokeWidth={2} aria-hidden="true" />
                       <span>New investment</span>
                     </MenuItem>
@@ -588,7 +663,7 @@ export function OtterfundChrome({
                       <List size={15} strokeWidth={2} aria-hidden="true" />
                       <span>Import statement</span>
                     </MenuItem>
-                    <MenuItem onClick={() => setShowConnectBank(true)}>
+                    <MenuItem onClick={() => { if (requireFeature("bank_sync")) setShowConnectBank(true); }}>
                       <Landmark size={15} strokeWidth={2} aria-hidden="true" />
                       <span>Connect a bank</span>
                     </MenuItem>
@@ -617,6 +692,7 @@ export function OtterfundChrome({
         <EditInvestmentModal open={!!editInvestment} investment={editInvestment} onClose={() => setEditInvestment(null)} onUpdated={() => { setEditInvestment(null); refresh(); }} />
         <EditAccountModal open={!!editAccount} account={editAccount} onClose={() => setEditAccount(null)} onUpdated={() => { setEditAccount(null); refresh(); }} />
         <ConnectBankModal open={showConnectBank} updateItemId={connectUpdateItemId ?? undefined} onClose={() => setShowConnectBank(false)} onLinked={() => { refresh(); }} />
+        <PaywallModal open={!!paywallFeature} feature={paywallFeature} theme={theme} onClose={() => setPaywallFeature(null)} />
         <SettingsModal
           open={showSettings}
           onClose={() => setShowSettings(false)}

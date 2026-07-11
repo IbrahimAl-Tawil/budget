@@ -1,5 +1,6 @@
 import { builder } from "../builder";
 import { requireUser, rateLimited } from "../errors";
+import { requireEntitlement } from "../entitlements";
 import { prisma } from "@/lib/db/prisma";
 import { generateInsightsForUser } from "@/lib/ai/generate-insights";
 import { getInsightDetail } from "@/lib/db/queries";
@@ -10,8 +11,8 @@ builder.queryField("insightDetail", (t) =>
   t.field({
     type: "JSON",
     args: { id: t.arg.id({ required: true }) },
-    resolve: (_root, args, ctx) =>
-      getInsightDetail(requireUser(ctx), String(args.id)),
+    resolve: async (_root, args, ctx) =>
+      getInsightDetail(await requireEntitlement(ctx, "insights"), String(args.id)),
   }),
 );
 
@@ -22,7 +23,7 @@ builder.mutationField("generateInsights", (t) =>
   t.field({
     type: "JSON",
     resolve: async (_root, _args, ctx) => {
-      const userId = requireUser(ctx);
+      const userId = await requireEntitlement(ctx, "insights");
       // Blunt rapid concurrent calls (the day-guard below is the durable cap).
       const limit = rateLimit(`ai:insights:${userId}`, [
         { limit: 3, windowMs: MINUTE },

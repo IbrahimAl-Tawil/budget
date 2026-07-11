@@ -8,10 +8,12 @@
 // per-month equivalent + the amount billed once a year, with the saving). Pro
 // is the featured tier — accent ring, "Most popular" pill, filled CTA.
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { ArrowRight, Check, Minus } from "lucide-react";
 
+import { gqlClient, errMessage } from "@/lib/graphql/client";
+import { tierRank, type PlanTier } from "@/lib/plans";
 import { CardLabel } from "@/components/otterfund/card";
 import { GuillocheFlow } from "@/components/otterfund/guilloche-flow";
 import { LogoMark } from "@/components/otterfund/logo";
@@ -26,6 +28,17 @@ import { cn } from "@/lib/utils";
 
 const SERIF: React.CSSProperties = { fontFamily: "var(--font-num), Georgia, serif" };
 const T = BRAND_THEME;
+
+const CREATE_CHECKOUT = /* GraphQL */ `
+  mutation CreateCheckout($tier: String!, $interval: String) {
+    createCheckoutSession(tier: $tier, interval: $interval)
+  }
+`;
+const CREATE_PORTAL = /* GraphQL */ `
+  mutation CreatePortal {
+    createBillingPortalSession
+  }
+`;
 
 type BillingPeriod = "monthly" | "yearly";
 
@@ -61,12 +74,10 @@ const TIERS: Tier[] = [
     href: "/register",
     features: [
       { text: "Unlimited manual accounts", included: true },
-      { text: "Needs / Wants / Savings budget", included: true },
+      { text: "Unlimited manual transactions", included: true },
       { text: "Goals & savings allocation", included: true },
       { text: "Spending breakdown", included: true },
       { text: "Automatic bank sync", included: false },
-      { text: "AI advisor chats", included: false },
-      { text: "Investments tab", included: false },
     ],
   },
   {
@@ -77,12 +88,13 @@ const TIERS: Tier[] = [
     yearly: 120,
     cta: "Choose Standard",
     href: "/register?plan=standard",
+    featured: true,
     features: [
       { text: "Everything in Free", included: true, lead: true },
       { text: "Connect up to 3 bank accounts", included: true },
-      { text: "AI chats & insights included", included: true },
+      { text: "Access AI chats & insights", included: true },
       { text: "Automatic transaction categorization", included: true },
-      { text: "Investments tab", included: false },
+      { text: "Track investments across accounts", included: false },
     ],
   },
   {
@@ -93,12 +105,11 @@ const TIERS: Tier[] = [
     yearly: 144,
     cta: "Choose Pro",
     href: "/register?plan=pro",
-    featured: true,
     features: [
       { text: "Everything in Standard", included: true, lead: true },
       { text: "Connect up to 10 bank accounts", included: true },
-      { text: "More AI insights included", included: true },
-      { text: "Investments tab", included: true },
+      { text: "Unlimited AI chats & insights", included: true },
+      { text: "Real-time investment tracking", included: true },
       { text: "Priority support", included: true },
     ],
   },
@@ -288,7 +299,102 @@ const ETCH_MASK = [
   "linear-gradient(to left, #000, transparent 5%)",
 ].join(", ");
 
-function TierCard({ tier, period }: { tier: Tier; period: BillingPeriod }) {
+// The tier's call-to-action. Logged out → a link to sign up (carrying the plan
+// + interval). Logged in → a live billing action: start Checkout for a first
+// paid plan, or open the Stripe portal to switch/downgrade an existing one. The
+// user's current tier reads as a non-interactive "Current plan".
+function TierCta({
+  tier,
+  period,
+  featured,
+  authed,
+  currentPlan,
+  busy,
+  onCheckout,
+  onPortal,
+}: {
+  tier: Tier;
+  period: BillingPeriod;
+  featured: boolean;
+  authed: boolean;
+  currentPlan: PlanTier;
+  busy: boolean;
+  onCheckout: (tier: string, period: BillingPeriod) => void;
+  onPortal: () => void;
+}) {
+  const cls = (variant: "default" | "outline") =>
+    cn(buttonVariants({ variant, size: "lg" }), "mt-7 w-full font-semibold");
+
+  // Logged out — keep the crawlable sign-up link, carrying the chosen interval.
+  if (!authed) {
+    const href =
+      tier.id === "free"
+        ? tier.href
+        : `/register?plan=${tier.id}&interval=${period === "yearly" ? "year" : "month"}`;
+    return (
+      <Link href={href} className={cls(featured ? "default" : "outline")}>
+        {tier.cta}
+        {featured && <ArrowRight className="h-4 w-4" />}
+      </Link>
+    );
+  }
+
+  const isCurrent = currentPlan === tier.id;
+  if (isCurrent) {
+    return (
+      <button type="button" disabled className={cn(cls("outline"), "cursor-default opacity-70")}>
+        <Check className="h-4 w-4" strokeWidth={2.6} />
+        Current plan
+      </button>
+    );
+  }
+
+  // Free card while on a paid plan → downgrade happens in the Stripe portal.
+  if (tier.id === "free") {
+    return (
+      <button type="button" onClick={onPortal} disabled={busy} className={cls("outline")}>
+        {busy ? "Opening…" : "Switch to Free"}
+      </button>
+    );
+  }
+
+  // Paid card. First paid plan → Checkout; changing an existing plan → portal.
+  const changingExisting = currentPlan !== "free";
+  const label = changingExisting
+    ? tierRank(tier.id) > tierRank(currentPlan)
+      ? `Upgrade to ${tier.name}`
+      : `Switch to ${tier.name}`
+    : tier.cta;
+  return (
+    <button
+      type="button"
+      onClick={() => (changingExisting ? onPortal() : onCheckout(tier.id, period))}
+      disabled={busy}
+      className={cls(featured ? "default" : "outline")}
+    >
+      {busy ? "Starting…" : label}
+      {featured && !busy && <ArrowRight className="h-4 w-4" />}
+    </button>
+  );
+}
+
+function TierCard({
+  tier,
+  period,
+  authed,
+  currentPlan,
+  busy,
+  onCheckout,
+  onPortal,
+}: {
+  tier: Tier;
+  period: BillingPeriod;
+  authed: boolean;
+  currentPlan: PlanTier;
+  busy: boolean;
+  onCheckout: (tier: string, period: BillingPeriod) => void;
+  onPortal: () => void;
+}) {
   const featured = !!tier.featured;
   const [strokeLine, strokeDeep] = TIER_STROKES[tier.id] ?? TIER_STROKES.standard;
   // A tiny tile of two dashed diagonals → a cross-hatch of short strokes (not
@@ -298,7 +404,11 @@ function TierCard({ tier, period }: { tier: Tier; period: BillingPeriod }) {
   )}`;
   return (
     <div
-      className="group relative flex flex-col rounded-[24px] p-7 sm:p-8"
+      className={cn(
+        "group relative flex flex-col rounded-[24px] p-7 sm:p-8",
+        // The featured tier sits slightly larger and lifted toward the viewer.
+        featured && "md:z-10 md:scale-[1.045] md:-translate-y-1",
+      )}
       style={{
         // Layered surface for depth: a soft top sheen over the paper, plus (on the
         // featured tier) a faint accent glow bleeding in from the top-right corner.
@@ -363,16 +473,16 @@ function TierCard({ tier, period }: { tier: Tier; period: BillingPeriod }) {
         <PriceBlock tier={tier} period={period} />
       </div>
 
-      <Link
-        href={tier.href}
-        className={cn(
-          buttonVariants({ variant: featured ? "default" : "outline", size: "lg" }),
-          "mt-7 w-full font-semibold"
-        )}
-      >
-        {tier.cta}
-        {featured && <ArrowRight className="h-4 w-4" />}
-      </Link>
+      <TierCta
+        tier={tier}
+        period={period}
+        featured={featured}
+        authed={authed}
+        currentPlan={currentPlan}
+        busy={busy}
+        onCheckout={onCheckout}
+        onPortal={onPortal}
+      />
 
       <ul className="mt-7 flex flex-col gap-3.5 border-t border-[var(--color-of-line-soft)] pt-7">
         {tier.features.map((f) => (
@@ -404,8 +514,45 @@ function TierCard({ tier, period }: { tier: Tier; period: BillingPeriod }) {
   );
 }
 
-export function PricingView() {
+export function PricingView({
+  authed = false,
+  currentPlan = "free",
+}: {
+  authed?: boolean;
+  currentPlan?: PlanTier;
+} = {}) {
   const [period, setPeriod] = useState<BillingPeriod>("monthly");
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState("");
+
+  // Start a Stripe Checkout Session for a first paid plan and redirect to it.
+  const handleCheckout = (tierId: string, p: BillingPeriod) => {
+    setError("");
+    startTransition(async () => {
+      try {
+        const res = await gqlClient.request<{ createCheckoutSession: string }>(CREATE_CHECKOUT, {
+          tier: tierId,
+          interval: p === "yearly" ? "year" : "month",
+        });
+        window.location.href = res.createCheckoutSession;
+      } catch (e) {
+        setError(errMessage(e));
+      }
+    });
+  };
+
+  // Open the Stripe billing portal to change or cancel an existing plan.
+  const handlePortal = () => {
+    setError("");
+    startTransition(async () => {
+      try {
+        const res = await gqlClient.request<{ createBillingPortalSession: string }>(CREATE_PORTAL);
+        window.location.href = res.createBillingPortalSession;
+      } catch (e) {
+        setError(errMessage(e));
+      }
+    });
+  };
 
   return (
     <div className="of-paper min-h-screen bg-[var(--color-of-canvas)] text-[var(--color-of-ink)] overflow-x-hidden">
@@ -416,12 +563,20 @@ export function PricingView() {
             <LogoMark size={52} />
           </Link>
           <div className="flex items-center gap-1.5 sm:gap-2">
-            <Link href="/login" className={cn(buttonVariants({ variant: "outline" }), "h-auto px-4 py-2 text-[13px]")}>
-              Sign in
-            </Link>
-            <Link href="/register" className={cn(buttonVariants({ variant: "default" }), "h-auto px-4 py-2 text-[13px]")}>
-              Sign up
-            </Link>
+            {authed ? (
+              <Link href="/dashboard" className={cn(buttonVariants({ variant: "default" }), "h-auto px-4 py-2 text-[13px]")}>
+                Go to dashboard
+              </Link>
+            ) : (
+              <>
+                <Link href="/login" className={cn(buttonVariants({ variant: "outline" }), "h-auto px-4 py-2 text-[13px]")}>
+                  Sign in
+                </Link>
+                <Link href="/register" className={cn(buttonVariants({ variant: "default" }), "h-auto px-4 py-2 text-[13px]")}>
+                  Sign up
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </nav>
@@ -493,10 +648,23 @@ export function PricingView() {
 
           <div className="relative grid w-full max-w-[1000px] gap-5 md:grid-cols-3 md:items-start">
             {TIERS.map((tier) => (
-              <TierCard key={tier.id} tier={tier} period={period} />
+              <TierCard
+                key={tier.id}
+                tier={tier}
+                period={period}
+                authed={authed}
+                currentPlan={currentPlan}
+                busy={isPending}
+                onCheckout={handleCheckout}
+                onPortal={handlePortal}
+              />
             ))}
           </div>
         </section>
+
+        {error && (
+          <p className="mt-6 text-center text-[13px] font-medium text-[var(--color-of-clay)]">{error}</p>
+        )}
 
         {/* ── Trust line ── */}
         <p className="mt-10 text-center text-[12.5px] font-medium text-[var(--color-of-faint)]">

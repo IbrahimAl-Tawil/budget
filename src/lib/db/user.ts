@@ -22,6 +22,9 @@ export const getUserRow = cache((userId: string) =>
       budgetPlan: true,
       monthlyIncome: true,
       budgetTarget: true,
+      plan: true,
+      planStatus: true,
+      stripeCustomerId: true,
     },
   })
 );

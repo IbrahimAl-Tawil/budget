@@ -23,6 +23,17 @@ model User {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
+  // Billing (Stripe). The webhook is the source of truth for these — checkout
+  // only kicks off the flow. `plan` is the entitlement tier (see lib/plans
+  // PLAN_TIERS): free | standard | pro. `planStatus` mirrors the Stripe
+  // subscription status (active | trialing | past_due | canceled | ...).
+  stripeCustomerId     String?   @unique
+  stripeSubscriptionId String?   @unique
+  plan                 String    @default("free")
+  planStatus           String?
+  planInterval         String?   // month | year
+  planRenewsAt         DateTime? // current_period_end — when it renews or lapses
+
   accounts         Account[]
   transactions     Transaction[]
   categories       Category[]
@@ -354,4 +365,19 @@ model AiUsageEvent {
 
   @@index([userId, createdAt])
   @@index([kind, createdAt])
+}
+
+// Durable log of processed Stripe webhook events. `id` is the Stripe event id,
+// so an insert doubling as the idempotency guard (Stripe delivers at-least-once
+// and retries): if the row already exists, we've handled it — skip. Also a
+// monitoring trail of every billing event we acted on.
+model StripeEvent {
+  id          String   @id // Stripe event id (evt_...)
+  type        String
+  userId      String? // resolved target user, when known
+  payload     Json
+  createdAt   DateTime @default(now())
+
+  @@index([type, createdAt])
+  @@index([userId, createdAt])
 }

@@ -67,6 +67,7 @@ export const userPrefs = async (userId: string) => {
     accent: u?.accent ?? null,
     currency: u?.currency ?? "CAD",
     budgetPlan: u?.budgetPlan ?? null,
+    plan: u?.plan ?? "free",
   };
 };
 

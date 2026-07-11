@@ -19,5 +19,6 @@ import "./resolvers/settings";
 import "./resolvers/plaid";
 import "./resolvers/imports";
 import "./resolvers/onboarding";
+import "./resolvers/billing";
 
 export const schema = builder.toSchema();

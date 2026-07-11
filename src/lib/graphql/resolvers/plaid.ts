@@ -1,5 +1,6 @@
 import { builder } from "../builder";
 import { requireUser, notFound, rateLimited, badRequest } from "../errors";
+import { requireEntitlementDetail } from "../entitlements";
 import { MutationResultRef } from "../types/results";
 import { prisma } from "@/lib/db/prisma";
 import {
@@ -57,11 +58,15 @@ builder.mutationField("createPlaidLinkToken", (t) =>
   t.field({
     type: "String",
     resolve: async (_root, _args, ctx) => {
-      const userId = requireUser(ctx);
+      // Bank sync is a Standard+ feature — hard-gate before opening Plaid Link.
+      const { userId, entitlements } = await requireEntitlementDetail(ctx, "bank_sync");
       const limit = rateLimit(`plaid:link-token:${userId}`, [
         { limit: 15, windowMs: 5 * MINUTE },
       ]);
       if (!limit.ok) rateLimited(limit.retryAfterSec);
+      // Enforce the per-plan cap on connected banks before creating a link token
+      // (a completed link creates a billable Item and would overshoot the tier).
+      await assertUnderConnectionCap(userId, entitlements.bankAccounts);
       // Fail before opening Plaid Link (completion would create a billable Item).
       const quota = await checkLinkQuota(userId);
       if (!quota.ok) rateLimited(undefined, quota.reason);
@@ -94,11 +99,12 @@ builder.mutationField("exchangePlaidToken", (t) =>
       institution: t.arg({ type: PlaidInstitutionInput }),
     },
     resolve: async (_root, { publicToken, institution }, ctx) => {
-      const userId = requireUser(ctx);
+      const { userId, entitlements } = await requireEntitlementDetail(ctx, "bank_sync");
       const limit = rateLimit(`plaid:exchange:${userId}`, [
         { limit: 8, windowMs: 5 * MINUTE },
       ]);
       if (!limit.ok) rateLimited(limit.retryAfterSec);
+      await assertUnderConnectionCap(userId, entitlements.bankAccounts);
       const quota = await checkLinkQuota(userId);
       if (!quota.ok) rateLimited(undefined, quota.reason);
 
@@ -232,6 +238,19 @@ builder.mutationField("syncPlaid", (t) =>
     },
   }),
 );
+
+// Enforce the plan's cap on connected banks. `cap` is the tier's bankAccounts
+// allowance (treated as max connected bank logins / Plaid Items). Throws a
+// BAD_REQUEST with an upgrade nudge when the user is already at the cap.
+async function assertUnderConnectionCap(userId: string, cap: number) {
+  const connected = await prisma.plaidItem.count({ where: { userId } });
+  if (connected >= cap) {
+    badRequest(
+      `Your plan includes up to ${cap} connected bank${cap === 1 ? "" : "s"}. ` +
+        `Upgrade to Pro to connect more.`,
+    );
+  }
+}
 
 // Resolve a PlaidItem the user owns, by itemId or by one of its accountIds.
 async function resolveOwnedItem(

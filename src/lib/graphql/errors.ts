@@ -29,6 +29,26 @@ export function badRequest(message: string): never {
   });
 }
 
+/**
+ * Throw an UPGRADE_REQUIRED error when a user's plan doesn't include a feature.
+ * The client reads `extensions.code === "UPGRADE_REQUIRED"` (+ `feature` /
+ * `requiredTier`) to open the paywall modal instead of showing a raw error.
+ */
+export function upgradeRequired(
+  feature: string,
+  requiredTier: string,
+  message = "Upgrade your plan to use this feature.",
+): never {
+  throw new GraphQLError(message, {
+    extensions: {
+      code: "UPGRADE_REQUIRED",
+      http: { status: 402 },
+      feature,
+      requiredTier,
+    },
+  });
+}
+
 /** Throw a RATE_LIMITED error (mirrors the old tooManyRequests HTTP response). */
 export function rateLimited(
   retryAfterSec?: number,

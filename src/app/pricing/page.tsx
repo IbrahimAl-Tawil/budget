@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { PricingView } from "@/components/landing/pricing-view";
 import { JsonLd } from "@/components/seo/json-ld";
 import { KEYWORDS, SITE_NAME, absoluteUrl, pricingOffersLd } from "@/lib/seo";
+import { getApiUser } from "@/lib/api-auth";
+import { getUserRow } from "@/lib/db/user";
+import { toPlanTier } from "@/lib/plans";
 
 export const metadata: Metadata = {
   title: "Pricing: Free & Paid Budgeting Plans",
@@ -43,11 +46,17 @@ const productLd = {
   },
 };
 
-export default function PricingPage() {
+export default async function PricingPage() {
+  // Public page — but if the visitor is signed in, the CTAs become live billing
+  // actions (Checkout / current-plan / manage) instead of "sign up" links.
+  const authUser = await getApiUser().catch(() => null);
+  const row = authUser ? await getUserRow(authUser.id).catch(() => null) : null;
+  const currentPlan = toPlanTier(row?.plan);
+
   return (
     <>
       <JsonLd data={productLd} />
-      <PricingView />
+      <PricingView authed={!!authUser} currentPlan={currentPlan} />
     </>
   );
 }
