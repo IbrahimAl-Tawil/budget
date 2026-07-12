@@ -26,7 +26,6 @@ import { AddInvestmentModal } from "@/components/dashboard/modals/add-investment
 import { EditInvestmentModal } from "@/components/dashboard/modals/edit-investment-modal";
 import { EditAccountModal } from "@/components/dashboard/modals/edit-account-modal";
 import { ConnectBankModal } from "@/components/dashboard/modals/connect-bank-modal";
-import { PaywallModal } from "@/components/dashboard/modals/paywall-modal";
 import { NotificationsPanel } from "@/components/dashboard/notifications-panel";
 import { SettingsModal } from "@/components/dashboard/modals/settings-modal";
 import type { TransactionView, GoalView, AccountView, SubscriptionView, InvestmentView, SpendCategory, BillView } from "@/lib/types";
@@ -185,8 +184,6 @@ export function OtterfundChrome({
   const [editInvestment, setEditInvestment] = useState<InvestmentView | null>(null);
   const [showConnectBank, setShowConnectBank] = useState(false);
   const [connectUpdateItemId, setConnectUpdateItemId] = useState<string | null>(null);
-  // The gated feature whose paywall is currently open (null = closed).
-  const [paywallFeature, setPaywallFeature] = useState<Feature | null>(null);
   const [editTx, setEditTx] = useState<TransactionView | null>(null);
   const [editGoal, setEditGoal] = useState<GoalView | null>(null);
   const [editAccount, setEditAccount] = useState<AccountView | null>(null);
@@ -253,19 +250,20 @@ export function OtterfundChrome({
 
   const plan: PlanTier = toPlanTier(user.plan);
 
-  // Open the paywall for a locked feature.
-  const openPaywall = useCallback((feature: Feature) => setPaywallFeature(feature), []);
+  // Prompt an upgrade for a locked feature — send the user straight to the
+  // pricing page (no interstitial modal).
+  const promptUpgrade = useCallback(() => router.push("/pricing"), [router]);
 
   // Gate an action: returns true (proceed) when the plan includes the feature,
-  // otherwise opens the paywall and returns false. Callers do
+  // otherwise sends the user to pricing and returns false. Callers do
   // `if (!requireFeature("bank_sync")) return;` before the gated action.
   const requireFeature = useCallback(
     (feature: Feature) => {
       if (canUse(plan, feature)) return true;
-      setPaywallFeature(feature);
+      router.push("/pricing");
       return false;
     },
-    [plan],
+    [plan, router],
   );
 
   // Send the user to Stripe's hosted portal to manage/cancel their plan.
@@ -451,7 +449,7 @@ export function OtterfundChrome({
       setAccent,
       plan,
       requireFeature,
-      openPaywall,
+      promptUpgrade,
       addTransaction: () => setShowAdd(true),
       addGoal: () => setShowAddGoal(true),
       addAccount: () => setShowAddAccount(true),
@@ -477,7 +475,7 @@ export function OtterfundChrome({
       txCount,
       setTxCount,
     }),
-    [accent, theme, setAccent, hrefFor, txCount, plan, requireFeature, openPaywall]
+    [accent, theme, setAccent, hrefFor, txCount, plan, requireFeature, promptUpgrade]
   );
 
   return (
@@ -692,7 +690,6 @@ export function OtterfundChrome({
         <EditInvestmentModal open={!!editInvestment} investment={editInvestment} onClose={() => setEditInvestment(null)} onUpdated={() => { setEditInvestment(null); refresh(); }} />
         <EditAccountModal open={!!editAccount} account={editAccount} onClose={() => setEditAccount(null)} onUpdated={() => { setEditAccount(null); refresh(); }} />
         <ConnectBankModal open={showConnectBank} updateItemId={connectUpdateItemId ?? undefined} onClose={() => setShowConnectBank(false)} onLinked={() => { refresh(); }} />
-        <PaywallModal open={!!paywallFeature} feature={paywallFeature} theme={theme} onClose={() => setPaywallFeature(null)} />
         <SettingsModal
           open={showSettings}
           onClose={() => setShowSettings(false)}

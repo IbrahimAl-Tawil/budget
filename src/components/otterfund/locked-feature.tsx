@@ -3,8 +3,8 @@
 // In-page locked state for a routed page a user's plan doesn't include (the
 // Insights + Investments routes). Deep-linkable and calm: the page still loads,
 // but instead of the real content it shows this on-brand upsell panel whose CTA
-// opens the same paywall modal the chrome owns. The hard enforcement lives in
-// the resolvers — this is the friendly front door.
+// sends the user to the pricing page. The hard enforcement lives in the
+// resolvers — this is the friendly front door.
 
 import { Check, Lock } from "lucide-react";
 import { Card } from "@/components/otterfund/card";
@@ -14,7 +14,7 @@ import { useOtterfundChrome } from "@/components/otterfund/chrome-context";
 import { FEATURE_COPY, FEATURE_REQUIRED_TIER, PLAN_META, type Feature } from "@/lib/plans";
 
 export function LockedFeature({ feature }: { feature: Feature }) {
-  const { theme, openPaywall } = useOtterfundChrome();
+  const { theme, promptUpgrade } = useOtterfundChrome();
   const copy = FEATURE_COPY[feature];
   const tier = FEATURE_REQUIRED_TIER[feature];
 
@@ -57,11 +57,11 @@ export function LockedFeature({ feature }: { feature: Feature }) {
 
         <Button
           size="lg"
-          onClick={() => openPaywall(feature)}
+          onClick={promptUpgrade}
           className="mt-8 w-full font-semibold sm:w-auto sm:px-10"
           style={{ background: theme.accent }}
         >
-          Upgrade to {PLAN_META[tier].name}
+          Upgrade plan
         </Button>
       </Card>
     </div>
