@@ -9,18 +9,28 @@
 // category under its bucket. Every figure derives from `plan`; the plan itself
 // is chosen in onboarding and changed in Settings.
 
-import type { SpendingPlanView, SpendingBucket } from "@/lib/types";
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
+import type { SpendingPlanView, SpendingBucket, SubscriptionView } from "@/lib/types";
 import { type OtterfundTheme, hueOf } from "@/components/otterfund/theme";
 import { getBudgetPlan } from "@/lib/constants";
 import { fmt } from "@/lib/format";
 import { ProgressBar } from "@/components/otterfund/progress";
 import { DonutChart } from "@/components/otterfund/donut-chart";
 import { GuillochePattern } from "@/components/otterfund/guilloche";
+import { OtterfundSubscriptions } from "@/components/otterfund/pages/subscriptions";
 
 interface OtterfundSpendingProps {
   plan: SpendingPlanView;
   accent: string;
   theme: OtterfundTheme;
+  /** Recurring charges, rendered as the "Recurring" section (formerly a tab). */
+  subscriptions: SubscriptionView[];
+  currency: string;
+  onAddSubscription?: () => void;
+  onEditSubscription?: (s: SubscriptionView) => void;
+  /** Link to Goals (where the savings pool is allocated to goals). */
+  goalsHref: string;
 }
 
 const CARD: React.CSSProperties = {
@@ -38,8 +48,8 @@ const EYEBROW: React.CSSProperties = {
   color: "var(--color-of-faint)",
 };
 
-export function OtterfundSpending({ plan, theme }: OtterfundSpendingProps) {
-  const currency = plan.currency;
+export function OtterfundSpending({ plan, accent, theme, subscriptions, currency: currencyProp, onAddSubscription, onEditSubscription, goalsHref }: OtterfundSpendingProps) {
+  const currency = plan.currency || currencyProp;
   const money = (n: number) => fmt(n, currency);
   const hue = hueOf(theme.accent);
   const planMeta = getBudgetPlan(plan.planId);
@@ -240,10 +250,40 @@ export function OtterfundSpending({ plan, theme }: OtterfundSpendingProps) {
                     : "No spending in this bucket yet."}
                 </p>
               )}
+              {/* Savings flows to goals — allocate it where it's actually done. */}
+              {isSavings && (
+                <Link
+                  href={`${goalsHref}${goalsHref.includes("?") ? "&" : "?"}allocate=1`}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 4,
+                    marginTop: 12,
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    color: theme.accentDeep,
+                    textDecoration: "none",
+                  }}
+                >
+                  Allocate savings to goals
+                  <ArrowRight size={14} strokeWidth={2.2} aria-hidden="true" />
+                </Link>
+              )}
             </div>
           );
         })}
       </section>
+
+      {/* ── recurring · subscriptions, folded in from the old tab ── */}
+      <OtterfundSubscriptions
+        embedded
+        subscriptions={subscriptions}
+        accent={accent}
+        theme={theme}
+        currency={currency}
+        onAdd={onAddSubscription}
+        onEdit={onEditSubscription}
+      />
     </div>
   );
 }

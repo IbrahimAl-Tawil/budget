@@ -1,5 +1,5 @@
-import { requireUser, currentPeriod, resolvePeriod } from "@/lib/dashboard-context";
-import { getSpendingPlan } from "@/lib/db/queries";
+import { requireUser, currentPeriod, resolvePeriod, userCurrency } from "@/lib/dashboard-context";
+import { getSpendingPlan, getSubscriptions } from "@/lib/db/queries";
 import { getBudgetPlan } from "@/lib/constants";
 import { SpendingView } from "@/components/otterfund/pages/spending-view";
 import type { SpendingPlanView } from "@/lib/types";
@@ -29,6 +29,12 @@ export default async function SpendingPage({
 }) {
   const user = await requireUser();
   const { month, year } = resolvePeriod(await searchParams, currentPeriod());
-  const plan = await getSpendingPlan(user.id, month, year).catch(() => emptyPlan());
-  return <SpendingView plan={plan} />;
+  // Subscriptions live here now as the "Recurring" section — recurring spend is
+  // part of the spending picture, not a tab of its own.
+  const [plan, subscriptions, currency] = await Promise.all([
+    getSpendingPlan(user.id, month, year).catch(() => emptyPlan()),
+    getSubscriptions(user.id).catch(() => []),
+    userCurrency(user.id),
+  ]);
+  return <SpendingView plan={plan} subscriptions={subscriptions} currency={currency} />;
 }

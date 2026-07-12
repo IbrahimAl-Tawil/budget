@@ -36,6 +36,8 @@ interface OtterfundInvestmentsProps {
   onAddPosition?: () => void;
   onEditPosition?: (h: InvestmentView) => void;
   onEditAccount?: (a: AccountView) => void;
+  /** Return to the Accounts tab — Investments is reached as a drill-in from it. */
+  onBack?: () => void;
 }
 
 const CARD: React.CSSProperties = {
@@ -85,6 +87,7 @@ export function OtterfundInvestments({
   onAddPosition,
   onEditPosition,
   onEditAccount,
+  onBack,
 }: OtterfundInvestmentsProps) {
   const money = (n: number) => fmt(n, currency);
   const pct = (n: number) => Math.round(n);
@@ -355,6 +358,30 @@ export function OtterfundInvestments({
 
   return (
     <div className="of-enter of-page">
+      {/* Back to Accounts — the portfolio is a drill-in from the balance sheet. */}
+      {onBack && (
+        <button
+          type="button"
+          onClick={() => onBack()}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 5,
+            padding: "5px 12px 5px 9px",
+            marginBottom: 18,
+            borderRadius: 9999,
+            border: "1px solid var(--color-of-line)",
+            background: "var(--color-of-surface)",
+            fontSize: 12.5,
+            fontWeight: 600,
+            color: "var(--color-of-muted)",
+            cursor: "pointer",
+          }}
+        >
+          <ArrowLeft size={14} strokeWidth={2.4} aria-hidden="true" />
+          Accounts
+        </button>
+      )}
       {nothing ? (
         /* ── empty state · connect or add ── */
         <section

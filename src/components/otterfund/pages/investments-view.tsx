@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { OtterfundInvestments } from "@/components/otterfund/pages/investments";
 import { useOtterfundChrome } from "@/components/otterfund/chrome-context";
 import type { AccountView, InvestmentView } from "@/lib/types";
@@ -13,6 +14,7 @@ export function InvestmentsView({
   holdings: InvestmentView[];
   currency: string;
 }) {
+  const router = useRouter();
   const { accent, theme, addInvestment, editInvestment, editAccount, connectBank } = useOtterfundChrome();
   return (
     <OtterfundInvestments
@@ -25,6 +27,7 @@ export function InvestmentsView({
       onAddPosition={addInvestment}
       onEditPosition={editInvestment}
       onEditAccount={editAccount}
+      onBack={() => router.push("/dashboard/accounts")}
     />
   );
 }

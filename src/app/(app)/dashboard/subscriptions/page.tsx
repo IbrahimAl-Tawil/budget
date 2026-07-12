@@ -1,12 +1,7 @@
-import { requireUser, userCurrency } from "@/lib/dashboard-context";
-import { getSubscriptions } from "@/lib/db/queries";
-import { SubscriptionsView } from "@/components/otterfund/pages/subscriptions-view";
+import { redirect } from "next/navigation";
 
-export default async function SubscriptionsPage() {
-  const user = await requireUser();
-  const [subscriptions, currency] = await Promise.all([
-    getSubscriptions(user.id).catch(() => []),
-    userCurrency(user.id),
-  ]);
-  return <SubscriptionsView subscriptions={subscriptions} currency={currency} />;
+// Subscriptions were folded into Spending as its "Recurring" section. Keep the
+// old URL alive by redirecting so existing links/bookmarks still land somewhere.
+export default function SubscriptionsPage() {
+  redirect("/dashboard/spending");
 }

@@ -17,5 +17,5 @@ export default async function OverviewPage({
   const user = await requireUser();
   const { month, year } = resolvePeriod(await searchParams, currentPeriod());
   const overview = await dashboardOverview(user.id, month, year).catch(() => null);
-  return <OverviewView overview={overview ?? EMPTY_OVERVIEW} />;
+  return <OverviewView overview={overview ?? EMPTY_OVERVIEW} name={user.name ?? null} />;
 }

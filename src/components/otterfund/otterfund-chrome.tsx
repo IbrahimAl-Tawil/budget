@@ -13,7 +13,7 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { gqlClient } from "@/lib/graphql/client";
-import { Home, List, CreditCard, Target, Sparkles, Bell, Plus, Settings, LogOut, PieChart, Repeat, Landmark, TrendingUp, Gauge, type LucideProps } from "lucide-react";
+import { Home, List, CreditCard, Target, Sparkles, Bell, Plus, Settings, LogOut, PieChart, Landmark, TrendingUp, Gauge, type LucideProps } from "lucide-react";
 import { AddTransactionModal } from "@/components/dashboard/modals/add-transaction-modal";
 import { ImportModal } from "@/components/dashboard/modals/import-modal";
 import { EditTransactionModal } from "@/components/dashboard/modals/edit-transaction-modal";
@@ -65,15 +65,35 @@ interface NavItem {
   Icon: React.ComponentType<LucideProps>;
 }
 
-const PRIMARY_NAV: NavItem[] = [
-  { href: "/dashboard", label: "Overview", Icon: Home },
-  { href: "/dashboard/transactions", label: "Transactions", Icon: List },
-  { href: "/dashboard/spending", label: "Spending", Icon: PieChart },
-  { href: "/dashboard/subscriptions", label: "Subscriptions", Icon: Repeat },
-  { href: "/dashboard/accounts", label: "Accounts", Icon: CreditCard },
-  { href: "/dashboard/investments", label: "Investments", Icon: TrendingUp },
-  { href: "/dashboard/goals", label: "Goals", Icon: Target },
-  { href: "/dashboard/insights", label: "Insights", Icon: OtterFace },
+interface NavSection {
+  /** Section eyebrow (shown on mobile; a divider stands in for it on the rail). */
+  label: string;
+  items: NavItem[];
+}
+
+// Grouped by mental model: FLOW = money moving over the month (period-scoped),
+// HOLDINGS = what you have right now (balances), ADVISOR = the AI layer over it
+// all. Subscriptions live inside Spending now; Investments inside Accounts.
+const NAV_SECTIONS: NavSection[] = [
+  {
+    label: "Flow",
+    items: [
+      { href: "/dashboard", label: "Overview", Icon: Home },
+      { href: "/dashboard/transactions", label: "Transactions", Icon: List },
+      { href: "/dashboard/spending", label: "Spending", Icon: PieChart },
+    ],
+  },
+  {
+    label: "Holdings",
+    items: [
+      { href: "/dashboard/accounts", label: "Accounts", Icon: CreditCard },
+      { href: "/dashboard/goals", label: "Goals", Icon: Target },
+    ],
+  },
+  {
+    label: "Advisor",
+    items: [{ href: "/dashboard/insights", label: "Insights", Icon: OtterFace }],
+  },
 ];
 
 const SECONDARY_NAV: NavItem[] = [
@@ -96,7 +116,6 @@ const TITLES: Record<string, RouteMeta> = {
   "/dashboard": { title: "Overview", sub: () => "Here’s where your money stands today", periodic: true },
   "/dashboard/transactions": { title: "Transactions", sub: ({ txThisMonth, monthLabel }) => `${txThisMonth} this month · ${monthLabel}`, periodic: true },
   "/dashboard/spending": { title: "Spending", sub: ({ monthLabel }) => `Budget vs. actual · ${monthLabel}`, periodic: true },
-  "/dashboard/subscriptions": { title: "Subscriptions", sub: () => "What’s on repeat" },
   "/dashboard/accounts": { title: "Accounts", sub: () => "Everything in one place" },
   "/dashboard/investments": { title: "Investments", sub: () => "Your portfolio and holdings" },
   "/dashboard/goals": { title: "Goals", sub: () => "Saving with intent" },
@@ -509,8 +528,11 @@ export function OtterfundChrome({
               <LogoMark size={38} />
             </div>
 
+            {/* Primary nav — the Flow · Holdings · Advisor groups render as one
+                continuous, evenly-spaced run of icons on the rail (no inter-group
+                dividers); the mobile sheet is where the section labels show. */}
             <nav aria-label="Primary" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {PRIMARY_NAV.map((item) => (
+              {NAV_SECTIONS.flatMap((section) => section.items).map((item) => (
                 <RailLink key={item.href} item={item} href={hrefFor(item.href)} active={pathname === item.href} accent={accent} />
               ))}
             </nav>
@@ -594,7 +616,7 @@ export function OtterfundChrome({
           >
             <div className="of-topbar-lead" style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
               <MobileNav
-                primary={PRIMARY_NAV}
+                sections={NAV_SECTIONS}
                 secondary={SECONDARY_NAV}
                 pathname={pathname}
                 hrefFor={hrefFor}

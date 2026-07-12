@@ -9,7 +9,8 @@
 // goal's share of it, the $/month it draws, and a projected finish date with a
 // deadline-pacing signal. Every figure derives from `plan`.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Plus } from "lucide-react";
 import type { GoalPlanItem, GoalsPlanView, GoalView } from "@/lib/types";
 import type { OtterfundTheme } from "@/components/otterfund/theme";
@@ -75,6 +76,17 @@ export function OtterfundGoals({ plan, accent, theme, onAdd, onEdit }: Otterfund
   // Allocate is only actionable when there's real cash left AND a goal to take
   // it. Otherwise the button stays visible but grayed, with a reason on hover.
   const canAssign = assignable > 0 && goals.some((g) => g.remaining > 0);
+
+  // Deep-link from Spending's Savings bucket (?allocate=1) opens the modal
+  // straight away, then the param is stripped so a refresh doesn't reopen it.
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get("allocate") !== "1") return;
+    if (canAssign) setAllocateOpen(true);
+    router.replace("/dashboard/goals", { scroll: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
   const assignReason =
     surplus <= 0
       ? "No surplus to allocate this month"

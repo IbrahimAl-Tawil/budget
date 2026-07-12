@@ -10,7 +10,7 @@
 // Wired to real AccountView data passed in as props.
 
 import { useState, useTransition } from "react";
-import { Plus, Landmark, RefreshCw, Check, ChevronDown, SlidersHorizontal } from "lucide-react";
+import { Plus, Landmark, RefreshCw, Check, ChevronDown, SlidersHorizontal, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Menu,
@@ -22,11 +22,13 @@ import {
   MenuRadioItem,
 } from "@/components/ui/menu";
 
-import type { AccountView } from "@/lib/types";
+import type { AccountView, NetWorthPoint } from "@/lib/types";
 import { fmt } from "@/lib/format";
 import { ACCOUNT_TYPES, accountGroupOf, type AccountGroup } from "@/lib/constants";
 import { tintFor, type OtterfundTheme } from "@/components/otterfund/theme";
 import { GuillochePattern } from "@/components/otterfund/guilloche";
+import { StatPill } from "@/components/otterfund/stat-pill";
+import { NetWorthSparkline } from "@/components/otterfund/net-worth-sparkline";
 import { gqlClient, errMessage } from "@/lib/graphql/client";
 
 const SYNC_PLAID = /* GraphQL */ `
@@ -36,6 +38,10 @@ const SYNC_PLAID = /* GraphQL */ `
 interface OtterfundAccountsProps {
   accounts: AccountView[];
   netWorth: number;
+  /** Month-by-month net-worth history for the hero sparkline. */
+  netWorthTrend?: NetWorthPoint[];
+  /** This month's net-worth change — the signed pill beside the figure. */
+  netWorthChange?: number;
   accent: string;
   theme: OtterfundTheme;
   currency?: string;
@@ -44,6 +50,8 @@ interface OtterfundAccountsProps {
   onEdit?: (a: AccountView) => void;
   /** Re-fetch the page's RSC after a successful sync. */
   onSynced?: () => void;
+  /** Open the Investments drill-in (portfolio + holdings). */
+  onViewInvestments?: () => void;
 }
 
 type GroupKey = AccountGroup;
@@ -85,8 +93,12 @@ function initialOf(name: string): string {
   return (letters[0] ?? name[0] ?? "?").toUpperCase();
 }
 
-export function OtterfundAccounts({ accounts, netWorth, accent, theme, currency = "CAD", onAdd, onConnect, onEdit, onSynced }: OtterfundAccountsProps) {
+export function OtterfundAccounts({ accounts, netWorth, netWorthTrend = [], netWorthChange = 0, theme, currency = "CAD", onAdd, onConnect, onEdit, onSynced, onViewInvestments }: OtterfundAccountsProps) {
   const hasLinkedBank = accounts.some((a) => a.synced);
+  const hasTrend = netWorthTrend.length > 0;
+  const money = (n: number) => fmt(n, currency);
+  const signed = (n: number) => `${n < 0 ? "−" : "+"}${money(n)}`;
+  const nwDown = netWorthChange < 0;
   const [isSyncing, startSync] = useTransition();
   const [syncError, setSyncError] = useState("");
 
@@ -151,17 +163,26 @@ export function OtterfundAccounts({ accounts, netWorth, accent, theme, currency 
     <div className="of-enter of-page">
       {/* net worth hero */}
       <section
-        className="of-hero-row"
+        className="of-nw-hero"
         style={{
           position: "relative",
-          overflow: "hidden",
           padding: "0 4px 32px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
         }}
       >
-        <GuillochePattern accent={theme.accent} accentDeep={theme.accentDeep} fade="left" opacity={0.16} />
+        {/* Clip only the backdrop, not the section — so the sparkline tooltip
+            can overflow past the hero edges instead of getting cut off. */}
+        <div style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none" }}>
+          <GuillochePattern accent={theme.accent} accentDeep={theme.accentDeep} fade="left" opacity={0.16} />
+        </div>
+        <div
+          className="of-hero-row"
+          style={{
+            position: "relative",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+          }}
+        >
         <div style={{ position: "relative" }}>
           <div
             style={{
@@ -186,6 +207,20 @@ export function OtterfundAccounts({ accounts, netWorth, accent, theme, currency 
           >
             {fmt(netWorth, currency)}
           </div>
+          {hasTrend && (
+            <div style={{ marginTop: 14 }}>
+              <StatPill
+                theme={theme}
+                figure={signed(netWorthChange)}
+                label="this month"
+                icon={
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                    <path d={nwDown ? "M7 7 17 17M9 17h8V9" : "M7 17 17 7M9 7h8v8"} />
+                  </svg>
+                }
+              />
+            </div>
+          )}
         </div>
         <div className="of-hero-actions" style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8, flexShrink: 0 }}>
           <div style={{ display: "flex", gap: 10 }}>
@@ -249,6 +284,15 @@ export function OtterfundAccounts({ accounts, netWorth, accent, theme, currency 
             </span>
           )}
         </div>
+        </div>
+
+        {/* net-worth history — the balance-sheet's trend belongs here, beside
+            the balances that make it up (the Overview shows the same line). */}
+        {hasTrend && (
+          <div style={{ position: "relative", marginTop: 18 }}>
+            <NetWorthSparkline trend={netWorthTrend} theme={theme} money={money} signed={signed} height={104} />
+          </div>
+        )}
       </section>
 
       {/* groups */}
@@ -264,18 +308,43 @@ export function OtterfundAccounts({ accounts, netWorth, accent, theme, currency 
                 padding: "0 4px 12px",
               }}
             >
-              <h3
-                style={{
-                  margin: 0,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  letterSpacing: "0.04em",
-                  textTransform: "uppercase",
-                  color: "oklch(48% 0.012 80)",
-                }}
-              >
-                {grp.label}
-              </h3>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 12, minWidth: 0 }}>
+                <h3
+                  style={{
+                    margin: 0,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    letterSpacing: "0.04em",
+                    textTransform: "uppercase",
+                    color: "oklch(48% 0.012 80)",
+                  }}
+                >
+                  {grp.label}
+                </h3>
+                {/* Investments open their full portfolio (allocation + holdings)
+                    as a drill-in — Accounts is the one home for balances. */}
+                {grp.key === "invest" && onViewInvestments && (
+                  <button
+                    type="button"
+                    onClick={() => onViewInvestments()}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 3,
+                      border: "none",
+                      background: "none",
+                      padding: 0,
+                      cursor: "pointer",
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: theme.accentDeep,
+                    }}
+                  >
+                    <TrendingUp size={13} strokeWidth={2.2} aria-hidden="true" />
+                    View portfolio →
+                  </button>
+                )}
+              </div>
               <span className="of-num" style={{ fontSize: 14, color: "oklch(48% 0.012 80)" }}>
                 {(totalNegative ? "−" : "") + fmt(grp.total, currency)}
               </span>

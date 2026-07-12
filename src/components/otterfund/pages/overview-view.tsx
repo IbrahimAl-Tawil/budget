@@ -11,12 +11,13 @@ const ROUTE_FOR: Record<string, string> = {
   insights: "/dashboard/insights",
 };
 
-export function OverviewView({ overview }: { overview: DashboardOverview }) {
+export function OverviewView({ overview, name }: { overview: DashboardOverview; name: string | null }) {
   const router = useRouter();
   const { accent, theme, hrefFor } = useOtterfundChrome();
   return (
     <OtterfundOverview
       overview={overview}
+      name={name}
       accent={accent}
       theme={theme}
       // hrefFor preserves the selected month when landing on a period-scoped

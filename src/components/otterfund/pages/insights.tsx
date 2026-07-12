@@ -18,7 +18,8 @@
 // composer stays put and only the thread scrolls (a real chat-app feel).
 
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { ChevronRight, Loader2, PanelLeft, Plus, Sparkles, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowUpRight, ChevronRight, Loader2, PanelLeft, Plus, Sparkles, X } from "lucide-react";
 import type { InsightView, InsightDetail } from "@/lib/types";
 import { type OtterfundTheme } from "@/components/otterfund/theme";
 import { BlinkingOtter } from "@/components/otterfund/blinking-otter";
@@ -467,6 +468,23 @@ export function OtterfundInsights({ insights: initial, accent, theme, currency }
 // the insight. Rendered fixed over the viewport (the grid lives inside an
 // overflow:hidden track, so an in-flow drawer would clip). Esc / scrim / close
 // button dismiss it; motion collapses under prefers-reduced-motion via of-enter.
+// Where a given insight lives in the app — Insights is a lens over the other
+// tabs, so the drawer offers a jump to the tab that actually owns this data.
+function destFor(detail: InsightDetail | null): { href: string; label: string } | null {
+  switch (detail?.kind) {
+    case "category":
+      return { href: "/dashboard/spending", label: "View in Spending" };
+    case "subscription":
+      return { href: "/dashboard/spending", label: "View in Recurring" };
+    case "goal":
+      return { href: "/dashboard/goals", label: "View in Goals" };
+    case "income":
+      return { href: "/dashboard", label: "View in Overview" };
+    default:
+      return null;
+  }
+}
+
 function InsightDetailDrawer({
   insight,
   detail,
@@ -482,6 +500,8 @@ function InsightDetailDrawer({
   currency: string;
   onClose: () => void;
 }) {
+  const router = useRouter();
+  const dest = destFor(detail);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -571,6 +591,33 @@ function InsightDetailDrawer({
             <DetailBody detail={detail} theme={theme} currency={currency} />
           )}
         </div>
+
+        {/* footer · jump to the tab that owns this data — Insights routes into
+            the app rather than being a dead end. */}
+        {dest && !loading && (
+          <div
+            style={{
+              position: "sticky",
+              bottom: 0,
+              padding: "14px 22px",
+              background: "var(--color-of-surface)",
+              borderTop: "1px solid var(--color-of-line-soft)",
+            }}
+          >
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={() => {
+                onClose();
+                router.push(dest.href);
+              }}
+            >
+              {dest.label}
+              <ArrowUpRight size={15} strokeWidth={2.2} aria-hidden="true" />
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -27,6 +27,12 @@ interface OtterfundSubscriptionsProps {
   currency?: string;
   onAdd?: () => void;
   onEdit?: (subscription: SubscriptionView) => void;
+  /**
+   * Rendered as a "Recurring" section inside the Spending page rather than a
+   * standalone tab: drops the full-bleed hero + page wrapper for a compact
+   * section header, keeping the services + projection two-up.
+   */
+  embedded?: boolean;
 }
 
 const CARD: React.CSSProperties = {
@@ -45,7 +51,7 @@ function flagBadge(flag: string, theme: OtterfundTheme): { bg: string; color: st
     : { bg: "oklch(95% 0.05 90)", color: "oklch(46% 0.11 75)", label: "No recent charge" };
 }
 
-export function OtterfundSubscriptions({ subscriptions, theme, currency = "CAD", onAdd, onEdit }: OtterfundSubscriptionsProps) {
+export function OtterfundSubscriptions({ subscriptions, theme, currency = "CAD", onAdd, onEdit, embedded = false }: OtterfundSubscriptionsProps) {
   const money = (n: number) => fmt(n, currency);
 
   const monthlyTotal = subscriptions
@@ -67,72 +73,23 @@ export function OtterfundSubscriptions({ subscriptions, theme, currency = "CAD",
     .map((s) => ({ s, annual: s.cycle === "Annual" ? s.amount : s.amount * 12 }))
     .sort((a, b) => b.annual - a.annual);
 
-  return (
-    <div className="of-enter of-page">
-      {/* ── hero · subscription summary ── */}
-      <section
-        style={{
-          position: "relative",
-          overflow: "hidden",
-          padding: "0 4px 32px",
-          display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "space-between",
-          gap: 16,
-        }}
-      >
-        <GuillochePattern accent={theme.accent} accentDeep={theme.accentDeep} fade="left" opacity={0.16} />
-        <div style={{ position: "relative" }}>
-        <div
-          style={{
-            fontSize: 12,
-            fontWeight: 600,
-            letterSpacing: "0.07em",
-            textTransform: "uppercase",
-            color: "var(--color-of-faint)",
-          }}
-        >
-          Active subscriptions
-        </div>
-        <div
-          className="of-num"
-          style={{
-            fontSize: "clamp(44px, 5.5vw, 64px)",
-            fontWeight: 500,
-            letterSpacing: "-0.03em",
-            lineHeight: 1,
-            marginTop: 12,
-          }}
-        >
-          {money(monthlyEquivalent)}
-          <span style={{ fontSize: 18, color: "var(--color-of-muted)", fontWeight: 400 }}>/mo</span>
-        </div>
-        <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <span style={{ fontSize: 13, color: "var(--color-of-muted)" }}>
-            <span className="of-num">{money(annualTotal)}</span>/year · {subscriptions.length} service
-            {subscriptions.length === 1 ? "" : "s"}
-          </span>
-          {flaggedCount > 0 && (
-            <StatPill theme={theme} tone="clay" figure={flaggedCount} label="need attention" />
-          )}
-        </div>
-        </div>
-        {onAdd && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onAdd()}
-            className="border-dashed shrink-0"
-            style={{ position: "relative" }}
-          >
-            <Plus data-icon="inline-start" size={16} strokeWidth={2.2} />
-            New subscription
-          </Button>
-        )}
-      </section>
+  // The New-subscription button + a flagged-count alert, reused in both the
+  // standalone hero and the embedded section header.
+  const addButton = onAdd && (
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={() => onAdd()}
+      className="border-dashed shrink-0"
+      style={{ position: "relative" }}
+    >
+      <Plus data-icon="inline-start" size={16} strokeWidth={2.2} />
+      New subscription
+    </Button>
+  );
 
-      {/* ── services + annual projection · two-up ── */}
-      <section className="of-grid-2up" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+  const twoUp = (
+    <section className="of-grid-2up" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
         {/* service list */}
         <div style={CARD}>
           <div
@@ -287,6 +244,97 @@ export function OtterfundSubscriptions({ subscriptions, theme, currency = "CAD",
           )}
         </div>
       </section>
+  );
+
+  // ── embedded · a "Recurring" section for the Spending page ──
+  if (embedded) {
+    return (
+      <section style={{ marginTop: 16 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-end",
+            justifyContent: "space-between",
+            gap: 16,
+            flexWrap: "wrap",
+            padding: "0 4px 16px",
+          }}
+        >
+          <div>
+            <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, letterSpacing: "-0.01em" }}>Recurring</h2>
+            <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 13, color: "var(--color-of-muted)" }}>
+                <span className="of-num">{money(monthlyEquivalent)}</span>/mo ·{" "}
+                <span className="of-num">{money(annualTotal)}</span>/yr · {subscriptions.length} service
+                {subscriptions.length === 1 ? "" : "s"}
+              </span>
+              {flaggedCount > 0 && (
+                <StatPill theme={theme} tone="clay" figure={flaggedCount} label="need attention" />
+              )}
+            </div>
+          </div>
+          {addButton}
+        </div>
+        {twoUp}
+      </section>
+    );
+  }
+
+  // ── standalone · the full Subscriptions page (hero + two-up) ──
+  return (
+    <div className="of-enter of-page">
+      {/* ── hero · subscription summary ── */}
+      <section
+        style={{
+          position: "relative",
+          overflow: "hidden",
+          padding: "0 4px 32px",
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: 16,
+        }}
+      >
+        <GuillochePattern accent={theme.accent} accentDeep={theme.accentDeep} fade="left" opacity={0.16} />
+        <div style={{ position: "relative" }}>
+          <div
+            style={{
+              fontSize: 12,
+              fontWeight: 600,
+              letterSpacing: "0.07em",
+              textTransform: "uppercase",
+              color: "var(--color-of-faint)",
+            }}
+          >
+            Active subscriptions
+          </div>
+          <div
+            className="of-num"
+            style={{
+              fontSize: "clamp(44px, 5.5vw, 64px)",
+              fontWeight: 500,
+              letterSpacing: "-0.03em",
+              lineHeight: 1,
+              marginTop: 12,
+            }}
+          >
+            {money(monthlyEquivalent)}
+            <span style={{ fontSize: 18, color: "var(--color-of-muted)", fontWeight: 400 }}>/mo</span>
+          </div>
+          <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 13, color: "var(--color-of-muted)" }}>
+              <span className="of-num">{money(annualTotal)}</span>/year · {subscriptions.length} service
+              {subscriptions.length === 1 ? "" : "s"}
+            </span>
+            {flaggedCount > 0 && (
+              <StatPill theme={theme} tone="clay" figure={flaggedCount} label="need attention" />
+            )}
+          </div>
+        </div>
+        {addButton}
+      </section>
+
+      {twoUp}
     </div>
   );
 }

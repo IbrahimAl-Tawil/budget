@@ -36,6 +36,11 @@ interface NavItem {
   Icon: React.ComponentType<LucideProps>;
 }
 
+interface NavSection {
+  label: string;
+  items: NavItem[];
+}
+
 /** Eyebrow section label — the CardLabel voice, tuned for the sheet. */
 function SheetLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -46,7 +51,7 @@ function SheetLabel({ children }: { children: React.ReactNode }) {
 }
 
 export function MobileNav({
-  primary,
+  sections,
   secondary,
   pathname,
   hrefFor,
@@ -60,7 +65,7 @@ export function MobileNav({
   onOpenSettings,
   onSignOut,
 }: {
-  primary: NavItem[];
+  sections: NavSection[];
   secondary: NavItem[];
   pathname: string;
   hrefFor: (href: string) => string;
@@ -209,18 +214,32 @@ export function MobileNav({
             </svg>
           </div>
 
-          {/* nav rows — scroll if a short screen can't fit them all */}
+          {/* nav rows — grouped Flow · Holdings · Advisor, then More. `stagger`
+              keeps the entrance animation's --i running across every group so
+              the rows cascade in as one list. Scroll if a short screen can't
+              fit them all. */}
           <nav aria-label="Primary" className="of-scroll flex-1 overflow-y-auto px-3 pt-3">
-            <SheetLabel>Menu</SheetLabel>
-            <div className="flex flex-col gap-1">
-              {primary.map((item, i) => row(item, i))}
-            </div>
-            <div className="mt-3">
-              <SheetLabel>More</SheetLabel>
-            </div>
-            <div className="flex flex-col gap-1 pb-2">
-              {secondary.map((item, i) => row(item, primary.length + i))}
-            </div>
+            {(() => {
+              let stagger = 0;
+              return (
+                <>
+                  {sections.map((section) => (
+                    <div key={section.label} className="mb-2">
+                      <SheetLabel>{section.label}</SheetLabel>
+                      <div className="flex flex-col gap-1">
+                        {section.items.map((item) => row(item, stagger++))}
+                      </div>
+                    </div>
+                  ))}
+                  <div className="mt-1">
+                    <SheetLabel>More</SheetLabel>
+                  </div>
+                  <div className="flex flex-col gap-1 pb-2">
+                    {secondary.map((item) => row(item, stagger++))}
+                  </div>
+                </>
+              );
+            })()}
           </nav>
 
           {/* footer — the account, as a quiet canvas card: identity on top,
