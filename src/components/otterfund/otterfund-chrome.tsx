@@ -450,6 +450,7 @@ export function OtterfundChrome({
       plan,
       requireFeature,
       promptUpgrade,
+      openBillingPortal,
       addTransaction: () => setShowAdd(true),
       addGoal: () => setShowAddGoal(true),
       addAccount: () => setShowAddAccount(true),
@@ -475,7 +476,7 @@ export function OtterfundChrome({
       txCount,
       setTxCount,
     }),
-    [accent, theme, setAccent, hrefFor, txCount, plan, requireFeature, promptUpgrade]
+    [accent, theme, setAccent, hrefFor, txCount, plan, requireFeature, promptUpgrade, openBillingPortal]
   );
 
   return (
@@ -554,18 +555,6 @@ export function OtterfundChrome({
                   <div style={{ fontSize: 11.5, color: "var(--color-of-faint)" }}>{PLAN_META[plan].label}</div>
                 </div>
                 <div style={{ height: 1, background: "var(--color-of-line-soft)", margin: "2px 0 4px" }} />
-                {plan !== "pro" && (
-                  <MenuItem onClick={() => router.push("/pricing")}>
-                    <Sparkles size={15} strokeWidth={2} aria-hidden="true" />
-                    <span>Upgrade plan</span>
-                  </MenuItem>
-                )}
-                {plan !== "free" && (
-                  <MenuItem onClick={openBillingPortal}>
-                    <CreditCard size={15} strokeWidth={2} aria-hidden="true" />
-                    <span>Manage billing</span>
-                  </MenuItem>
-                )}
                 <MenuItem onClick={() => setShowSettings(true)}>
                   <Settings size={15} strokeWidth={2} aria-hidden="true" />
                   <span>Settings</span>
@@ -601,8 +590,6 @@ export function OtterfundChrome({
                 userName={userName}
                 initials={initials}
                 planLabel={PLAN_META[plan].label}
-                onUpgrade={plan !== "pro" ? () => router.push("/pricing") : undefined}
-                onManageBilling={plan !== "free" ? openBillingPortal : undefined}
                 onOpenSettings={() => setShowSettings(true)}
                 onSignOut={handleSignOut}
               />

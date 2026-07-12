@@ -25,6 +25,8 @@ export interface OtterfundChromeValue {
   requireFeature: (feature: Feature) => boolean;
   /** Send the user to the pricing page to upgrade. */
   promptUpgrade: () => void;
+  /** Open Stripe's hosted billing portal to manage/cancel a paid plan. */
+  openBillingPortal: () => void;
   /** Open the chrome-owned modals. */
   addTransaction: () => void;
   addGoal: () => void;
