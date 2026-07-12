@@ -1,6 +1,5 @@
 import { cache } from "react";
 import { prisma } from "./prisma";
-import { getUserRow } from "./user";
 import type { MonthlySummary } from "@/lib/types";
 
 // The grouped aggregations below are cache()-wrapped: several view-models call
@@ -130,17 +129,19 @@ export const computeAllBudgetSpent = cache(async (
 });
 
 /**
- * Computes income, spending, and surplus (income - spending) for a month.
+ * Computes income, spending, and surplus (income - spending) for a month —
+ * all from actual transactions, so the three figures always reconcile.
  *
- * Income is sourced from the user's configured `monthlyIncome` in settings —
- * not from positive-amount transactions — so that the figure shown across the
- * app matches what the user explicitly entered. Spending is still computed
- * live from negative transactions in the month.
+ * Income is the sum of positive-amount transactions in the month; spending is
+ * the absolute sum of negative ones. The user's configured `monthlyIncome`
+ * setting is deliberately NOT used here — it is a budget-plan input (drives
+ * budget targets), not money that actually arrived. Mixing it in produced
+ * "left over" amounts that never existed in any account.
  *
  * @param userId - Owner of the transactions.
  * @param month - 1-indexed month.
  * @param year - 4-digit year.
- * @returns Income (from settings), spending (absolute), and surplus for the month.
+ * @returns Actual income, spending (absolute), and surplus for the month.
  */
 export const computeMonthlySurplus = cache(async (
   userId: string,
@@ -150,8 +151,16 @@ export const computeMonthlySurplus = cache(async (
   const startDate = new Date(year, month - 1, 1);
   const endDate = new Date(year, month, 1);
 
-  const [user, spendAgg] = await Promise.all([
-    getUserRow(userId),
+  const [incomeAgg, spendAgg] = await Promise.all([
+    prisma.transaction.aggregate({
+      where: {
+        userId,
+        amount: { gt: 0 },
+        date: { gte: startDate, lt: endDate },
+        ...NOT_EXCLUDED_ACCOUNT,
+      },
+      _sum: { amount: true },
+    }),
     prisma.transaction.aggregate({
       where: {
         userId,
@@ -163,7 +172,7 @@ export const computeMonthlySurplus = cache(async (
     }),
   ]);
 
-  const income = user?.monthlyIncome ?? 0;
+  const income = incomeAgg._sum.amount ?? 0;
   const spending = Math.abs(spendAgg._sum.amount ?? 0);
   return { income, spending, surplus: income - spending };
 });

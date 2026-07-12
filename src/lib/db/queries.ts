@@ -11,7 +11,7 @@ import {
   detectUnusedSubscriptions,
   computeSubscriptionBudgetImpact,
 } from "./subscription-intelligence";
-import { fmt } from "@/lib/format";
+import { fmt, round2 } from "@/lib/format";
 import { getBudgetPlan, bucketOf, accountGroupOf } from "@/lib/constants";
 import { allocatePool } from "./goal-allocation";
 import { getQuotes, type Quote } from "@/lib/market/prices";
@@ -73,6 +73,7 @@ export async function getDashboardOverview(
     budgets,
     subscriptionImpact,
     windowTxs,
+    firstTxAgg,
   ] = await Promise.all([
     getUserRow(userId),
     // Excluded accounts are hidden from net worth (kept synced, but omitted).
@@ -106,7 +107,15 @@ export async function getDashboardOverview(
         date: { gte: sevenMonthsAgo },
         ...NOT_EXCLUDED_ACCOUNT,
       },
-      select: { date: true, amount: true },
+      select: { date: true, amount: true, accountId: true },
+    }),
+    // Earliest transaction per account — a manual entry can be backdated to
+    // before its account row was created, so "when does this account's history
+    // start" is min(createdAt, first transaction).
+    prisma.transaction.groupBy({
+      by: ["accountId"],
+      where: { userId, accountId: { not: null } },
+      _min: { date: true },
     }),
   ]);
 
@@ -157,18 +166,36 @@ export async function getDashboardOverview(
     .filter((c) => c.amount > 0 || c.budget > 0)
     .sort((a, b) => b.amount - a.amount);
 
-  // Last-7-months trends, derived from the windowTxs read above.
+  // Last-7-months trends, derived from the windowTxs read above. Both series
+  // are actuals — no settings-derived figures mixed in.
   //
-  // Net worth history is real, not projected: net worth at a past month-end is
-  // today's net worth minus every transaction that landed after that month —
+  // Net worth history is real, not projected: an account's balance at a past
+  // month-end is its current balance minus its transactions after that month —
   // each later transaction is exactly what moved the balance from then to now.
   // This holds for manual and synced accounts alike (a synced account's stored
   // balance is its current reported truth, and its transactions account for the
-  // deltas), so it matches the headline `netWorth` at the final point.
-  //
-  // Income vs expense still tracks the user's configured monthlyIncome for the
-  // income line (so it matches the headline figure); expenses are live.
-  const settingsIncome = user?.monthlyIncome ?? 0;
+  // deltas), so it matches the headline `netWorth` at the final point. Two
+  // truth rules keep the history honest:
+  //  - An account only exists in history from its first activity (creation or
+  //    earliest backdated transaction). Before that, its balance is unknown —
+  //    plotting it flat would be invented history. Months before ANY account
+  //    existed are dropped entirely, so a new user's chart starts at month one.
+  //  - Only account-linked transactions move net worth (an account-less manual
+  //    transaction is cash flow, but no tracked balance changed).
+  const firstTxByAccount = new Map(
+    firstTxAgg
+      .filter((r) => r.accountId && r._min.date)
+      .map((r) => [r.accountId as string, r._min.date as Date]),
+  );
+  const startById = new Map(
+    accounts.map((a) => {
+      const firstTx = firstTxByAccount.get(a.id);
+      return [a.id, firstTx && firstTx < a.createdAt ? firstTx : a.createdAt];
+    }),
+  );
+  const firstActivity = accounts.length
+    ? [...startById.values()].reduce((a, b) => (a < b ? a : b))
+    : null;
 
   const months: string[] = [];
   const incomeArr: number[] = [];
@@ -178,30 +205,53 @@ export async function getDashboardOverview(
   for (let i = 6; i >= 0; i--) {
     const m = new Date(year, month - 1 - i, 1);
     const mEnd = new Date(m.getFullYear(), m.getMonth() + 1, 1);
-    months.push(MONTH_NAMES[m.getMonth()]);
+    const existsAt = (accountId: string | null) => {
+      const start = accountId ? startById.get(accountId) : undefined;
+      return start !== undefined && start < mEnd;
+    };
 
-    let monthIncome = 0;
-    let monthExpense = 0;
+    let monthIn = 0;
+    let monthOut = 0;
+    let monthDelta = 0;
     let afterEnd = 0;
     for (const t of windowTxs) {
       if (t.date >= mEnd) {
-        afterEnd += t.amount;
+        if (existsAt(t.accountId)) afterEnd += t.amount;
       } else if (t.date >= m) {
-        if (t.amount < 0) monthExpense += -t.amount;
-        else monthIncome += t.amount;
+        if (t.amount < 0) monthOut += -t.amount;
+        else monthIn += t.amount;
+        if (t.accountId) monthDelta += t.amount;
       }
     }
 
-    incomeArr.push(Math.round(settingsIncome));
-    expenseArr.push(Math.round(monthExpense));
+    months.push(MONTH_NAMES[m.getMonth()]);
+    incomeArr.push(Math.round(monthIn));
+    expenseArr.push(Math.round(monthOut));
+
+    // Net worth is undefined before the first account existed — skip, don't fake.
+    if (!firstActivity || firstActivity >= mEnd) continue;
+    let value = 0;
+    for (const a of accounts) {
+      if (existsAt(a.id)) value += balanceOf(a);
+    }
+    // A month's `change` is the visible step from the previous point, so the
+    // tooltip and the line can never disagree. Usually that step equals the
+    // month's transactions, but when an account joins tracking mid-window its
+    // starting balance is part of the step too (tracked net worth genuinely
+    // rose by it). The first plotted month has no prior point, so it uses its
+    // within-month transaction delta — a typed-in opening balance is not a gain.
+    const pointValue = round2(value - afterEnd);
+    const prev = nwTrend[nwTrend.length - 1];
     nwTrend.push({
       label: MONTH_NAMES[m.getMonth()],
-      value: Math.round(netWorth - afterEnd),
-      change: Math.round(monthIncome - monthExpense),
+      value: pointValue,
+      change: round2(prev ? pointValue - prev.value : monthDelta),
     });
   }
 
-  const netWorthChange = savedAmount;
+  // The headline "this month" badge is the real net-worth movement — the same
+  // figure as the trend's final point, so the badge and the chart always agree.
+  const netWorthChange = nwTrend.length ? nwTrend[nwTrend.length - 1].change : 0;
 
   const goalViews: GoalView[] = goals.map((g) => ({
     id: g.id,
@@ -295,27 +345,23 @@ export async function getSpendingData(userId: string, month: number, year: numbe
  * The Spending page view-model: the user's active budget plan, monthly income,
  * and this month's actual utilization grouped into Needs / Wants / Savings
  * buckets. Needs & Wants roll up category spend (via CATEGORY_BUCKETS); Savings
- * is virtual — income minus total spend, floored at 0 (matching the app's
- * "surplus" definition). Bucket targets come from the plan's percentages of
- * income, so target and actual are directly comparable.
+ * is virtual — actual income minus total spend, floored at 0 (matching the
+ * Overview's "surplus" definition). Bucket targets come from the plan's
+ * percentages of the configured monthly income — that's the plan side; the
+ * actual side is transactions only.
  */
 export async function getSpendingPlan(
   userId: string,
   month: number,
   year: number
 ): Promise<SpendingPlanView> {
-  const startDate = new Date(year, month - 1, 1);
-  const endDate = new Date(year, month, 1);
-  const [user, categorySpentMap, categories, spendAgg, goals] = await Promise.all([
+  const [user, categorySpentMap, categories, summary, goals] = await Promise.all([
     getUserRow(userId),
     computeAllBudgetSpent(userId, month, year),
     prisma.category.findMany({ where: { userId } }),
-    // Canonical monthly spend — ALL negative transactions (matches Overview's
-    // monthlySpend/surplus). Used to reconcile the buckets so the two pages agree.
-    prisma.transaction.aggregate({
-      where: { userId, amount: { lt: 0 }, date: { gte: startDate, lt: endDate } },
-      _sum: { amount: true },
-    }),
+    // Canonical monthly income/spend — the same aggregation the Overview uses
+    // (excluded accounts and all), so the two pages always reconcile.
+    computeMonthlySurplus(userId, month, year),
     prisma.goal.findMany({ where: { userId }, orderBy: { createdAt: "desc" } }),
   ]);
 
@@ -348,7 +394,7 @@ export async function getSpendingPlan(
   // tagged "Income" (both dropped by the category rollup) — into Wants as an
   // explicit slice, so totalSpent equals the canonical monthly spend and savings
   // equals the surplus the Overview shows.
-  const canonicalSpend = Math.abs(spendAgg._sum.amount ?? 0);
+  const canonicalSpend = summary.spending;
   const uncategorized = Math.max(0, canonicalSpend - (bucketActual.needs + bucketActual.wants));
   if (uncategorized > 0.005) {
     slices.wants.push({
@@ -370,7 +416,10 @@ export async function getSpendingPlan(
   }
 
   const totalSpent = bucketActual.needs + bucketActual.wants;
-  const savingsActual = Math.max(0, monthlyIncome - totalSpent);
+  // Actual savings = what actually stayed this month (real income − real spend,
+  // i.e. the Overview's surplus). Plan targets below still derive from the
+  // configured monthlyIncome — that's the plan; this is what happened.
+  const savingsActual = Math.max(0, summary.income - totalSpent);
   const targetAmount = (pct: number) => Math.round((monthlyIncome * pct) / 100);
 
   // Savings breakdown = where the planned savings goes. Split the savings

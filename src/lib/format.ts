@@ -22,3 +22,7 @@ export const fmtWhole = (n: number, currency = "CAD") =>
 
 export const fmtShort = (n: number) =>
   "$" + (Math.abs(n) / 1000).toFixed(1) + "K";
+
+// Round a money amount to cents. Use this everywhere amounts are derived
+// arithmetically so every surface reconciles to the same cent.
+export const round2 = (n: number) => Math.round(n * 100) / 100;

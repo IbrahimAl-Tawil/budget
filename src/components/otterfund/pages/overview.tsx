@@ -457,7 +457,13 @@ export function OtterfundOverview({ overview, name, theme, onNavigate }: Otterfu
           <div className="of-num" style={{ fontSize: 23, letterSpacing: "-0.02em", marginTop: 6 }}>
             {signed(surplusTween)}
           </div>
-          <div style={{ fontSize: 12, opacity: 0.85, marginTop: 4 }}>{savingsRate}% savings rate</div>
+          <div style={{ fontSize: 12, opacity: 0.85, marginTop: 4 }}>
+            {surplusDown
+              ? "more went out than came in"
+              : overview.monthlyIncome <= 0
+                ? "no money in yet this month"
+                : `${savingsRate}% savings rate`}
+          </div>
         </div>
       </section>
 

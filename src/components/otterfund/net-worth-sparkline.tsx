@@ -138,6 +138,9 @@ export function NetWorthSparkline({
   const [hover, setHover] = useState<number | null>(null);
   const hoverPt = hover !== null ? spark.pts[hover] : null;
   const hasTrend = trend.length > 0;
+  // One real month plots as a flat line from a duplicated point. Present it as
+  // a single centered reading: one marker, one label, no hover walk.
+  const single = trend.length === 1;
   const gradId = "of-nw-grad";
 
   // Compact value labels for the axis ($24.2K, not $24,180.62).
@@ -181,7 +184,7 @@ export function NetWorthSparkline({
         style={{ position: "relative", width: "100%", height }}
         onMouseLeave={() => setHover(null)}
         onMouseMove={
-          hasTrend
+          hasTrend && !single
             ? (e) => {
                 const rect = e.currentTarget.getBoundingClientRect();
                 const ratio = (e.clientX - rect.left) / rect.width;
@@ -232,6 +235,7 @@ export function NetWorthSparkline({
 
         {/* a dot per month (the last point wears the end/hover marker instead) */}
         {hasTrend &&
+          !single &&
           spark.pts.slice(0, -1).map((p, i) => (
             <span
               key={i}
@@ -256,7 +260,7 @@ export function NetWorthSparkline({
           <span
             style={{
               position: "absolute",
-              left: `${(spark.pts[spark.pts.length - 1].x / W) * 100}%`,
+              left: single ? "50%" : `${(spark.pts[spark.pts.length - 1].x / W) * 100}%`,
               top: `${(spark.pts[spark.pts.length - 1].y / H) * 100}%`,
               width: 10,
               height: 10,
@@ -311,10 +315,10 @@ export function NetWorthSparkline({
         )}
       </div>
 
-      {/* month labels · x-axis */}
+      {/* month labels · x-axis (one label, centered, for a single-month trend) */}
       {hasTrend && (
-        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 7 }}>
-          {spark.pts.map((p, i) => (
+        <div style={{ display: "flex", justifyContent: single ? "center" : "space-between", marginTop: 7 }}>
+          {(single ? [spark.pts[0]] : spark.pts).map((p, i) => (
             <span
               key={i}
               style={{
