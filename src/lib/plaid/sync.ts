@@ -21,6 +21,7 @@ import {
   plaidCategoryToOtterfund,
   iconColorFor,
 } from "./mappers";
+import { resolveMerchant } from "@/lib/merchant/resolve";
 
 export interface SyncResult {
   added: number;
@@ -110,9 +111,16 @@ export async function syncItem(item: PlaidItem): Promise<SyncResult> {
     console.error("accountsGet failed, using sync accounts:", safePlaidErr(err));
   }
 
+  // Resolve the institution's logo domain ONCE per item (same path as
+  // subscriptions: dictionary → Merchant cache → Claude), then store it on every
+  // account of this bank so the UI reads it as-is.
+  const institutionDomain = item.institutionName
+    ? (await resolveMerchant(item.institutionName)).domain
+    : null;
+
   const localIdByPlaid = new Map<string, string>();
   for (const acct of accountList) {
-    const local = await upsertAccount(item, acct);
+    const local = await upsertAccount(item, acct, institutionDomain);
     localIdByPlaid.set(acct.account_id, local.id);
   }
 
@@ -146,6 +154,7 @@ export async function syncItem(item: PlaidItem): Promise<SyncResult> {
           type: "other",
           balance: 0,
           institution: item.institutionName ?? null,
+          domain: institutionDomain,
           syncedAt: new Date(),
         },
         update: {},
@@ -181,7 +190,7 @@ export async function syncItem(item: PlaidItem): Promise<SyncResult> {
 }
 
 /** Create or refresh the local Account for a Plaid account. Balance set by reconcileAnchor. */
-async function upsertAccount(item: PlaidItem, acct: AccountBase) {
+async function upsertAccount(item: PlaidItem, acct: AccountBase, domain: string | null) {
   const type = mapPlaidAccountType(
     String(acct.type),
     acct.subtype ? String(acct.subtype) : null,
@@ -195,6 +204,7 @@ async function upsertAccount(item: PlaidItem, acct: AccountBase) {
     number: acct.mask ? `·· ${acct.mask}` : null,
     mask: acct.mask ?? null,
     institution: item.institutionName ?? null,
+    domain,
     syncedAt: new Date(),
   };
   return prisma.account.upsert({

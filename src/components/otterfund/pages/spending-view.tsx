@@ -13,7 +13,7 @@ export function SpendingView({
   subscriptions: SubscriptionView[];
   currency: string;
 }) {
-  const { accent, theme, hrefFor, addSubscription, editSubscription } = useOtterfundChrome();
+  const { accent, theme, hrefFor, addSubscription, editSubscription, hasAccounts, addAccount, connectBank } = useOtterfundChrome();
   return (
     <OtterfundSpending
       plan={plan}
@@ -21,6 +21,9 @@ export function SpendingView({
       theme={theme}
       subscriptions={subscriptions}
       currency={currency}
+      hasAccounts={hasAccounts}
+      onAddAccount={addAccount}
+      onConnect={connectBank}
       onAddSubscription={addSubscription}
       onEditSubscription={editSubscription}
       goalsHref={hrefFor("/dashboard/goals")}

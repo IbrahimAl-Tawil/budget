@@ -7,6 +7,8 @@
 import { Check } from "lucide-react";
 import { Field, TextInput, SelectInput } from "@/components/otterfund/form";
 import { ACCOUNT_TYPES } from "@/lib/constants";
+import { MerchantAvatar } from "@/components/otterfund/merchant-avatar";
+import { dictionaryDomain } from "@/lib/merchant/dictionary";
 
 export const ACCOUNT_COLORS: { name: string; value: string }[] = [
   { name: "Charcoal", value: "linear-gradient(135deg, oklch(18% 0.012 260), oklch(28% 0.015 260))" },
@@ -26,6 +28,10 @@ export interface AccountFormValues {
   balance: string;
   number: string;
   gradient: string;
+  /** Bank / institution — optional. When it matches a known institution the
+      account tile shows that bank's logo instead of a letter (same resolution
+      as synced accounts). */
+  institution: string;
 }
 
 export type AccountFormErrors = Partial<Record<"name" | "balance", string>>;
@@ -46,9 +52,20 @@ interface AccountFormProps {
   onChange: (patch: Partial<AccountFormValues>) => void;
   /** Lock the balance field — used for bank-synced accounts. */
   lockBalance?: boolean;
+  /** Already-resolved logo domain for this account (e.g. a synced account's
+      stored domain), so the form knows a logo exists even for banks the client
+      dictionary doesn't list (Claude-resolved). */
+  knownDomain?: string | null;
 }
 
-export function AccountForm({ values, errors, onChange, lockBalance }: AccountFormProps) {
+export function AccountForm({ values, errors, onChange, lockBalance, knownDomain }: AccountFormProps) {
+  // A logo shows when the typed bank is recognised (client dictionary) or the
+  // account already has a resolved domain. When it does, the colour picker +
+  // gradient preview are moot — the tile shows the logo, not the gradient — so
+  // we hide them and preview the logo instead.
+  const typedInstitution = values.institution.trim();
+  const logoDomain = typedInstitution ? (dictionaryDomain(typedInstitution) || knownDomain || null) : null;
+  const hasLogo = !!logoDomain;
   return (
     <div className="flex flex-col gap-5">
       <Field label="Account name" error={errors.name} htmlFor="acct-name">
@@ -58,6 +75,20 @@ export function AccountForm({ values, errors, onChange, lockBalance }: AccountFo
           invalid={!!errors.name}
           onChange={(e) => onChange({ name: e.target.value })}
           placeholder="e.g. TD Chequing"
+        />
+      </Field>
+
+      <Field
+        label="Bank"
+        optional
+        htmlFor="acct-institution"
+        hint="We’ll show the bank’s logo when we recognise it."
+      >
+        <TextInput
+          id="acct-institution"
+          value={values.institution}
+          onChange={(e) => onChange({ institution: e.target.value })}
+          placeholder="e.g. American Express"
         />
       </Field>
 
@@ -102,45 +133,72 @@ export function AccountForm({ values, errors, onChange, lockBalance }: AccountFo
         />
       </Field>
 
-      <Field label="Color">
-        <div className="flex flex-wrap gap-2">
-          {ACCOUNT_COLORS.map((c) => {
-            const selected = c.value === values.gradient;
-            // Ring in the swatch's OWN hue (its first gradient stop), not the
-            // app accent — a sage swatch gets a sage ring. Set via Tailwind's
-            // ring-color variable since a class can't carry a per-swatch value.
-            const ringColor = c.value.match(/oklch\([^)]+\)/)?.[0] ?? "var(--color-primary)";
-            return (
-              <button
-                key={c.value}
-                type="button"
-                onClick={() => onChange({ gradient: c.value })}
-                title={c.name}
-                aria-label={c.name}
-                aria-pressed={selected}
-                className={`relative w-9 h-9 rounded-full transition-transform duration-200 cursor-pointer ${
-                  selected
-                    ? "scale-110 ring-2 ring-offset-2 ring-offset-[var(--color-of-surface)]"
-                    : "hover:scale-110"
-                }`}
-                style={{ background: c.value, ...(selected ? { ["--tw-ring-color" as string]: ringColor } : {}) }}
-              >
-                {selected && (
-                  <Check className="absolute inset-0 m-auto w-4 h-4 text-white drop-shadow-[0_1px_2px_oklch(0%_0_0/0.4)]" />
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </Field>
+      {/* Colour picker — only when there's no logo. With a bank logo the tile
+          shows the logo, not the gradient, so the swatches are moot. */}
+      {!hasLogo && (
+        <Field label="Color">
+          <div className="flex flex-wrap gap-2">
+            {ACCOUNT_COLORS.map((c) => {
+              const selected = c.value === values.gradient;
+              // Ring in the swatch's OWN hue (its first gradient stop), not the
+              // app accent — a sage swatch gets a sage ring. Set via Tailwind's
+              // ring-color variable since a class can't carry a per-swatch value.
+              const ringColor = c.value.match(/oklch\([^)]+\)/)?.[0] ?? "var(--color-primary)";
+              return (
+                <button
+                  key={c.value}
+                  type="button"
+                  onClick={() => onChange({ gradient: c.value })}
+                  title={c.name}
+                  aria-label={c.name}
+                  aria-pressed={selected}
+                  className={`relative w-9 h-9 rounded-full transition-transform duration-200 cursor-pointer ${
+                    selected
+                      ? "scale-110 ring-2 ring-offset-2 ring-offset-[var(--color-of-surface)]"
+                      : "hover:scale-110"
+                  }`}
+                  style={{ background: c.value, ...(selected ? { ["--tw-ring-color" as string]: ringColor } : {}) }}
+                >
+                  {selected && (
+                    <Check className="absolute inset-0 m-auto w-4 h-4 text-white drop-shadow-[0_1px_2px_oklch(0%_0_0/0.4)]" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </Field>
+      )}
 
-      {/* live preview */}
-      <div className="rounded-xl p-4 text-white" style={{ background: values.gradient }} aria-hidden>
-        <div className="text-[12px] font-semibold opacity-80">{values.name || "Account name"}</div>
-        <div className="of-num text-[22px] tracking-[-0.03em] mt-1">
-          {`$${(Number(values.balance) || 0).toLocaleString("en-CA", { minimumFractionDigits: 2 })}`}
+      {/* live preview — logo card when a bank is recognised, else the gradient */}
+      {hasLogo ? (
+        <div
+          className="flex items-center gap-3 rounded-xl p-4"
+          style={{ background: "var(--color-of-canvas)", border: "1px solid var(--color-of-line)" }}
+          aria-hidden
+        >
+          <MerchantAvatar
+            name={typedInstitution || values.name}
+            domain={logoDomain}
+            bg="var(--accent)"
+            ink="var(--accent-foreground)"
+            size={40}
+            fit="contain"
+          />
+          <div className="min-w-0">
+            <div className="text-[13px] font-semibold text-[var(--color-of-ink)] truncate">{values.name || "Account name"}</div>
+            <div className="of-num text-[18px] tracking-[-0.03em] text-[var(--color-of-ink)]">
+              {`$${(Number(values.balance) || 0).toLocaleString("en-CA", { minimumFractionDigits: 2 })}`}
+            </div>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="rounded-xl p-4 text-white" style={{ background: values.gradient }} aria-hidden>
+          <div className="text-[12px] font-semibold opacity-80">{values.name || "Account name"}</div>
+          <div className="of-num text-[22px] tracking-[-0.03em] mt-1">
+            {`$${(Number(values.balance) || 0).toLocaleString("en-CA", { minimumFractionDigits: 2 })}`}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

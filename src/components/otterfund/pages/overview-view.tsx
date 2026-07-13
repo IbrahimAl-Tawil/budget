@@ -15,13 +15,16 @@ const ROUTE_FOR: Record<string, string> = {
 
 export function OverviewView({ overview, name }: { overview: DashboardOverview; name: string | null }) {
   const router = useRouter();
-  const { accent, theme, hrefFor } = useOtterfundChrome();
+  const { accent, theme, hrefFor, hasAccounts, addAccount, connectBank } = useOtterfundChrome();
   return (
     <OtterfundOverview
       overview={overview}
       name={name}
       accent={accent}
       theme={theme}
+      hasAccounts={hasAccounts}
+      onAddAccount={addAccount}
+      onConnectBank={connectBank}
       // hrefFor preserves the selected month when landing on a period-scoped
       // route (e.g. Transactions), and stays clean for the others.
       onNavigate={(v) => router.push(hrefFor(ROUTE_FOR[v] ?? "/dashboard"))}

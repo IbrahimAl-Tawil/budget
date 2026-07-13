@@ -21,6 +21,10 @@ export interface OtterfundChromeValue {
   setAccent: (accent: string) => void;
   /** The user's billing tier — pages read it to render locked states. */
   plan: PlanTier;
+  /** False when the user has NO accounts (none linked, none manual) — drives the
+      app-wide cold-start empty states (Overview / Accounts / Transactions /
+      Spending pivot to an "add an account" surface instead of zeroed chrome). */
+  hasAccounts: boolean;
   /** Gate an action: true = proceed; false = plan lacks it (redirects to pricing). */
   requireFeature: (feature: Feature) => boolean;
   /** Send the user to the pricing page to upgrade. */
@@ -33,6 +37,8 @@ export interface OtterfundChromeValue {
   addAccount: () => void;
   addSubscription: () => void;
   addInvestment: () => void;
+  /** Open the statement-import modal. */
+  importStatement: () => void;
   /** Open the Connect-a-bank modal. Pass a Plaid itemId to reconnect (update mode). */
   connectBank: (updateItemId?: string) => void;
   editSubscription: (subscription: SubscriptionView) => void;

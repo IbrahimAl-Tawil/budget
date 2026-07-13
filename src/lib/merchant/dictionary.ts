@@ -10,6 +10,44 @@ export interface DictionaryEntry {
   domain: string;
 }
 
+/**
+ * Normalize a raw merchant/institution name to a stable lookup key: lowercase,
+ * strip common payment-processor prefixes, phone numbers, store/location codes,
+ * and punctuation. "NETFLIX.COM 866-579-7172 CA" → "netflix". Client-safe (pure
+ * string work, no server imports) so both the resolver and client UI can use it.
+ */
+export function normalizeKey(raw: string): string {
+  let s = raw.toLowerCase();
+
+  // Common payment-processor / aggregator prefixes (Square, Toast, PayPal, etc.)
+  s = s.replace(/\b(sq|tst|paypal|pp|sp|dd| import|pos|pmnt|payment|recur(ring)?|autopay)\b\s*\*?\s*/g, " ");
+  s = s.replace(/[*#]/g, " ");
+
+  // Drop URLs/TLDs, phone numbers, and long digit runs (order/store IDs).
+  s = s.replace(/https?:\/\/\S+/g, " ");
+  s = s.replace(/\b[\w.-]+\.(com|net|org|io|co|tv|app|us|so|ai)\b/g, (m) => m.split(".")[0]);
+  s = s.replace(/\+?\d[\d\s().-]{6,}\d/g, " "); // phone numbers
+  s = s.replace(/\b\d{3,}\b/g, " "); // standalone long numbers
+
+  // Trailing 2-letter state/province codes and generic recurring words.
+  s = s.replace(/\b(inc|llc|ltd|co|corp|subscription|membership|monthly|annual|yearly)\b/g, " ");
+
+  // Collapse to alphanumerics + single spaces.
+  s = s.replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ");
+  return s;
+}
+
+/**
+ * Dictionary-ONLY domain lookup: no DB, no Claude. Client-safe — cheap enough to
+ * run per keystroke in a form or per row of a typeahead. Well-known names get a
+ * logo instantly; anything not in the seed dictionary returns null.
+ */
+export function dictionaryDomain(rawName: string | null | undefined): string | null {
+  if (!rawName) return null;
+  const key = normalizeKey(rawName);
+  return (key && MERCHANT_DICTIONARY[key]?.domain) || null;
+}
+
 export const MERCHANT_DICTIONARY: Record<string, DictionaryEntry> = {
   netflix: { displayName: "Netflix", domain: "netflix.com" },
   spotify: { displayName: "Spotify", domain: "spotify.com" },
@@ -128,4 +166,72 @@ export const MERCHANT_DICTIONARY: Record<string, DictionaryEntry> = {
   "uber one": { displayName: "Uber One", domain: "uber.com" },
   "instacart": { displayName: "Instacart", domain: "instacart.com" },
   "hellofresh": { displayName: "HelloFresh", domain: "hellofresh.com" },
+
+  // Banks & financial institutions — so a synced or manual account resolves its
+  // bank's logo through the same path as any merchant. Keys are normalizeKey
+  // output (lowercase, alphanumerics + spaces).
+  "american express": { displayName: "American Express", domain: "americanexpress.com" },
+  amex: { displayName: "American Express", domain: "americanexpress.com" },
+  chase: { displayName: "Chase", domain: "chase.com" },
+  "jpmorgan chase": { displayName: "Chase", domain: "chase.com" },
+  "bank of america": { displayName: "Bank of America", domain: "bankofamerica.com" },
+  "wells fargo": { displayName: "Wells Fargo", domain: "wellsfargo.com" },
+  citi: { displayName: "Citi", domain: "citi.com" },
+  citibank: { displayName: "Citi", domain: "citi.com" },
+  "capital one": { displayName: "Capital One", domain: "capitalone.com" },
+  "us bank": { displayName: "U.S. Bank", domain: "usbank.com" },
+  pnc: { displayName: "PNC", domain: "pnc.com" },
+  truist: { displayName: "Truist", domain: "truist.com" },
+  "td bank": { displayName: "TD Bank", domain: "td.com" },
+  "td canada trust": { displayName: "TD", domain: "td.com" },
+  td: { displayName: "TD", domain: "td.com" },
+  "charles schwab": { displayName: "Charles Schwab", domain: "schwab.com" },
+  schwab: { displayName: "Charles Schwab", domain: "schwab.com" },
+  fidelity: { displayName: "Fidelity", domain: "fidelity.com" },
+  vanguard: { displayName: "Vanguard", domain: "vanguard.com" },
+  "goldman sachs": { displayName: "Goldman Sachs", domain: "goldmansachs.com" },
+  marcus: { displayName: "Marcus", domain: "marcus.com" },
+  "morgan stanley": { displayName: "Morgan Stanley", domain: "morganstanley.com" },
+  discover: { displayName: "Discover", domain: "discover.com" },
+  ally: { displayName: "Ally", domain: "ally.com" },
+  "ally bank": { displayName: "Ally", domain: "ally.com" },
+  sofi: { displayName: "SoFi", domain: "sofi.com" },
+  chime: { displayName: "Chime", domain: "chime.com" },
+  "regions bank": { displayName: "Regions", domain: "regions.com" },
+  regions: { displayName: "Regions", domain: "regions.com" },
+  "fifth third bank": { displayName: "Fifth Third Bank", domain: "53.com" },
+  "fifth third": { displayName: "Fifth Third Bank", domain: "53.com" },
+  "citizens bank": { displayName: "Citizens", domain: "citizensbank.com" },
+  keybank: { displayName: "KeyBank", domain: "key.com" },
+  "navy federal": { displayName: "Navy Federal", domain: "navyfederal.org" },
+  usaa: { displayName: "USAA", domain: "usaa.com" },
+  synchrony: { displayName: "Synchrony", domain: "synchrony.com" },
+  robinhood: { displayName: "Robinhood", domain: "robinhood.com" },
+  "e trade": { displayName: "E*TRADE", domain: "etrade.com" },
+  etrade: { displayName: "E*TRADE", domain: "etrade.com" },
+  venmo: { displayName: "Venmo", domain: "venmo.com" },
+  "cash app": { displayName: "Cash App", domain: "cash.app" },
+  paypal: { displayName: "PayPal", domain: "paypal.com" },
+  hsbc: { displayName: "HSBC", domain: "hsbc.com" },
+  barclays: { displayName: "Barclays", domain: "barclays.com" },
+  rbc: { displayName: "RBC", domain: "rbc.com" },
+  "royal bank of canada": { displayName: "RBC", domain: "rbc.com" },
+  "royal bank": { displayName: "RBC", domain: "rbc.com" },
+  scotiabank: { displayName: "Scotiabank", domain: "scotiabank.com" },
+  "bank of nova scotia": { displayName: "Scotiabank", domain: "scotiabank.com" },
+  bmo: { displayName: "BMO", domain: "bmo.com" },
+  "bank of montreal": { displayName: "BMO", domain: "bmo.com" },
+  cibc: { displayName: "CIBC", domain: "cibc.com" },
+  "national bank of canada": { displayName: "National Bank", domain: "nbc.ca" },
+  "national bank": { displayName: "National Bank", domain: "nbc.ca" },
+  tangerine: { displayName: "Tangerine", domain: "tangerine.ca" },
+  desjardins: { displayName: "Desjardins", domain: "desjardins.com" },
+  "eq bank": { displayName: "EQ Bank", domain: "eqbank.ca" },
+  wealthsimple: { displayName: "Wealthsimple", domain: "wealthsimple.com" },
+  questrade: { displayName: "Questrade", domain: "questrade.com" },
+  "simplii financial": { displayName: "Simplii Financial", domain: "simplii.com" },
+  simplii: { displayName: "Simplii Financial", domain: "simplii.com" },
+  "laurentian bank": { displayName: "Laurentian Bank", domain: "laurentianbank.ca" },
+  "manulife bank": { displayName: "Manulife Bank", domain: "manulife.ca" },
+  manulife: { displayName: "Manulife", domain: "manulife.ca" },
 };

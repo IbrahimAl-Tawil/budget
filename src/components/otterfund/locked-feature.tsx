@@ -40,20 +40,12 @@ export function LockedFeature({ feature }: { feature: Feature }) {
             <GuillocheFlow accent={theme.accent} accentDeep={theme.accentDeep} opacity={0.08} fade="radial" speed={3} />
           </div>
           <div className="relative">
-            <div
-              className="mx-auto flex h-16 w-16 items-center justify-center rounded-[20px]"
-              style={{
-                background: "var(--color-of-surface)",
-                border: `1px solid ${theme.accentTintBorder}`,
-                color: theme.accentDeep,
-                boxShadow: "0 6px 18px oklch(20% 0.02 80 / 0.08)",
-              }}
-            >
-              <OtterFace size={34} />
+            <div className="mx-auto flex items-center justify-center" style={{ color: theme.accentDeep }}>
+              <OtterFace size={44} />
             </div>
             <span
-              className="mt-5 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10.5px] font-semibold uppercase tracking-[0.08em]"
-              style={{ background: "var(--color-of-surface)", color: theme.accentDeep, border: `1px solid ${theme.accentTintBorder}` }}
+              className="mt-5 inline-flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-[0.08em]"
+              style={{ color: theme.accentDeep }}
             >
               <Lock className="h-3 w-3" strokeWidth={2.4} />
               {PLAN_META[tier].name} feature

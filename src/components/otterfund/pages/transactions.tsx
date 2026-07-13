@@ -1,19 +1,25 @@
 "use client";
 
-// otterfund — Transactions page.
+// otterfund — TRANSACTIONS page (the statement).
 //
-// Translated from the design spec (TRANSACTIONS sc-if, lines 229-263). The static
-// reference markup becomes a controlled React view: a real search input that
-// filters by merchant name / category, and an All / Income / Spending segmented
-// filter. Every row is wired to a real TransactionView — no sample data ships.
+// The month's movements read like a printed statement: a quiet search + filter
+// line, then rows grouped by day under a floating date header (Today / Yesterday
+// / weekday), each with the day's net beside it. No table, no enclosing box —
+// rows sit on the paper, split by hairlines, and light with the accent wash on
+// hover. Search filters by merchant / category; the All / Income / Spending
+// toggle and the account filter narrow the set. Bulk-select (with shift-range)
+// and delete are preserved. Every row is a real TransactionView — no sample data.
 
-import { useMemo, useState, useTransition } from "react";
-import { Trash2, Check, ChevronDown } from "lucide-react";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { Trash2, Check, ChevronDown, Upload, Plus } from "lucide-react";
 import type { TransactionView } from "@/lib/types";
 import type { OtterfundTheme } from "@/components/otterfund/theme";
 import { tintFor } from "@/components/otterfund/theme";
-import { GuillochePattern, GuillocheSeal } from "@/components/otterfund/guilloche";
+import { GuillocheSeal } from "@/components/otterfund/guilloche";
+import { EmptyState, AddAccountEmptyState } from "@/components/otterfund/empty-state";
 import { SegmentedToggle } from "@/components/otterfund/segmented-toggle";
+import { MerchantAvatar } from "@/components/otterfund/merchant-avatar";
+import { Statement, Ledger, Row } from "@/components/otterfund/ledger";
 import { fmt } from "@/lib/format";
 import { gqlClient } from "@/lib/graphql/client";
 import { Button } from "@/components/ui/button";
@@ -39,9 +45,20 @@ interface OtterfundTransactionsProps {
   accent: string;
   theme: OtterfundTheme;
   currency?: string;
+  /** False when the user has no accounts at all — the empty view then guides them
+      to add/connect an account rather than to add a transaction. */
+  hasAccounts?: boolean;
   onEdit?: (t: TransactionView) => void;
   /** Called after a successful bulk delete so the RSC re-fetches. */
   onBulkDeleted?: () => void;
+  /** Open the statement-import modal (inline toolbar action). */
+  onImport?: () => void;
+  /** Open the add-transaction modal (inline toolbar action). */
+  onAdd?: () => void;
+  /** Open the add-ACCOUNT modal (from the cold-start empty view). */
+  onAddAccount?: () => void;
+  /** Open the Connect-a-bank modal (from the cold-start empty view). */
+  onConnect?: () => void;
 }
 
 type Segment = "all" | "income" | "spending";
@@ -52,7 +69,28 @@ const SEGMENTS: { value: Segment; label: string }[] = [
   { value: "spending", label: "Spending" },
 ];
 
-export function OtterfundTransactions({ transactions, accounts, theme, currency = "CAD", onEdit, onBulkDeleted }: OtterfundTransactionsProps) {
+const WEEKDAY = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const MONTH = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** `YYYY-MM-DD` (local) for a Date — matches the server's formatDayISO. */
+function localISO(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/** One day's cluster of transactions (rows arrive newest-first, so same-day rows
+    are already contiguous — we just break the run when the day key changes). */
+interface DayGroup {
+  key: string;
+  /** Bold primary label — Today / Yesterday / weekday, or the raw date string
+      when no ISO day is available. */
+  primary: string;
+  /** Faint absolute date beside it ("Jul 12"); empty in the fallback path. */
+  secondary: string;
+  total: number;
+  items: TransactionView[];
+}
+
+export function OtterfundTransactions({ transactions, accounts, theme, currency = "CAD", hasAccounts = true, onEdit, onBulkDeleted, onImport, onAdd, onAddAccount, onConnect }: OtterfundTransactionsProps) {
   const [query, setQuery] = useState("");
   const [segment, setSegment] = useState<Segment>("all");
   // Empty set = all accounts. Otherwise, only these account ids are shown.
@@ -62,6 +100,13 @@ export function OtterfundTransactions({ transactions, accounts, theme, currency 
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleteError, setDeleteError] = useState(false);
 
+  // "Today" is resolved client-side (after mount) so SSR and client never
+  // disagree on the day — until then, headers show the absolute weekday only.
+  const [todayKey, setTodayKey] = useState<string | null>(null);
+  useEffect(() => {
+    setTodayKey(localISO(new Date()));
+  }, []);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return transactions.filter((t) => {
@@ -69,12 +114,40 @@ export function OtterfundTransactions({ transactions, accounts, theme, currency 
       if (segment === "spending" && t.amount >= 0) return false;
       if (acctFilter.size > 0 && !(t.accountId && acctFilter.has(t.accountId))) return false;
       if (!q) return true;
-      return (
-        t.name.toLowerCase().includes(q) ||
-        t.category.toLowerCase().includes(q)
-      );
+      return t.name.toLowerCase().includes(q) || t.category.toLowerCase().includes(q);
     });
   }, [transactions, query, segment, acctFilter]);
+
+  // Bucket the (already date-desc) rows into contiguous day groups.
+  const groups = useMemo<DayGroup[]>(() => {
+    const yesterdayKey =
+      todayKey != null ? localISO(new Date(new Date(todayKey + "T00:00:00").getTime() - 86400000)) : null;
+    const out: DayGroup[] = [];
+    for (const t of filtered) {
+      const key = t.dateISO ?? t.date;
+      let g = out[out.length - 1];
+      if (!g || g.key !== key) {
+        let primary = t.date;
+        let secondary = "";
+        if (t.dateISO) {
+          const [y, m, d] = t.dateISO.split("-").map(Number);
+          const dt = new Date(y, (m || 1) - 1, d || 1);
+          secondary = `${MONTH[dt.getMonth()]} ${dt.getDate()}`;
+          primary =
+            todayKey && t.dateISO === todayKey
+              ? "Today"
+              : yesterdayKey && t.dateISO === yesterdayKey
+                ? "Yesterday"
+                : WEEKDAY[dt.getDay()];
+        }
+        g = { key, primary, secondary, total: 0, items: [] };
+        out.push(g);
+      }
+      g.items.push(t);
+      g.total += t.amount;
+    }
+    return out;
+  }, [filtered, todayKey]);
 
   const toggleAcct = (id: string) => {
     setAcctFilter((prev) => {
@@ -84,6 +157,10 @@ export function OtterfundTransactions({ transactions, accounts, theme, currency 
       return next;
     });
   };
+
+  // A search/segment/account filter is narrowing the set — distinguishes "no
+  // match for this filter" from "genuinely nothing here yet" in the empty view.
+  const filterActive = query.trim() !== "" || segment !== "all" || acctFilter.size > 0;
 
   const acctLabel =
     acctFilter.size === 0
@@ -165,297 +242,245 @@ export function OtterfundTransactions({ transactions, accounts, theme, currency 
 
   return (
     <>
-    <div className="of-enter of-page">
-      {/* controls */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 9,
-            flex: 1,
-            minWidth: 200,
-            height: 42,
-            padding: "0 16px",
-            borderRadius: 13,
-            border: "1px solid var(--color-of-line)",
-            background: "var(--color-of-surface)",
-          }}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-of-muted)" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-            <circle cx="11" cy="11" r="7" />
-            <path d="m21 21-4.3-4.3" />
-          </svg>
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search transactions"
-            aria-label="Search transactions"
-            style={{
-              flex: 1,
-              minWidth: 0,
-              border: "none",
-              outline: "none",
-              background: "transparent",
-              fontFamily: "inherit",
-              fontSize: 13.5,
-              fontWeight: 500,
-              color: "var(--color-of-ink)",
-            }}
-          />
-        </div>
-        <SegmentedToggle
-          ariaLabel="Transaction type"
-          theme={theme}
-          value={segment}
-          onChange={setSegment}
-          options={SEGMENTS}
-        />
-
-        {/* account filter — Base UI Menu; checkbox items stay open across
-            multi-select, and the positioner keeps it on-screen at any width. */}
-        {accounts.length > 0 && (
-          <Menu>
-            <MenuTrigger
-              render={
-                <Button
-                  variant="outline"
-                  size="sm"
-                  style={acctFilter.size > 0 ? { background: theme.accentTint, color: theme.accentDeep, borderColor: "transparent" } : undefined}
-                >
-                  {acctLabel}
-                  <ChevronDown size={14} strokeWidth={2.2} aria-hidden="true" />
-                </Button>
-              }
-            />
-            <MenuContent align="end" className="min-w-[220px]">
-              <MenuRadioGroup value={acctFilter.size === 0 ? "all" : "some"}>
-                <MenuRadioItem value="all" onClick={() => setAcctFilter(new Set())}>
-                  <span>All accounts</span>
-                  {acctFilter.size === 0 && <Check size={15} strokeWidth={2.5} style={{ color: theme.accent, flexShrink: 0 }} aria-hidden="true" />}
-                </MenuRadioItem>
-              </MenuRadioGroup>
-              <MenuSeparator />
-              {accounts.map((a) => {
-                const on = acctFilter.has(a.id);
-                return (
-                  <MenuCheckboxItem
-                    key={a.id}
-                    checked={on}
-                    closeOnClick={false}
-                    onCheckedChange={() => toggleAcct(a.id)}
-                  >
-                    <span>{a.name}</span>
-                    {on && <Check size={15} strokeWidth={2.5} style={{ color: theme.accent, flexShrink: 0 }} aria-hidden="true" />}
-                  </MenuCheckboxItem>
-                );
-              })}
-            </MenuContent>
-          </Menu>
-        )}
-      </div>
-
-      {/* table card */}
-      <div
-        style={{
-          background: "var(--color-of-surface)",
-          border: "1px solid var(--color-of-line-soft)",
-          borderRadius: 20,
-          overflow: "hidden",
-        }}
-      >
-        {/* header */}
-        <div
-          className="of-tx-row"
-          style={{
-            display: "grid",
-            gridTemplateColumns: "26px 2.4fr 1.3fr 1fr 1fr",
-            gap: 16,
-            padding: "14px 24px",
-            background: "var(--color-of-surface)",
-            borderBottom: "1px solid var(--color-of-line-soft)",
-            fontSize: 11.5,
-            fontWeight: 600,
-            letterSpacing: "0.05em",
-            textTransform: "uppercase",
-            color: "var(--color-of-muted)",
-          }}
-        >
-          <OfCheckbox
-            checked={allVisibleSelected}
-            onToggle={toggleAllVisible}
-            theme={theme}
-            ariaLabel="Select all"
-          />
-          <span>Merchant</span>
-          <span className="of-tx-col-cat">Category</span>
-          <span className="of-tx-col-date">Date</span>
-          <span style={{ textAlign: "right" }}>Amount</span>
-        </div>
-
-        {filtered.length === 0 ? (
+      <Statement>
+        {/* controls */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10, flexWrap: "wrap" }}>
           <div
             style={{
-              position: "relative",
-              overflow: "hidden",
               display: "flex",
-              flexDirection: "column",
               alignItems: "center",
-              justifyContent: "center",
-              gap: 6,
-              padding: "72px 24px",
-              textAlign: "center",
+              gap: 9,
+              flex: 1,
+              minWidth: 200,
+              height: 42,
+              padding: "0 16px",
+              borderRadius: 13,
+              border: "1px solid var(--color-of-line)",
+              background: "var(--color-of-surface)",
             }}
           >
-            <GuillochePattern accent={theme.accent} accentDeep={theme.accentDeep} fade="radial" opacity={0.16} />
-            <div style={{ position: "relative", width: 72, height: 72, marginBottom: 8 }} aria-hidden="true">
-              <GuillocheSeal accent={theme.accent} accentDeep={theme.accentDeep} label="$" />
-            </div>
-            <div style={{ position: "relative", fontSize: 15, fontWeight: 600, color: "var(--color-of-ink)" }}>
-              No transactions
-            </div>
-            <div style={{ position: "relative", fontSize: 13, color: "var(--color-of-muted)" }}>
-              Nothing matches your search or filter.
-            </div>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-of-muted)" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="7" />
+              <path d="m21 21-4.3-4.3" />
+            </svg>
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search transactions"
+              aria-label="Search transactions"
+              style={{
+                flex: 1,
+                minWidth: 0,
+                border: "none",
+                outline: "none",
+                background: "transparent",
+                fontFamily: "inherit",
+                fontSize: 13.5,
+                fontWeight: 500,
+                color: "var(--color-of-ink)",
+              }}
+            />
           </div>
+          <SegmentedToggle ariaLabel="Transaction type" theme={theme} value={segment} onChange={setSegment} options={SEGMENTS} />
+
+          {/* account filter — Base UI Menu; checkbox items stay open across
+              multi-select, and the positioner keeps it on-screen at any width. */}
+          {accounts.length > 0 && (
+            <Menu>
+              <MenuTrigger
+                render={
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    style={acctFilter.size > 0 ? { background: theme.accentTint, color: theme.accentDeep, borderColor: "transparent" } : undefined}
+                  >
+                    {acctLabel}
+                    <ChevronDown size={14} strokeWidth={2.2} aria-hidden="true" />
+                  </Button>
+                }
+              />
+              <MenuContent align="end" className="min-w-[220px]">
+                <MenuRadioGroup value={acctFilter.size === 0 ? "all" : "some"}>
+                  <MenuRadioItem value="all" onClick={() => setAcctFilter(new Set())}>
+                    <span>All accounts</span>
+                    {acctFilter.size === 0 && <Check size={15} strokeWidth={2.5} style={{ color: theme.accent, flexShrink: 0 }} aria-hidden="true" />}
+                  </MenuRadioItem>
+                </MenuRadioGroup>
+                <MenuSeparator />
+                {accounts.map((a) => {
+                  const on = acctFilter.has(a.id);
+                  return (
+                    <MenuCheckboxItem key={a.id} checked={on} closeOnClick={false} onCheckedChange={() => toggleAcct(a.id)}>
+                      <span>{a.name}</span>
+                      {on && <Check size={15} strokeWidth={2.5} style={{ color: theme.accent, flexShrink: 0 }} aria-hidden="true" />}
+                    </MenuCheckboxItem>
+                  );
+                })}
+              </MenuContent>
+            </Menu>
+          )}
+
+          {onImport && (
+            <Button variant="outline" size="sm" onClick={onImport} aria-label="Import statement">
+              <Upload data-icon="inline-start" size={15} strokeWidth={2} aria-hidden="true" />
+              Import
+            </Button>
+          )}
+
+          {onAdd && (
+            <Button variant="outline" size="sm" className="border-dashed" onClick={onAdd} aria-label="Add transaction">
+              <Plus data-icon="inline-start" size={16} strokeWidth={2.4} aria-hidden="true" />
+              Add transaction
+            </Button>
+          )}
+        </div>
+
+        {/* select-all — a quiet line above the ledger, shown once there are rows */}
+        {filtered.length > 0 && (
+          <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "6px 0 2px", color: "var(--color-of-muted)" }}>
+            <OfCheckbox checked={allVisibleSelected} onToggle={toggleAllVisible} theme={theme} ariaLabel="Select all" />
+            <span style={{ fontSize: 12, fontWeight: 500 }}>
+              {selected.size > 0 ? `${selected.size} selected` : `${filtered.length} ${filtered.length === 1 ? "transaction" : "transactions"}`}
+            </span>
+          </div>
+        )}
+
+        {filtered.length === 0 ? (
+          filterActive ? (
+            // A filter is on but nothing matches — the set isn't empty, the query is.
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+                padding: "72px 24px",
+                textAlign: "center",
+              }}
+            >
+              <div style={{ width: 72, height: 72, marginBottom: 8 }} aria-hidden="true">
+                <GuillocheSeal accent={theme.accent} accentDeep={theme.accentDeep} label="$" />
+              </div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: "var(--color-of-ink)" }}>No transactions</div>
+              <div style={{ fontSize: 13, color: "var(--color-of-muted)" }}>Nothing matches your search or filter.</div>
+            </div>
+          ) : !hasAccounts ? (
+            // Cold start — no accounts at all, so there's nothing to import from yet.
+            <AddAccountEmptyState
+              theme={theme}
+              onAdd={onAddAccount}
+              onConnect={onConnect}
+              title="No transactions yet"
+              description="Connect a bank to pull your transactions in automatically, or add an account and record them by hand."
+            />
+          ) : (
+            // Has accounts, but this month is empty — nudge toward adding/importing.
+            <EmptyState
+              theme={theme}
+              title="No transactions this month"
+              description="Nothing recorded for this period yet. Add one by hand or import a statement to fill it in."
+              actions={
+                <>
+                  {onAdd && (
+                    <Button size="sm" onClick={onAdd} aria-label="Add transaction">
+                      <Plus data-icon="inline-start" size={16} strokeWidth={2.4} aria-hidden="true" />
+                      Add transaction
+                    </Button>
+                  )}
+                  {onImport && (
+                    <Button variant="outline" size="sm" onClick={onImport} aria-label="Import statement">
+                      <Upload data-icon="inline-start" size={15} strokeWidth={2} aria-hidden="true" />
+                      Import
+                    </Button>
+                  )}
+                </>
+              }
+            />
+          )
         ) : (
-          filtered.map((t) => {
-            const [tint, ink] = tintFor(t.category);
-            const income = t.amount > 0;
-            const amountLabel = (income ? "+" : "−") + fmt(t.amount, currency);
-            const isSelected = selected.has(t.id);
-            return (
+          groups.map((g, gi) => (
+            <section key={g.key} aria-label={`${g.primary}${g.secondary ? ` ${g.secondary}` : ""}`}>
+              {/* floating day header */}
               <div
-                key={t.id}
-                className="of-tx-row"
-                role="button"
-                tabIndex={0}
-                onClick={() => onEdit?.(t)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    onEdit?.(t);
-                  }
-                }}
                 style={{
-                  display: "grid",
-                  gridTemplateColumns: "26px 2.4fr 1.3fr 1fr 1fr",
-                  gap: 16,
-                  alignItems: "center",
-                  padding: "13px 24px",
-                  borderTop: "1px solid var(--color-of-line-soft)",
-                  cursor: "pointer",
-                  background: isSelected ? theme.accentTint : "transparent",
-                  transition: "background .15s",
-                }}
-                onMouseEnter={(e) => {
-                  if (!isSelected) e.currentTarget.style.background = "oklch(97.5% 0.005 90)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = isSelected ? theme.accentTint : "transparent";
+                  display: "flex",
+                  alignItems: "baseline",
+                  justifyContent: "space-between",
+                  gap: 12,
+                  margin: gi === 0 ? "12px 0 2px" : "24px 0 2px",
                 }}
               >
-                <OfCheckbox
-                  checked={isSelected}
-                  onToggle={(e) => selectAt(t.id, e)}
-                  theme={theme}
-                  ariaLabel={`Select ${t.name}`}
-                  stopPropagation
-                />
-                <div style={{ display: "flex", alignItems: "center", gap: 13, minWidth: 0 }}>
-                  <div
-                    style={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: 11,
-                      background: tint,
-                      color: ink,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: 14,
-                      fontWeight: 700,
-                      flexShrink: 0,
-                    }}
-                  >
-                    {t.name.charAt(0).toUpperCase()}
-                  </div>
-                  <div style={{ minWidth: 0 }}>
-                    <div
-                      style={{
-                        fontSize: 14,
-                        fontWeight: 600,
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                      }}
-                    >
-                      {t.name}
-                    </div>
-                    {/* Account name — hidden when filtered to one account (redundant). */}
-                    {t.accountName && acctFilter.size !== 1 && (
-                      <div
-                        style={{
-                          fontSize: 12,
-                          color: "var(--color-of-faint)",
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          marginTop: 1,
-                        }}
-                      >
-                        {t.accountName}
-                      </div>
-                    )}
-                  </div>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 9, minWidth: 0 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, letterSpacing: "0.01em", color: "var(--color-of-ink)" }}>{g.primary}</span>
+                  {g.secondary && <span style={{ fontSize: 12.5, color: "var(--color-of-faint)" }}>{g.secondary}</span>}
                 </div>
-                <div className="of-tx-col-cat">
-                  <span
-                    style={{
-                      display: "inline-block",
-                      fontSize: 12,
-                      fontWeight: 600,
-                      color: ink,
-                      background: tint,
-                      padding: "4px 10px",
-                      borderRadius: 999,
-                    }}
-                  >
-                    {t.category}
-                  </span>
-                </div>
-                <span className="of-tx-col-date" style={{ fontSize: 13, color: "var(--color-of-muted)" }}>{t.date}</span>
-                <span
-                  className="of-num"
-                  style={{
-                    fontSize: 15,
-                    fontWeight: 500,
-                    textAlign: "right",
-                    color: income ? theme.accentDeep : "var(--color-of-ink)",
-                  }}
-                >
-                  {amountLabel}
+                <span className="of-num" style={{ fontSize: 12.5, color: "var(--color-of-faint)" }}>
+                  {(g.total >= 0 ? "+" : "−") + fmt(Math.abs(g.total), currency)}
                 </span>
               </div>
-            );
-          })
+
+              <Ledger>
+                {g.items.map((t) => {
+                  const [tint, ink] = tintFor(t.category);
+                  const income = t.amount > 0;
+                  const amountLabel = (income ? "+" : "−") + fmt(Math.abs(t.amount), currency);
+                  const isSelected = selected.has(t.id);
+                  const meta = [t.category, t.accountName && acctFilter.size !== 1 ? t.accountName : null]
+                    .filter((p) => p && String(p).trim())
+                    .join(" · ");
+                  return (
+                    <Row
+                      key={t.id}
+                      columns="26px 1fr auto"
+                      gap={14}
+                      onClick={() => onEdit?.(t)}
+                      selected={isSelected}
+                      ariaLabel={`Edit ${t.name}`}
+                    >
+                      <OfCheckbox
+                        checked={isSelected}
+                        onToggle={(e) => selectAt(t.id, e)}
+                        theme={theme}
+                        ariaLabel={`Select ${t.name}`}
+                        stopPropagation
+                      />
+                      <div style={{ display: "flex", alignItems: "center", gap: 13, minWidth: 0 }}>
+                        <MerchantAvatar name={t.name} bg={tint} ink={ink} size={36} />
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: 13.5, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                            {t.name}
+                          </div>
+                          {meta && (
+                            <div style={{ fontSize: 12, color: "var(--color-of-faint)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginTop: 1 }}>
+                              {meta}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <span
+                        className="of-num"
+                        style={{ fontSize: 14, fontWeight: 500, textAlign: "right", color: income ? theme.accentDeep : "var(--color-of-ink)" }}
+                      >
+                        {amountLabel}
+                      </span>
+                    </Row>
+                  );
+                })}
+              </Ledger>
+            </section>
+          ))
         )}
-      </div>
-    </div>
+      </Statement>
 
       {/* bulk-action bar — fixed to the viewport bottom, screen-centered. Kept a
-          sibling of the .of-enter wrapper so its permanent transform (animation
-          `both`) doesn't re-root this fixed element to the content column. */}
+          sibling of the Statement so its permanent enter-transform doesn't
+          re-root this fixed element to the content column. */}
       {selected.size > 0 && (
         <div
           className="of-pop of-bulkbar"
           style={{
-            // Center over the CONTENT area (right of the 60px icon rail) via
-            // symmetric insets + margin auto — NOT translateX, which the of-pop
-            // animation's own transform would override. On mobile the rail is
-            // hidden, so .of-bulkbar resets left:0 (see globals.css) to keep it
-            // centered on the full-width viewport.
             position: "fixed",
             left: 60,
             right: 0,
@@ -473,18 +498,9 @@ export function OtterfundTransactions({ transactions, accounts, theme, currency 
           }}
         >
           <span style={{ fontSize: 13.5, fontWeight: 600, whiteSpace: "nowrap", color: deleteError ? "oklch(78% 0.09 33)" : "#fff" }}>
-            {deleteError
-              ? "Couldn't delete. Try again"
-              : confirmingDelete
-                ? "Are you sure?"
-                : `${selected.size} selected`}
+            {deleteError ? "Couldn't delete. Try again" : confirmingDelete ? "Are you sure?" : `${selected.size} selected`}
           </span>
-          <Button
-            size="sm"
-            onClick={clearSelection}
-            disabled={isDeleting}
-            className="bg-transparent text-white/70 hover:bg-white/10 hover:text-white"
-          >
+          <Button size="sm" onClick={clearSelection} disabled={isDeleting} className="bg-transparent text-white/70 hover:bg-white/10 hover:text-white">
             Cancel
           </Button>
           <Button variant="danger" size="sm" onClick={handleBulkDelete} disabled={isDeleting}>
@@ -522,14 +538,12 @@ function OfCheckbox({
         if (stopPropagation) e.stopPropagation();
         onToggle(e);
       }}
-      // Large, full-cell hit area (negative margin claws back the row/header
-      // padding) so the whole box is clickable — not just the 18px glyph.
       style={{
         display: "grid",
         placeItems: "center",
-        alignSelf: "stretch",
-        margin: "-13px -8px -13px -24px",
-        padding: "13px 8px 13px 24px",
+        width: 26,
+        height: 26,
+        padding: 0,
         border: "none",
         background: "transparent",
         cursor: "pointer",

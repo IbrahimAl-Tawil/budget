@@ -63,6 +63,7 @@ export function EditAccountModal({ open, account, onClose, onUpdated }: EditAcco
     balance: "",
     number: "",
     gradient: DEFAULT_ACCOUNT_COLOR,
+    institution: "",
   });
   const [errors, setErrors] = useState<AccountFormErrors>({});
   const [formError, setFormError] = useState("");
@@ -78,6 +79,7 @@ export function EditAccountModal({ open, account, onClose, onUpdated }: EditAcco
         balance: String(account.balance),
         number: account.num || "",
         gradient: account.bg || DEFAULT_ACCOUNT_COLOR,
+        institution: account.institution || "",
       });
       setErrors({});
       setFormError("");
@@ -112,6 +114,7 @@ export function EditAccountModal({ open, account, onClose, onUpdated }: EditAcco
             ...(synced ? {} : { balance: Number(values.balance) || 0 }),
             number: values.number.trim() || null,
             gradient: values.gradient,
+            institution: values.institution.trim() || null,
           },
         });
         onClose();
@@ -171,7 +174,7 @@ export function EditAccountModal({ open, account, onClose, onUpdated }: EditAcco
         </DialogHeader>
 
         <div className="mt-2">
-          <AccountForm values={values} errors={errors} onChange={change} lockBalance={synced} />
+          <AccountForm values={values} errors={errors} onChange={change} lockBalance={synced} knownDomain={account?.domain} />
         </div>
 
         {synced && (

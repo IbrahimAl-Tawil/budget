@@ -88,6 +88,7 @@ export const AccountRef = builder.objectRef<AccountView>("Account").implement({
     bg: t.exposeString("bg"),
     synced: t.exposeBoolean("synced", { nullable: true }),
     institution: t.exposeString("institution", { nullable: true }),
+    domain: t.exposeString("domain", { nullable: true }),
     syncedLabel: t.exposeString("syncedLabel", { nullable: true }),
     excluded: t.exposeBoolean("excluded", { nullable: true }),
   }),

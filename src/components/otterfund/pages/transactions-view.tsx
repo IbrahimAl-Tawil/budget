@@ -14,7 +14,7 @@ export function TransactionsView({
   accounts: { id: string; name: string }[];
   currency: string;
 }) {
-  const { accent, theme, editTransaction, refreshData, setTxCount } = useOtterfundChrome();
+  const { accent, theme, editTransaction, refreshData, setTxCount, importStatement, addTransaction, addAccount, hasAccounts, connectBank } = useOtterfundChrome();
   // Report the selected period's total to the topbar subtitle (the count the
   // chrome can't know — it's this page's data). Full month total, not narrowed
   // by search/account filters, so the subtitle stays stable while filtering.
@@ -28,8 +28,13 @@ export function TransactionsView({
       currency={currency}
       accent={accent}
       theme={theme}
+      hasAccounts={hasAccounts}
       onEdit={editTransaction}
       onBulkDeleted={refreshData}
+      onImport={importStatement}
+      onAdd={addTransaction}
+      onAddAccount={addAccount}
+      onConnect={connectBank}
     />
   );
 }

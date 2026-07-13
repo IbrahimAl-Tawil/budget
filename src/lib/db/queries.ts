@@ -53,6 +53,16 @@ function formatDate(d: Date): string {
   return `${MONTH_NAMES[d.getMonth()]} ${d.getDate()}`;
 }
 
+/** Local calendar day as `YYYY-MM-DD` for the Transactions ledger's day
+ *  buckets. Uses the same local getFullYear/getMonth/getDate as formatDate so
+ *  the ISO key and the "Jul 12" label can never disagree by a day. */
+function formatDayISO(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 export async function getDashboardOverview(
   userId: string,
   month: number,
@@ -280,6 +290,7 @@ export async function getDashboardOverview(
     name: t.name,
     category: t.category?.name || "Other",
     date: formatDate(t.date),
+    dateISO: formatDayISO(t.date),
     amount: t.amount,
     icon: t.icon || "circle",
     color: t.color || "#f0f0f0",
@@ -655,6 +666,7 @@ export async function getTransactions(
     name: t.name,
     category: t.category?.name || "Other",
     date: formatDate(t.date),
+    dateISO: formatDayISO(t.date),
     amount: t.amount,
     icon: t.icon || "circle",
     color: t.color || "#f0f0f0",
@@ -706,6 +718,12 @@ export async function getSubscriptions(userId: string): Promise<SubscriptionView
   });
 }
 
+/** How many accounts the user has (linked or manual). Drives the app-wide
+    cold-start empty states — 0 means "nothing connected yet". */
+export function countAccounts(userId: string): Promise<number> {
+  return prisma.account.count({ where: { userId } });
+}
+
 /** id + name only — for filter dropdowns; skips the balance aggregation. */
 export function getAccountOptions(userId: string): Promise<{ id: string; name: string }[]> {
   return prisma.account.findMany({
@@ -737,6 +755,7 @@ export async function getAccounts(userId: string): Promise<AccountView[]> {
     bg: a.gradient || ACCOUNT_GRADIENTS[a.type] || ACCOUNT_GRADIENTS.other,
     synced: !!a.plaidItemId,
     institution: a.institution ?? undefined,
+    domain: a.domain ?? undefined,
     syncedLabel: a.syncedAt ? formatDate(a.syncedAt) : undefined,
     excluded: a.excluded,
   }));

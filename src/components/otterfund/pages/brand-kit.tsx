@@ -453,6 +453,7 @@ export function OtterfundBrandKit({ accent, theme, onAccentChange }: OtterfundBr
           <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, marginBottom: 18 }}>
             <StatPill
               theme={previewTheme}
+              bare={false}
               figure="+$1,240"
               label="this month"
               icon={
@@ -461,7 +462,7 @@ export function OtterfundBrandKit({ accent, theme, onAccentChange }: OtterfundBr
                 </svg>
               }
             />
-            <StatPill theme={previewTheme} tone="clay" figure={3} label="need attention" />
+            <StatPill theme={previewTheme} bare={false} tone="clay" figure={3} label="need attention" />
           </div>
 
           {/* The real form controls (otterfund/form) — the exact fields every modal

@@ -73,6 +73,10 @@ model Account {
   plaidItemId    String?
   plaidAccountId String?   @unique
   institution    String?
+  // Resolved institution logo domain (e.g. "td.com"), same pattern as
+  // Subscription.domain / Investment.domain: written at sync/create/edit via
+  // resolveMerchant (dictionary → Merchant cache → Claude), read as-is by the UI.
+  domain         String?
   mask           String?
   syncedAt       DateTime?
 

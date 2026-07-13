@@ -534,8 +534,67 @@
   background: oklch(96% 0.005 90);
 }
 
+/* ══ The statement — fluent page grammar ══
+   The redesign moves overview / transactions / accounts / goals off bordered
+   "cards" and onto the canvas: one reading column, hairline-separated rows, one
+   accent. These are the shared primitives (mirrored by the <Ledger>/<Statement>
+   components in otterfund/ledger.tsx) so every redesigned page speaks the same
+   grammar and row styling lives in ONE place — change it here, it changes
+   everywhere. Additive: the old .of-page / Card language is left intact for
+   pages not yet migrated. */
+
+/* Balanced reading column — narrower than .of-page (1000) so figures and lists
+   sit in a calm, statement-width measure. */
+.of-statement { width: 100%; max-width: 1080px; margin: 0 auto; }
+
+/* Hairline "cut" — seats a hero on the paper the way a printed value floats over
+   engine-turned line-work. A full-measure rule, nothing more. */
+.of-cut { height: 1px; background: var(--color-of-line); }
+
+/* Ledger — rows directly on the canvas, split by a 1px inset rule (no enclosing
+   box). Tappable rows (.of-row-tap) light with a soft accent wash that re-tints
+   with the active theme — var(--accent) is the theme's accent tint. The wash is
+   a pseudo behind the content, so hovering never shifts the row. */
+.of-ledger { display: flex; flex-direction: column; }
+.of-row { position: relative; display: grid; align-items: center; }
+.of-row + .of-row { box-shadow: inset 0 1px 0 var(--color-of-line-soft); }
+.of-row > * { position: relative; z-index: 1; }
+.of-row-tap { cursor: pointer; outline: none; -webkit-tap-highlight-color: transparent; }
+.of-row-tap::before {
+  content: "";
+  position: absolute;
+  inset: 1px 6px;
+  border-radius: 14px;
+  background: var(--accent);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  pointer-events: none;
+  z-index: 0;
+}
+@media (hover: hover) { .of-row-tap:hover::before { opacity: 1; } }
+.of-row-tap:focus-visible::before { opacity: 1; }
+.of-row-tap[data-selected]::before { opacity: 1; }
+.of-row-tap:focus-visible { outline: 2px solid var(--color-ring); outline-offset: -2px; border-radius: 14px; }
+
+/* Three figures split by hairline verticals — the "this month" line
+   (income · spending · left over). Stacks with horizontal rules on phone. */
+.of-trio { display: grid; grid-template-columns: repeat(3, 1fr); }
+.of-trio > * + * { border-left: 1px solid var(--color-of-line); }
+@media (max-width: 640px) {
+  .of-trio { grid-template-columns: 1fr; }
+  .of-trio > * { padding: 16px 0 !important; }
+  .of-trio > *:first-child { padding-top: 0 !important; }
+  .of-trio > * + * { border-left: 0; border-top: 1px solid var(--color-of-line); }
+}
+
+/* Hero band (figure beside sparkline / actions) → stack on narrow screens. */
+@media (max-width: 700px) {
+  .of-hero { grid-template-columns: 1fr !important; align-items: start !important; gap: 16px !important; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .of-enter { animation: none; }
+  .of-row-tap::before { transition: none; }
   .of-fade-in { animation: none; }
   .of-drawer-in { animation: none; }
   .of-slide-in-right { animation: none; }
@@ -804,7 +863,7 @@
    wrapper a real width cap that never exceeds its column, and the canvas clips
    any residual sub-pixel spill. Grid/flex text cells still need their own
    min-width:0 (added inline where they hold ellipsised text). */
-.of-page { width: 100%; max-width: 1000px; margin: 0 auto; }
+.of-page { width: 100%; max-width: 1080px; margin: 0 auto; }
 .of-canvas { overflow-y: auto; overflow-x: hidden; }
 /* Desktop scrolls the canvas div inside a fixed-height shell; phones flip both
    (see the ≤768px block) so the DOCUMENT scrolls instead. */

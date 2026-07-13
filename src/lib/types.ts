@@ -3,6 +3,11 @@ export interface TransactionView {
   name: string;
   category: string;
   date: string;
+  /** Local calendar day as `YYYY-MM-DD` — lets the Transactions ledger bucket
+   *  rows by day and label them (Today / Yesterday / weekday). Optional so other
+   *  builders (e.g. the GraphQL layer) needn't supply it; the ledger falls back
+   *  to grouping by the formatted `date` string when it's absent. */
+  dateISO?: string;
   amount: number;
   icon: string;
   color: string;
@@ -206,6 +211,8 @@ export interface AccountView {
   synced?: boolean;
   /** Institution name for synced accounts (e.g. "TD"). */
   institution?: string;
+  /** Resolved institution domain for the bank logo (e.g. "td.com"); undefined when unrecognized. */
+  domain?: string;
   /** Pre-formatted last-sync date (e.g. "Jun 30"), server-computed. */
   syncedLabel?: string;
   /** Locally hidden — kept synced but omitted from net worth/totals. */
