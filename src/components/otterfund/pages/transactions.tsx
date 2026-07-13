@@ -13,6 +13,7 @@ import type { TransactionView } from "@/lib/types";
 import type { OtterfundTheme } from "@/components/otterfund/theme";
 import { tintFor } from "@/components/otterfund/theme";
 import { GuillochePattern, GuillocheSeal } from "@/components/otterfund/guilloche";
+import { SegmentedToggle } from "@/components/otterfund/segmented-toggle";
 import { fmt } from "@/lib/format";
 import { gqlClient } from "@/lib/graphql/client";
 import { Button } from "@/components/ui/button";
@@ -45,10 +46,10 @@ interface OtterfundTransactionsProps {
 
 type Segment = "all" | "income" | "spending";
 
-const SEGMENTS: { id: Segment; label: string }[] = [
-  { id: "all", label: "All" },
-  { id: "income", label: "Income" },
-  { id: "spending", label: "Spending" },
+const SEGMENTS: { value: Segment; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "income", label: "Income" },
+  { value: "spending", label: "Spending" },
 ];
 
 export function OtterfundTransactions({ transactions, accounts, theme, currency = "CAD", onEdit, onBulkDeleted }: OtterfundTransactionsProps) {
@@ -204,41 +205,13 @@ export function OtterfundTransactions({ transactions, accounts, theme, currency 
             }}
           />
         </div>
-        <div
-          style={{
-            display: "flex",
-            gap: 4,
-            padding: 5,
-            borderRadius: 999,
-            border: "1px solid var(--color-of-line)",
-            background: "var(--color-of-surface)",
-          }}
-        >
-          {SEGMENTS.map((s) => {
-            const active = segment === s.id;
-            return (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => setSegment(s.id)}
-                style={{
-                  fontFamily: "inherit",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  padding: "7px 16px",
-                  borderRadius: 999,
-                  border: "none",
-                  cursor: "pointer",
-                  background: active ? theme.accent : "transparent",
-                  color: active ? "#fff" : "var(--color-of-muted)",
-                  transition: "background .16s, color .16s",
-                }}
-              >
-                {s.label}
-              </button>
-            );
-          })}
-        </div>
+        <SegmentedToggle
+          ariaLabel="Transaction type"
+          theme={theme}
+          value={segment}
+          onChange={setSegment}
+          options={SEGMENTS}
+        />
 
         {/* account filter — Base UI Menu; checkbox items stay open across
             multi-select, and the positioner keeps it on-screen at any width. */}

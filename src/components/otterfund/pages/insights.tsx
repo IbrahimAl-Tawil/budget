@@ -23,6 +23,7 @@ import { ArrowUpRight, ChevronRight, Loader2, PanelLeft, Plus, RefreshCw, Sparkl
 import type { InsightView, InsightDetail } from "@/lib/types";
 import { type OtterfundTheme } from "@/components/otterfund/theme";
 import { BlinkingOtter } from "@/components/otterfund/blinking-otter";
+import { SegmentedToggle } from "@/components/otterfund/segmented-toggle";
 import { gqlClient } from "@/lib/graphql/client";
 import { fmt } from "@/lib/format";
 import { useMediaQuery } from "@/lib/use-media-query";
@@ -868,69 +869,21 @@ function KeyVals({ rows }: { rows: [string, string][] }) {
   );
 }
 
-// The Chat / Insights segmented switch — one sliding accent thumb behind two
-// equal-width segments. Width is parameterised (`segW`) so the same control can
-// be full-size on desktop and tighter on phones.
+// The Chat / Insights segmented switch — the shared SegmentedToggle, kept at a
+// fixed per-segment width (`segW`) so the island stays symmetric and fits the
+// tighter phone row.
 function ViewToggle({ view, setView, theme, segW }: { view: View; setView: (v: View) => void; theme: OtterfundTheme; segW: number }) {
   return (
-    <div
-      role="tablist"
-      aria-label="Insights view"
-      style={{
-        position: "relative",
-        display: "inline-flex",
-        padding: 4,
-        borderRadius: 999,
-        background: "var(--color-of-surface)",
-        border: "1px solid var(--color-of-line)",
-      }}
-    >
-      <span
-        aria-hidden
-        style={{
-          position: "absolute",
-          top: 4,
-          left: 4,
-          width: segW,
-          height: 38,
-          borderRadius: 999,
-          background: theme.accent,
-          transform: view === "chat" ? "translateX(0)" : `translateX(${segW}px)`,
-          transition: "transform 340ms cubic-bezier(.4,0,.2,1)",
-        }}
-      />
-      <Segment label="Chat" w={segW} active={view === "chat"} onClick={() => setView("chat")} />
-      <Segment label="Insights" w={segW} active={view === "insights"} onClick={() => setView("insights")} />
-    </div>
-  );
-}
-
-function Segment({ label, w, active, onClick }: { label: string; w: number; active: boolean; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={active}
-      onClick={onClick}
-      style={{
-        position: "relative",
-        zIndex: 1,
-        width: w,
-        height: 38,
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        border: "none",
-        background: "transparent",
-        borderRadius: 999,
-        cursor: "pointer",
-        fontSize: 13.5,
-        fontWeight: 600,
-        color: active ? "#fff" : "var(--color-of-muted)",
-        transition: "color 200ms",
-      }}
-    >
-      {label}
-    </button>
+    <SegmentedToggle
+      ariaLabel="Insights view"
+      theme={theme}
+      value={view}
+      onChange={setView}
+      segWidth={segW}
+      options={[
+        { value: "chat", label: "Chat" },
+        { value: "insights", label: "Insights" },
+      ]}
+    />
   );
 }

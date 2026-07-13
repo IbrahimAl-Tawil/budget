@@ -13,6 +13,7 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowDownLeft, ArrowUpRight, Wallet } from "lucide-react";
 import type { DashboardOverview } from "@/lib/types";
 import { type OtterfundTheme, accentFamilyTint, deriveTheme, hueOf } from "@/components/otterfund/theme";
+import { SegmentedToggle } from "@/components/otterfund/segmented-toggle";
 import { fmt } from "@/lib/format";
 import { ProgressBar, ProgressRing } from "@/components/otterfund/progress";
 import { GuillocheFlow } from "@/components/otterfund/guilloche-flow";
@@ -267,7 +268,8 @@ export function OtterfundOverview({ overview, name, theme, onNavigate }: Otterfu
 
   // Per-note themes for the five previews (banknote colours from the landing),
   // so each preview reads as its own place regardless of the app accent.
-  const tAccounts = deriveTheme(NOTES.accounts.accent);
+  // Hero (net worth / cash flow) uses the deep/dark variant of the active accent.
+  const tAccounts = deriveTheme(theme.accentDeep);
   const tSpending = deriveTheme(NOTES.spending.accent);
   const tGoals = deriveTheme(NOTES.goals.accent);
   const tTx = deriveTheme(NOTES.transactions.accent);
@@ -341,56 +343,17 @@ export function OtterfundOverview({ overview, name, theme, onNavigate }: Otterfu
           <GuillocheFlow accent={tAccounts.accent} accentDeep={tAccounts.accentDeep} fade="left" opacity={0.14} speed={5} />
         </div>
         <div style={{ position: "relative" }}>
-          {/* Segmented pill toggle — a real control, not a label. The active
-              segment carries the accent tint so it reads as "selected". */}
-          <div
-            role="tablist"
-            aria-label="Hero figure"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 2,
-              padding: 3,
-              borderRadius: 999,
-              background: "var(--color-of-line-soft)",
-            }}
-          >
-            {(
-              [
-                ["networth", "Net worth"],
-                ["cash", "Cash flow"],
-              ] as const
-            ).map(([key, label]) => {
-              const active = heroView === key;
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setHeroView(key);
-                  }}
-                  style={{
-                    border: "none",
-                    cursor: "pointer",
-                    padding: "5px 13px",
-                    borderRadius: 999,
-                    fontSize: 11.5,
-                    fontWeight: 600,
-                    letterSpacing: "0.07em",
-                    textTransform: "uppercase",
-                    transition: "background 140ms ease, color 140ms ease",
-                    background: active ? tAccounts.accentTint : "transparent",
-                    color: active ? tAccounts.accentDeep : "var(--color-of-muted)",
-                  }}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
+          <SegmentedToggle
+            ariaLabel="Hero figure"
+            theme={theme}
+            value={heroView}
+            onChange={setHeroView}
+            stopPropagation
+            options={[
+              { value: "networth", label: "Net worth" },
+              { value: "cash", label: "Cash flow" },
+            ]}
+          />
           <div
             className="of-num"
             style={{
