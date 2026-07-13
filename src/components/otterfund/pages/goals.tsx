@@ -5,10 +5,9 @@
 // Goals are the destination of the plan's monthly Savings. The budget plan sets
 // a savings amount (income × savings%); that pool splits across under-funded
 // goals by priority. The page makes that concrete: a hero of the total saved and
-// the monthly pool, then one flowing ledger of goals — each a row with its
-// progress ring, pacing, figures, and the $/month it draws toward a projected
-// finish. No bordered cards: goals sit on the paper, split by hairlines. Every
-// figure derives from `plan`.
+// the monthly pool, then a two-up grid of minted goal cards — each a bordered
+// <Panel> with its progress ring, pacing, a Saved · Target · To go split, and the
+// $/month it draws toward a projected finish. Every figure derives from `plan`.
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -18,7 +17,8 @@ import type { OtterfundTheme } from "@/components/otterfund/theme";
 import { Button } from "@/components/ui/button";
 import { ProgressRing } from "@/components/otterfund/progress";
 import { GuillocheSeal } from "@/components/otterfund/guilloche";
-import { Statement, HeroBand, Ledger, Row } from "@/components/otterfund/ledger";
+import { Statement, HeroBand } from "@/components/otterfund/ledger";
+import { Panel } from "@/components/otterfund/panel";
 import { useOtterfundChrome } from "@/components/otterfund/chrome-context";
 import { AllocateSavingsModal } from "@/components/dashboard/modals/allocate-savings-modal";
 
@@ -150,18 +150,11 @@ export function OtterfundGoals({ plan, accent, theme, onAdd, onEdit }: Otterfund
       ) : (
         <section
           className="of-grid-2up"
-          style={{ marginTop: 6, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 56 }}
+          style={{ marginTop: 18, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}
         >
-          <Ledger>
-            {goals.slice(0, Math.ceil(goals.length / 2)).map((g) => (
-              <GoalRow key={g.id} goal={g} accent={accent} theme={theme} fmt0={fmt0} hasPool={hasPool} onEdit={onEdit} />
-            ))}
-          </Ledger>
-          <Ledger>
-            {goals.slice(Math.ceil(goals.length / 2)).map((g) => (
-              <GoalRow key={g.id} goal={g} accent={accent} theme={theme} fmt0={fmt0} hasPool={hasPool} onEdit={onEdit} />
-            ))}
-          </Ledger>
+          {goals.map((g) => (
+            <GoalCard key={g.id} goal={g} accent={accent} theme={theme} fmt0={fmt0} hasPool={hasPool} onEdit={onEdit} />
+          ))}
         </section>
       )}
 
@@ -178,7 +171,7 @@ export function OtterfundGoals({ plan, accent, theme, onAdd, onEdit }: Otterfund
   );
 }
 
-function GoalRow({
+function GoalCard({
   goal: g,
   accent,
   theme,
@@ -216,40 +209,71 @@ function GoalRow({
     <span>Set your income and plan in Settings to fund this goal.</span>
   );
 
+  // Deadline · priority sub-line (deadline is optional).
+  const meta = [g.deadline, `${priorityLabel(g.priority)} priority`].filter(Boolean).join(" · ");
+
   return (
-    <Row columns="46px 1fr auto" gap={14} padding="14px 22px" onClick={() => onEdit?.(g)} ariaLabel={`Edit ${g.name}`}>
-      <ProgressRing value={g.pct} size={46} stroke={5} color={accent}>
-        {g.emoji && <span style={{ fontSize: 20, lineHeight: 1 }}>{g.emoji}</span>}
-      </ProgressRing>
-
-      <div style={{ minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 14.5, fontWeight: 700, letterSpacing: "-0.01em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-            {g.name}
-          </span>
-          {pill && (
-            <span style={{ flexShrink: 0, fontSize: 10.5, fontWeight: 600, padding: "2px 8px", borderRadius: 999, background: pill.bg, color: pill.fg }}>
-              {pill.label}
+    <Panel
+      theme={theme}
+      hover
+      padding="20px 22px"
+      role="button"
+      tabIndex={0}
+      aria-label={`Edit ${g.name}`}
+      onClick={() => onEdit?.(g)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onEdit?.(g);
+        }
+      }}
+    >
+      {/* header — ring · name + pacing pill · percent */}
+      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+        <ProgressRing value={g.pct} size={52} stroke={5} color={accent}>
+          {g.emoji && <span style={{ fontSize: 22, lineHeight: 1 }}>{g.emoji}</span>}
+        </ProgressRing>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 15.5, fontWeight: 700, letterSpacing: "-0.01em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {g.name}
             </span>
-          )}
+            {pill && (
+              <span style={{ flexShrink: 0, fontSize: 10.5, fontWeight: 600, padding: "2px 8px", borderRadius: 999, background: pill.bg, color: pill.fg }}>
+                {pill.label}
+              </span>
+            )}
+          </div>
+          <div style={{ fontSize: 12.5, color: "var(--color-of-muted)", marginTop: 3 }}>{meta}</div>
         </div>
-        <div style={{ fontSize: 13, color: "var(--color-of-muted)", marginTop: 3 }}>
-          <span className="of-num">{fmt0(g.saved)}</span> of <span className="of-num">{fmt0(g.target)}</span>
-          {!g.done && (
-            <>
-              {" · "}
-              <span className="of-num">{fmt0(g.remaining)}</span> to go
-            </>
-          )}
-          {" · "}
-          {priorityLabel(g.priority)} priority
+        <div className="of-num" style={{ fontSize: 22, fontWeight: 500, color: theme.accentDeep, flexShrink: 0 }}>
+          {g.pct}%
         </div>
-        <div style={{ fontSize: 12.5, color: "var(--color-of-muted)", marginTop: 4 }}>{funding}</div>
       </div>
 
-      <div className="of-num" style={{ fontSize: 19, fontWeight: 500, color: theme.accentDeep, alignSelf: "center" }}>
-        {g.pct}%
+      {/* hairline divider */}
+      <div style={{ height: 1, background: "var(--color-of-line)", margin: "16px 0" }} />
+
+      {/* Saved · Target · To go */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+        <div>
+          <div style={{ fontSize: 12, color: "var(--color-of-faint)" }}>Saved</div>
+          <div className="of-num" style={{ fontSize: 16, marginTop: 3 }}>{fmt0(g.saved)}</div>
+        </div>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 12, color: "var(--color-of-faint)" }}>Target</div>
+          <div className="of-num" style={{ fontSize: 16, marginTop: 3 }}>{fmt0(g.target)}</div>
+        </div>
+        <div style={{ textAlign: "right" }}>
+          <div style={{ fontSize: 12, color: "var(--color-of-faint)" }}>{g.done ? "Done" : "To go"}</div>
+          <div className="of-num" style={{ fontSize: 16, marginTop: 3, color: theme.accentDeep }}>
+            {fmt0(g.done ? 0 : g.remaining)}
+          </div>
+        </div>
       </div>
-    </Row>
+
+      {/* funding line */}
+      <div style={{ fontSize: 12.5, color: "var(--color-of-muted)", marginTop: 16 }}>{funding}</div>
+    </Panel>
   );
 }

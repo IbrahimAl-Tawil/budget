@@ -551,6 +551,25 @@
    engine-turned line-work. A full-measure rule, nothing more. */
 .of-cut { height: 1px; background: var(--color-of-line); }
 
+/* Minted statement panel (see components/otterfund/panel.tsx) — a soft lift that
+   seats the card just off the canvas; .of-panel-tap springs up and lights its
+   border with the active accent on hover/focus. The border lives here (not
+   inline) so the hover tint can override it. */
+.of-panel {
+  border: 1px solid var(--color-of-line);
+  box-shadow: 0 1px 2px oklch(20% 0.02 80 / 0.03), 0 12px 32px oklch(20% 0.02 80 / 0.05);
+}
+.of-panel-tap { cursor: pointer; outline: none; transition: transform 0.2s cubic-bezier(.22,.61,.36,1), box-shadow 0.2s, border-color 0.2s; }
+@media (hover: hover) {
+  .of-panel-tap:hover {
+    transform: translateY(-3px);
+    border-color: var(--of-accent, var(--color-primary));
+    box-shadow: 0 2px 4px oklch(20% 0.02 80 / 0.04), 0 18px 44px oklch(20% 0.02 80 / 0.09);
+  }
+}
+.of-panel-tap:focus-visible { outline: 2px solid var(--color-ring); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .of-panel-tap { transition: none; } }
+
 /* Ledger — rows directly on the canvas, split by a 1px inset rule (no enclosing
    box). Tappable rows (.of-row-tap) light with a soft accent wash that re-tints
    with the active theme — var(--accent) is the theme's accent tint. The wash is
@@ -576,15 +595,11 @@
 .of-row-tap[data-selected]::before { opacity: 1; }
 .of-row-tap:focus-visible { outline: 2px solid var(--color-ring); outline-offset: -2px; border-radius: 14px; }
 
-/* Three figures split by hairline verticals — the "this month" line
-   (income · spending · left over). Stacks with horizontal rules on phone. */
-.of-trio { display: grid; grid-template-columns: repeat(3, 1fr); }
-.of-trio > * + * { border-left: 1px solid var(--color-of-line); }
+/* Three figures — the "this month" line (income · spending · left over), each in
+   its own bordered panel. Stacks to a single column on phone. */
+.of-trio { display: grid; grid-template-columns: repeat(3, 1fr); gap: 26px; }
 @media (max-width: 640px) {
   .of-trio { grid-template-columns: 1fr; }
-  .of-trio > * { padding: 16px 0 !important; }
-  .of-trio > *:first-child { padding-top: 0 !important; }
-  .of-trio > * + * { border-left: 0; border-top: 1px solid var(--color-of-line); }
 }
 
 /* Hero band (figure beside sparkline / actions) → stack on narrow screens. */

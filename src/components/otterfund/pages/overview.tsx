@@ -20,6 +20,7 @@ import { fmt } from "@/lib/format";
 import { ProgressBar, ProgressRing } from "@/components/otterfund/progress";
 import { GuillocheFlow } from "@/components/otterfund/guilloche-flow";
 import { GuillocheSeal } from "@/components/otterfund/guilloche";
+import { Panel } from "@/components/otterfund/panel";
 import { StatPill } from "@/components/otterfund/stat-pill";
 import { CardLabel } from "@/components/otterfund/card";
 import { NetWorthSparkline } from "@/components/otterfund/net-worth-sparkline";
@@ -279,7 +280,7 @@ export function OtterfundOverview({ overview, name, theme, hasAccounts = true, o
         This month{monthLabel && ` · ${monthLabel}`}
       </CardLabel>
       <section className="of-trio" aria-label="This month">
-        <div style={{ padding: "10px 16px", textAlign: "center" }}>
+        <Panel theme={theme} padding="18px 16px" style={{ textAlign: "center" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 9, fontSize: 12.5, color: "var(--color-of-muted)", fontWeight: 500 }}>
             <ArrowUpRight size={16} strokeWidth={2.6} color={theme.accentDeep} aria-hidden="true" />
             Income
@@ -288,8 +289,8 @@ export function OtterfundOverview({ overview, name, theme, hasAccounts = true, o
             {money(incomeTween)}
           </div>
           <div style={{ fontSize: 12, color: "var(--color-of-faint)", marginTop: 3 }}>total received</div>
-        </div>
-        <div style={{ padding: "10px 16px", textAlign: "center" }}>
+        </Panel>
+        <Panel theme={theme} padding="18px 16px" style={{ textAlign: "center" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 9, fontSize: 12.5, color: "var(--color-of-muted)", fontWeight: 500 }}>
             <ArrowDownLeft size={16} strokeWidth={2.6} color="var(--color-of-muted)" aria-hidden="true" />
             Spending
@@ -300,21 +301,37 @@ export function OtterfundOverview({ overview, name, theme, hasAccounts = true, o
           <div style={{ fontSize: 12, color: "var(--color-of-faint)", marginTop: 3 }}>
             {spendPct != null ? `${spendPct}% of income` : "total spent"}
           </div>
-        </div>
-        <div style={{ padding: "10px 16px", textAlign: "center" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 9, fontSize: 12.5, color: "var(--color-of-muted)", fontWeight: 500 }}>
-            <Wallet size={16} strokeWidth={2.4} color={theme.accentDeep} aria-hidden="true" />
-            {surplusDown ? "Overspent" : "Left over"}
-          </div>
-          <div className="of-num" style={{ fontSize: 21, letterSpacing: "-0.02em", marginTop: 7, color: surplusDown ? theme.clay : theme.accentDeep }}>
-            {signed(surplusTween)}
-          </div>
-          <div style={{ fontSize: 12, color: "var(--color-of-faint)", marginTop: 3 }}>
-            {surplusDown
-              ? "more went out than came in"
-              : overview.monthlyIncome <= 0
-                ? "no money in yet this month"
-                : `${savingsRate}% savings rate`}
+        </Panel>
+        {/* Left over — the one dark trio card, minted with a liquid guilloché so
+            it "pops" against the two light figures beside it. */}
+        <div
+          style={{
+            position: "relative",
+            overflow: "hidden",
+            minWidth: 0,
+            borderRadius: 20,
+            padding: "18px 16px",
+            textAlign: "center",
+            background: band.bg,
+            boxShadow: `0 1px 2px oklch(20% 0.02 80 / 0.05), 0 14px 34px oklch(30% 0.06 ${hue} / 0.22)`,
+          }}
+        >
+          <GuillocheFlow accent={band.line} accentDeep={band.lineDeep} opacity={0.18} fade="none" speed={3} warp={6} />
+          <div style={{ position: "relative" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 9, fontSize: 12.5, color: band.accent, fontWeight: 500 }}>
+              <Wallet size={16} strokeWidth={2.4} color={band.accent} aria-hidden="true" />
+              {surplusDown ? "Overspent" : "Left over"}
+            </div>
+            <div className="of-num" style={{ fontSize: 21, letterSpacing: "-0.02em", marginTop: 7, color: band.ink }}>
+              {signed(surplusTween)}
+            </div>
+            <div style={{ fontSize: 12, color: band.accent, marginTop: 3 }}>
+              {surplusDown
+                ? "more went out than came in"
+                : overview.monthlyIncome <= 0
+                  ? "no money in yet this month"
+                  : `${savingsRate}% savings rate`}
+            </div>
           </div>
         </div>
       </section>
@@ -322,9 +339,9 @@ export function OtterfundOverview({ overview, name, theme, hasAccounts = true, o
       {/* ── where it went · recent activity (two-up, stacks on tablet) ── */}
       <section
         className="of-grid-2up"
-        style={{ marginTop: 52, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 56 }}
+        style={{ marginTop: 24, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}
       >
-        <div style={{ minWidth: 0 }}>
+        <Panel theme={theme}>
           <SectionHead title="Where it went" action={<ViewAllLink label="All spending" onClick={() => onNavigate?.("spending")} />} />
           {cats.length > 0 ? (
             <Ledger>
@@ -352,9 +369,9 @@ export function OtterfundOverview({ overview, name, theme, hasAccounts = true, o
           ) : (
             <EmptyBlock theme={theme} text="No spending yet this month." />
           )}
-        </div>
+        </Panel>
 
-        <div style={{ minWidth: 0 }}>
+        <Panel theme={theme}>
           <SectionHead title="Recent activity" action={<ViewAllLink label="All transactions" onClick={() => onNavigate?.("transactions")} />} />
           {recent.length > 0 ? (
             <Ledger>
@@ -380,15 +397,15 @@ export function OtterfundOverview({ overview, name, theme, hasAccounts = true, o
           ) : (
             <EmptyBlock theme={theme} text="No transactions yet this month." />
           )}
-        </div>
+        </Panel>
       </section>
 
       {/* ── goals · insight (two-up, stacks on tablet) ── */}
       <section
         className="of-grid-2up"
-        style={{ marginTop: 52, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 56, alignItems: "stretch" }}
+        style={{ marginTop: 24, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, alignItems: "stretch" }}
       >
-        <div style={{ minWidth: 0 }}>
+        <Panel theme={theme}>
         <SectionHead title="Goals on track" action={<ViewAllLink label="All goals" onClick={() => onNavigate?.("goals")} />} />
         {goals.length > 0 ? (
           // Reserve the height of three goal rows (44px ring + 15px padding
@@ -421,7 +438,7 @@ export function OtterfundOverview({ overview, name, theme, hasAccounts = true, o
         ) : (
           <EmptyBlock theme={theme} text="No goals yet — set one to start saving with intent." />
         )}
-        </div>
+        </Panel>
 
         {/* ── the insight — the one bold moment, a square beside the goals ── */}
       <div
