@@ -21,9 +21,12 @@ import { useOtterfundChrome } from "@/components/otterfund/chrome-context";
 import { createClient } from "@/lib/supabase/client";
 import { gqlClient } from "@/lib/graphql/client";
 import { BudgetPlanPicker } from "@/components/otterfund/budget-plan-picker";
-import { User, Wallet, ShieldAlert, ChevronDown, Database, Palette, Trash2, Check, Landmark, Unlink, RefreshCw, Loader2, Plus, CreditCard, ArrowLeftRight } from "lucide-react";
+import { User, Wallet, ShieldAlert, ChevronDown, Database, Palette, Trash2, Check, Landmark, Unlink, RefreshCw, Loader2, Plus, CreditCard, ArrowLeftRight, Lock, ArrowRight } from "lucide-react";
+import { OtterFace } from "@/components/otterfund/logo";
+import { GuillocheFlow } from "@/components/otterfund/guilloche-flow";
 import { CURRENCIES, getBudgetPlan } from "@/lib/constants";
-import { PLAN_META } from "@/lib/plans";
+import { PLAN_META, FEATURE_COPY, FEATURE_REQUIRED_TIER, canUse } from "@/lib/plans";
+import type { OtterfundTheme } from "@/components/otterfund/theme";
 
 const PLAID_ITEMS = /* GraphQL */ `
   query PlaidItems {
@@ -130,6 +133,71 @@ function SectionHead({
           {title}
         </h3>
         <p className="text-[12.5px] text-[var(--color-of-muted)] mt-0.5">{desc}</p>
+      </div>
+    </div>
+  );
+}
+
+// Bank sync is a paid capability — on Free the Connections tab shows this
+// on-brand upsell in place of the connect flow, built from the same language as
+// the full-page LockedFeature panel (accent-tint field + drifting guilloché,
+// the otter mark, a Newsreader title, accent-tint perk chips) so it reads like
+// otterfund rather than a generic "locked" notice. The CTA points at the lowest
+// tier that unlocks bank sync (source of truth: FEATURE_REQUIRED_TIER).
+function ConnectionsUpsell({ theme, onUpgrade }: { theme: OtterfundTheme; onUpgrade: () => void }) {
+  const copy = FEATURE_COPY.bank_sync;
+  const tierName = PLAN_META[FEATURE_REQUIRED_TIER.bank_sync].name;
+  return (
+    <div
+      className="max-w-[460px] overflow-hidden rounded-[20px]"
+      style={{ background: "var(--color-of-surface)", border: "1px solid var(--color-of-line)" }}
+    >
+      <div
+        className="relative overflow-hidden px-7 pb-6 pt-7"
+        style={{ background: `linear-gradient(180deg, ${theme.accentTint}, transparent)` }}
+      >
+        <div className="pointer-events-none absolute inset-0" aria-hidden>
+          <GuillocheFlow accent={theme.accent} accentDeep={theme.accentDeep} opacity={0.08} fade="radial" speed={3} />
+        </div>
+        <div className="relative flex items-start gap-4">
+          <div className="flex shrink-0 items-center justify-center" style={{ color: theme.accentDeep }}>
+            <OtterFace size={34} />
+          </div>
+          <div className="min-w-0">
+            <span
+              className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.08em]"
+              style={{ color: theme.accentDeep }}
+            >
+              <Lock className="h-2.5 w-2.5" strokeWidth={2.4} /> {tierName} feature
+            </span>
+            <h3
+              className="mt-2 text-[21px] leading-tight tracking-[-0.01em] text-[var(--color-of-ink)]"
+              style={{ fontFamily: "var(--font-num), Georgia, serif", fontWeight: 500 }}
+            >
+              {copy.title}
+            </h3>
+            <p className="mt-1 text-[13px] leading-relaxed text-[var(--color-of-muted)]">{copy.blurb}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="px-7 pb-6 pt-5">
+        <ul className="flex flex-col gap-2.5">
+          {copy.perks.map((perk) => (
+            <li key={perk} className="flex items-start gap-2.5">
+              <span
+                className="mt-[1px] flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full"
+                style={{ background: theme.accentTint, color: theme.accentDeep }}
+              >
+                <Check className="h-3 w-3" strokeWidth={2.6} />
+              </span>
+              <span className="text-[13px] leading-snug text-[var(--color-of-ink)]">{perk}</span>
+            </li>
+          ))}
+        </ul>
+        <Button size="lg" onClick={onUpgrade} className="mt-6 w-full font-semibold" style={{ background: theme.accent }}>
+          Upgrade to {tierName} <ArrowRight className="h-4 w-4" />
+        </Button>
       </div>
     </div>
   );
@@ -545,6 +613,10 @@ export function SettingsModal({ open, onClose, user, accent, onAccentChange, onS
               <section className="of-enter">
                 <SectionHead icon={Landmark} title="Connections" desc="Linked banks that sync balances and transactions automatically." />
 
+                {!canUse(plan, "bank_sync") ? (
+                  <ConnectionsUpsell theme={theme} onUpgrade={() => { onClose(); promptUpgrade(); }} />
+                ) : (
+                <>
                 {connLoading && connections === null ? (
                   <div className="flex items-center gap-2 text-[13px] text-[var(--color-of-muted)]">
                     <Loader2 className="w-4 h-4 animate-spin" /> Loading…
@@ -628,6 +700,8 @@ export function SettingsModal({ open, onClose, user, accent, onAccentChange, onS
                 <Button size="sm" onClick={() => startConnect()} className="mt-4" variant="outline">
                   <Plus data-icon="inline-start" className="w-4 h-4" /> Connect a bank
                 </Button>
+                </>
+                )}
               </section>
             )}
 

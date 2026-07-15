@@ -1,41 +1,52 @@
-import { Card } from "@/components/otterfund/card";
-import { SkeletonPage, Skel, SkelHero, SkelCard, SkelBarList, SkelAvatarRows } from "@/components/otterfund/skeleton";
+import { SkeletonPage, Skel, SkelHero, SkelSectionHead, SkelBarList, SkelAvatarRows } from "@/components/otterfund/skeleton";
 
-// Overview: net-worth hero + sparkline · 3 stat cards · "Where it went" +
-// "Goals on track" bar cards · "Recent activity" + insight split.
+// Overview (statement): greeting · net-worth hero + sparkline + cut · this-month
+// trio · "Where it went" + "Recent activity" two-up · "Goals" ledger · insight band.
 export default function Loading() {
   return (
-    <SkeletonPage>
-      <SkelHero chart />
-      <section className="of-grid-3 mb-4 grid grid-cols-3 gap-4">
+    <SkeletonPage variant="statement">
+      {/* greeting */}
+      <div className="pb-2">
+        <Skel className="h-6 w-56 rounded-lg" />
+        <Skel className="mt-2 h-3.5 w-48 rounded-md" />
+      </div>
+
+      <SkelHero chart cut />
+
+      {/* this month · three figures split by hairlines */}
+      <div className="mt-6 mb-2.5">
+        <Skel className="h-3 w-28 rounded-md" />
+      </div>
+      <section className="of-trio">
         {[0, 1, 2].map((i) => (
-          <Card key={i} className="px-6 py-[22px]">
-            <Skel className="h-3 w-16 rounded-md" />
-            <Skel className="mt-2.5 h-[30px] w-32 rounded-lg" />
-          </Card>
+          <div key={i} className="flex flex-col items-center px-4">
+            <Skel className="h-3.5 w-20 rounded-md" />
+            <Skel className="mt-2.5 h-6 w-28 rounded-lg" />
+            <Skel className="mt-2.5 h-3 w-24 rounded-md" />
+          </div>
         ))}
       </section>
-      <section className="of-grid-2up mb-4 grid grid-cols-2 gap-4">
-        <SkelCard>
-          <SkelBarList rows={4} />
-        </SkelCard>
-        <SkelCard>
-          <SkelBarList rows={4} />
-        </SkelCard>
-      </section>
-      <section className="of-grid-split grid grid-cols-[1.5fr_1fr] gap-4">
-        <SkelCard>
+
+      {/* where it went · recent activity (two-up) */}
+      <section className="of-grid-2up mt-9 grid grid-cols-2 gap-14">
+        <div>
+          <SkelSectionHead />
+          <SkelBarList rows={5} divided />
+        </div>
+        <div>
+          <SkelSectionHead />
           <SkelAvatarRows rows={5} />
-        </SkelCard>
-        <Card className="flex flex-col p-6">
-          <Skel className="h-3 w-24 rounded-md" />
-          <Skel className="mt-4 h-5 w-full rounded-md" />
-          <Skel className="mt-2.5 h-5 w-4/5 rounded-md" />
-          <Skel className="mt-2.5 h-5 w-3/5 rounded-md" />
-          <div className="flex-1" />
-          <Skel className="mt-5 h-9 w-40 self-start rounded-full" />
-        </Card>
+        </div>
       </section>
+
+      {/* goals */}
+      <section className="mt-9">
+        <SkelSectionHead />
+        <SkelAvatarRows rows={3} round size={44} lines={2} />
+      </section>
+
+      {/* insight band */}
+      <Skel className="mt-10 h-[150px] w-full rounded-[22px]" />
     </SkeletonPage>
   );
 }

@@ -29,6 +29,11 @@ interface StatPillProps {
   bg?: string;
   color?: string;
   fontSize?: number;
+  /** Strip the pill — no background or padding, just the icon + figure + label
+      inline (the tone still colours the text). Defaults to true: the app-wide
+      look is a bare figure+label, no tinted pill behind it. Pass `bare={false}`
+      to bring the tinted pill back (e.g. a design-system demo). */
+  bare?: boolean;
 }
 
 export function StatPill({
@@ -40,16 +45,17 @@ export function StatPill({
   bg,
   color,
   fontSize = 13,
+  bare = true,
 }: StatPillProps) {
-  const background = bg ?? (tone === "clay" ? theme.clayTint : theme.accentTint);
+  const background = bare ? "transparent" : (bg ?? (tone === "clay" ? theme.clayTint : theme.accentTint));
   const ink = color ?? (tone === "clay" ? theme.clay : theme.accentDeep);
   return (
     <span
       style={{
         display: "inline-flex",
         alignItems: "baseline",
-        padding: "5px 12px",
-        borderRadius: 999,
+        padding: bare ? 0 : "5px 12px",
+        borderRadius: bare ? 0 : 999,
         fontSize,
         fontWeight: 600,
         lineHeight: 1,

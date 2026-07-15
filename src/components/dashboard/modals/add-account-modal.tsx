@@ -29,6 +29,7 @@ const EMPTY: AccountFormValues = {
   balance: "",
   number: "",
   gradient: DEFAULT_ACCOUNT_COLOR,
+  institution: "",
 };
 
 export function AddAccountModal({
@@ -71,6 +72,7 @@ export function AddAccountModal({
             balance: Number(values.balance) || 0, // balance defaults to 0
             number: values.number.trim() || undefined,
             gradient: values.gradient,
+            institution: values.institution.trim() || undefined,
           },
         });
         setValues(EMPTY);

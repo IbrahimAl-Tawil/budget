@@ -3,12 +3,21 @@ export interface TransactionView {
   name: string;
   category: string;
   date: string;
+  /** Local calendar day as `YYYY-MM-DD` — lets the Transactions ledger bucket
+   *  rows by day and label them (Today / Yesterday / weekday). Optional so other
+   *  builders (e.g. the GraphQL layer) needn't supply it; the ledger falls back
+   *  to grouping by the formatted `date` string when it's absent. */
+  dateISO?: string;
   amount: number;
   icon: string;
   color: string;
   /** Owning account — null for transactions with no account (rare/manual). */
   accountId: string | null;
   accountName: string | null;
+  /** Where the row came from: "plaid" = live bank sync, "manual" = typed by the
+   *  user, "csv" = extracted from an uploaded statement. Drives the Transactions
+   *  page source filter + the "not from your bank" marker. */
+  source?: "manual" | "plaid" | "csv";
 }
 
 export interface SpendCategory {
@@ -206,10 +215,17 @@ export interface AccountView {
   synced?: boolean;
   /** Institution name for synced accounts (e.g. "TD"). */
   institution?: string;
+  /** Resolved institution domain for the bank logo (e.g. "td.com"); undefined when unrecognized. */
+  domain?: string;
   /** Pre-formatted last-sync date (e.g. "Jun 30"), server-computed. */
   syncedLabel?: string;
   /** Locally hidden — kept synced but omitted from net worth/totals. */
   excluded?: boolean;
+  /** For synced accounts only: how many manual entries sit on this bank-linked
+   *  account and so aren't reflected in its bank-truth balance. 0/undefined for
+   *  manual accounts (where manual entries ARE the balance). Drives the
+   *  "N not from your bank" review affordance. */
+  unsyncedManualCount?: number;
 }
 
 export interface InsightView {

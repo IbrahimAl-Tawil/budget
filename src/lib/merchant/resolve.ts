@@ -12,50 +12,17 @@
 
 import { prisma } from "@/lib/db/prisma";
 import { anthropic } from "@/lib/ai/client";
-import { MERCHANT_DICTIONARY } from "./dictionary";
+import { MERCHANT_DICTIONARY, normalizeKey } from "./dictionary";
+
+// normalizeKey + dictionaryDomain are the client-safe, pure lookup tier — they
+// live in ./dictionary (no server imports) so client UI can use them too. Re-
+// exported here so existing server callers keep importing from @/lib/merchant/resolve.
+export { normalizeKey, dictionaryDomain } from "./dictionary";
 
 export interface ResolvedMerchant {
   displayName: string;
   domain: string | null;
   isCompany: boolean;
-}
-
-/**
- * Normalize a raw merchant/subscription name to a stable lookup key: lowercase,
- * strip common payment-processor prefixes, phone numbers, store/location codes,
- * and punctuation. "NETFLIX.COM 866-579-7172 CA" → "netflix". The same input
- * always maps to the same Merchant row.
- */
-export function normalizeKey(raw: string): string {
-  let s = raw.toLowerCase();
-
-  // Common payment-processor / aggregator prefixes (Square, Toast, PayPal, etc.)
-  s = s.replace(/\b(sq|tst|paypal|pp|sp|dd| import|pos|pmnt|payment|recur(ring)?|autopay)\b\s*\*?\s*/g, " ");
-  s = s.replace(/[*#]/g, " ");
-
-  // Drop URLs/TLDs, phone numbers, and long digit runs (order/store IDs).
-  s = s.replace(/https?:\/\/\S+/g, " ");
-  s = s.replace(/\b[\w.-]+\.(com|net|org|io|co|tv|app|us|so|ai)\b/g, (m) => m.split(".")[0]);
-  s = s.replace(/\+?\d[\d\s().-]{6,}\d/g, " "); // phone numbers
-  s = s.replace(/\b\d{3,}\b/g, " "); // standalone long numbers
-
-  // Trailing 2-letter state/province codes and generic recurring words.
-  s = s.replace(/\b(inc|llc|ltd|co|corp|subscription|membership|monthly|annual|yearly)\b/g, " ");
-
-  // Collapse to alphanumerics + single spaces.
-  s = s.replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ");
-  return s;
-}
-
-/**
- * Dictionary-ONLY domain lookup: no DB, no Claude. Cheap enough to run for every
- * row of a search typeahead, where paying for resolution per candidate would be
- * wasteful. Well-known names ("Apple", "Vanguard") get a logo instantly; anything
- * not in the seed dictionary returns null and the UI shows a letter tile.
- */
-export function dictionaryDomain(rawName: string): string | null {
-  const key = normalizeKey(rawName);
-  return (key && MERCHANT_DICTIONARY[key]?.domain) || null;
 }
 
 const RESOLVE_SCHEMA = {

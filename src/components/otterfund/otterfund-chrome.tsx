@@ -13,7 +13,7 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { gqlClient } from "@/lib/graphql/client";
-import { Home, List, CreditCard, Target, Sparkles, Bell, Plus, Settings, LogOut, PieChart, Landmark, TrendingUp, Gauge, SlidersHorizontal, type LucideProps } from "lucide-react";
+import { Home, List, CreditCard, Target, Sparkles, Bell, Settings, LogOut, PieChart, TrendingUp, Gauge, SlidersHorizontal, type LucideProps } from "lucide-react";
 import { AddTransactionModal } from "@/components/dashboard/modals/add-transaction-modal";
 import { ImportModal } from "@/components/dashboard/modals/import-modal";
 import { EditTransactionModal } from "@/components/dashboard/modals/edit-transaction-modal";
@@ -26,6 +26,7 @@ import { AddInvestmentModal } from "@/components/dashboard/modals/add-investment
 import { EditInvestmentModal } from "@/components/dashboard/modals/edit-investment-modal";
 import { EditAccountModal } from "@/components/dashboard/modals/edit-account-modal";
 import { ConnectBankModal } from "@/components/dashboard/modals/connect-bank-modal";
+import { PaywallModal } from "@/components/dashboard/modals/paywall-modal";
 import { NotificationsPanel } from "@/components/dashboard/notifications-panel";
 import { SettingsModal } from "@/components/dashboard/modals/settings-modal";
 import type { TransactionView, GoalView, AccountView, SubscriptionView, InvestmentView, SpendCategory, BillView } from "@/lib/types";
@@ -77,7 +78,7 @@ interface NavSection {
 
 // Grouped by mental model: FLOW = money moving over the month (period-scoped),
 // HOLDINGS = what you have right now (balances), ADVISOR = the AI layer over it
-// all. Subscriptions live inside Spending now; Investments inside Accounts.
+// all. Subscriptions live inside Spending now; Investments is its own rail tab.
 const NAV_SECTIONS: NavSection[] = [
   {
     label: "Flow",
@@ -91,6 +92,7 @@ const NAV_SECTIONS: NavSection[] = [
     label: "Holdings",
     items: [
       { href: "/dashboard/accounts", label: "Accounts", Icon: CreditCard },
+      { href: "/dashboard/investments", label: "Investments", Icon: TrendingUp },
       { href: "/dashboard/goals", label: "Goals", Icon: Target },
     ],
   },
@@ -184,6 +186,7 @@ export function OtterfundChrome({
   user,
   notice,
   txThisMonth,
+  hasAccounts,
   todayMonth,
   todayYear,
   children,
@@ -192,6 +195,8 @@ export function OtterfundChrome({
   user: ChromeUser;
   notice: ChromeNotice;
   txThisMonth: number;
+  /** False when the user has no accounts at all — drives cold-start empty states. */
+  hasAccounts: boolean;
   /** Today's real period — the picker's "today" marker + the period fallback. */
   todayMonth: number;
   todayYear: number;
@@ -251,6 +256,9 @@ export function OtterfundChrome({
   const [editInvestment, setEditInvestment] = useState<InvestmentView | null>(null);
   const [showConnectBank, setShowConnectBank] = useState(false);
   const [connectUpdateItemId, setConnectUpdateItemId] = useState<string | null>(null);
+  // The gated feature the upgrade modal is upselling — null when it's closed. Set
+  // by requireFeature when a locked action is triggered (Connect a bank on Free).
+  const [paywallFeature, setPaywallFeature] = useState<Feature | null>(null);
   const [editTx, setEditTx] = useState<TransactionView | null>(null);
   const [editGoal, setEditGoal] = useState<GoalView | null>(null);
   const [editAccount, setEditAccount] = useState<AccountView | null>(null);
@@ -317,9 +325,10 @@ export function OtterfundChrome({
 
   const plan: PlanTier = toPlanTier(user.plan);
 
-  // Prompt an upgrade for a locked feature — send the user straight to the
-  // pricing page (no interstitial modal). Carry the origin route as `?from=` so
-  // pricing can offer a "Back to <page>" return link instead of a generic one.
+  // Go straight to pricing. Used from surfaces that are ALREADY an upsell (the
+  // paywall modal's CTA, the LockedFeature page, the Settings plan tab) — the
+  // interstitial for a gated *action* is requireFeature's job, below. Carry the
+  // origin route as `?from=` so pricing can offer a "Back to <page>" return link.
   const pricingHref = useCallback(() => {
     // Preserve an open Settings tab in the origin so pricing can return there
     // (e.g. Settings → Plan → Change plan → "Back to Settings" reopens Plan).
@@ -329,15 +338,16 @@ export function OtterfundChrome({
   const promptUpgrade = useCallback(() => router.push(pricingHref()), [router, pricingHref]);
 
   // Gate an action: returns true (proceed) when the plan includes the feature,
-  // otherwise sends the user to pricing and returns false. Callers do
+  // otherwise opens the upgrade interstitial (which names the tier + perks, then
+  // its CTA goes to pricing) and returns false. Callers do
   // `if (!requireFeature("bank_sync")) return;` before the gated action.
   const requireFeature = useCallback(
     (feature: Feature) => {
       if (canUse(plan, feature)) return true;
-      router.push(pricingHref());
+      setPaywallFeature(feature);
       return false;
     },
-    [plan, router, pricingHref],
+    [plan],
   );
 
   // Send the user to Stripe's hosted portal to manage/cancel their plan.
@@ -509,9 +519,6 @@ export function OtterfundChrome({
   // month); fall back to the layout's current-month count before it reports.
   const pageSub = meta.sub({ monthLabel, txThisMonth: txCount ?? txThisMonth });
   const showPicker = routeIsPeriodic;
-  // Insights is a chat/AI workspace, not a place to add records — hide the Add
-  // menu there and leave just the notifications bell.
-  const showAddMenu = pathname !== "/dashboard/insights";
 
   // Memoized so context consumers (every routed page) don't re-render on every
   // chrome render (modal open, menu toggle, period transition). The state
@@ -522,6 +529,7 @@ export function OtterfundChrome({
       theme,
       setAccent,
       plan,
+      hasAccounts,
       requireFeature,
       promptUpgrade,
       openBillingPortal,
@@ -533,6 +541,7 @@ export function OtterfundChrome({
         if (!requireFeature("investments")) return;
         setShowAddInvestment(true);
       },
+      importStatement: () => setShowImport(true),
       connectBank: (updateItemId?: string) => {
         // Reconnect (update mode) is for an existing linked item — allow it even
         // at/over the plan cap. A brand-new connection is gated on bank sync.
@@ -550,7 +559,7 @@ export function OtterfundChrome({
       txCount,
       setTxCount,
     }),
-    [accent, theme, setAccent, hrefFor, txCount, plan, requireFeature, promptUpgrade, openBillingPortal]
+    [accent, theme, setAccent, hrefFor, txCount, plan, hasAccounts, requireFeature, promptUpgrade, openBillingPortal]
   );
 
   return (
@@ -660,7 +669,7 @@ export function OtterfundChrome({
             data-collapsed={navCollapsed || undefined}
             style={{
               display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
-              padding: "22px 34px", borderBottom: "1px solid oklch(93% 0.005 85)",
+              padding: "22px 34px",
             }}
           >
             <div className="of-topbar-lead" style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
@@ -704,42 +713,10 @@ export function OtterfundChrome({
                 />
               )}
 
-              {/* desktop-only bell — hidden on mobile, where it rides the title row */}
+              {/* desktop-only bell — hidden on mobile, where it rides the title row.
+                  No add action lives in the header anymore: each page owns its add
+                  inline (Transactions has Add transaction + Import in its toolbar). */}
               <span className="of-bell-top">{bell}</span>
-
-              {/* add — Base UI Menu owns open state, scrim, focus & Escape; its
-                  positioner keeps the menu on-screen at any viewport. Hidden on
-                  Insights, which is a chat workspace, not a records surface. */}
-              {showAddMenu && (
-                <Menu>
-                  <MenuTrigger
-                    render={
-                      <Button size="sm" aria-label="Add">
-                        <Plus data-icon="inline-start" size={16} strokeWidth={2.4} aria-hidden="true" />
-                        Add
-                      </Button>
-                    }
-                  />
-                  <MenuContent>
-                    <MenuItem onClick={() => setShowAdd(true)}>
-                      <Plus size={15} strokeWidth={2} aria-hidden="true" />
-                      <span>New transaction</span>
-                    </MenuItem>
-                    <MenuItem onClick={() => { if (requireFeature("investments")) setShowAddInvestment(true); }}>
-                      <TrendingUp size={15} strokeWidth={2} aria-hidden="true" />
-                      <span>New investment</span>
-                    </MenuItem>
-                    <MenuItem onClick={() => setShowImport(true)}>
-                      <List size={15} strokeWidth={2} aria-hidden="true" />
-                      <span>Import statement</span>
-                    </MenuItem>
-                    <MenuItem onClick={() => { if (requireFeature("bank_sync")) setShowConnectBank(true); }}>
-                      <Landmark size={15} strokeWidth={2} aria-hidden="true" />
-                      <span>Connect a bank</span>
-                    </MenuItem>
-                  </MenuContent>
-                </Menu>
-              )}
             </div>
           </header>
 
@@ -750,7 +727,7 @@ export function OtterfundChrome({
         </main>
 
         {/* CRUD + settings modals — owned by the chrome, opened via context */}
-        <AddTransactionModal open={showAdd} onClose={() => setShowAdd(false)} onAdded={() => { setShowAdd(false); refresh(); }} />
+        <AddTransactionModal open={showAdd} onClose={() => setShowAdd(false)} onAdded={() => { setShowAdd(false); refresh(); }} onAddAccount={() => { setShowAdd(false); setShowAddAccount(true); }} />
         <ImportModal open={showImport} onClose={() => setShowImport(false)} onImported={() => { setShowImport(false); refresh(); }} />
         <EditTransactionModal open={!!editTx} transaction={editTx} onClose={() => setEditTx(null)} onUpdated={() => { setEditTx(null); refresh(); }} />
         <AddGoalModal open={showAddGoal} onClose={() => setShowAddGoal(false)} onAdded={() => { setShowAddGoal(false); refresh(); }} />
@@ -762,6 +739,13 @@ export function OtterfundChrome({
         <EditInvestmentModal open={!!editInvestment} investment={editInvestment} onClose={() => setEditInvestment(null)} onUpdated={() => { setEditInvestment(null); refresh(); }} />
         <EditAccountModal open={!!editAccount} account={editAccount} onClose={() => setEditAccount(null)} onUpdated={() => { setEditAccount(null); refresh(); }} />
         <ConnectBankModal open={showConnectBank} updateItemId={connectUpdateItemId ?? undefined} onClose={() => setShowConnectBank(false)} onLinked={() => { refresh(); }} />
+        <PaywallModal
+          open={!!paywallFeature}
+          feature={paywallFeature}
+          theme={theme}
+          onClose={() => setPaywallFeature(null)}
+          onUpgrade={() => { setPaywallFeature(null); promptUpgrade(); }}
+        />
         <SettingsModal
           open={showSettings}
           onClose={closeSettings}

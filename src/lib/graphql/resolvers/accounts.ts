@@ -5,6 +5,7 @@ import { MutationResultRef } from "../types/results";
 import { getAccounts } from "@/lib/db/queries";
 import { prisma } from "@/lib/db/prisma";
 import { okString, okMoney, okColor, LIMITS } from "@/lib/validate";
+import { resolveMerchant } from "@/lib/merchant/resolve";
 
 builder.queryField("accounts", (t) =>
   t.field({
@@ -20,6 +21,7 @@ const AccountCreateInput = builder.inputType("AccountCreateInput", {
     balance: t.float({ required: true }),
     number: t.string(),
     gradient: t.string(),
+    institution: t.string(),
   }),
 });
 
@@ -30,6 +32,7 @@ const AccountUpdateInput = builder.inputType("AccountUpdateInput", {
     balance: t.float(),
     number: t.string(),
     gradient: t.string(),
+    institution: t.string(),
   }),
 });
 
@@ -41,11 +44,17 @@ builder.mutationField("createAccount", (t) =>
       const userId = requireUser(ctx);
       if (!okString(input.name, LIMITS.NAME)) badRequest("Name is too long.");
       if (!okString(input.number, LIMITS.ACCOUNT_NUMBER)) badRequest("Account number is too long.");
+      if (!okString(input.institution, LIMITS.NAME)) badRequest("Bank name is too long.");
       if (!okMoney(input.balance)) badRequest("Balance is out of range.");
       if (!okColor(input.gradient)) badRequest("Invalid color.");
       if ((await prisma.account.count({ where: { userId } })) >= 100) {
         badRequest("Account limit reached.");
       }
+      // Resolve the bank logo the SAME way subscriptions/investments do — a single
+      // interactive create, so a brief wait on an unknown institution is fine
+      // (known banks are a dictionary hit). Failures degrade to no logo.
+      const institution = input.institution?.trim() || undefined;
+      const domain = institution ? (await resolveMerchant(institution)).domain : null;
       const account = await prisma.account.create({
         data: {
           userId,
@@ -54,6 +63,8 @@ builder.mutationField("createAccount", (t) =>
           balance: input.balance,
           number: input.number || undefined,
           gradient: input.gradient || undefined,
+          institution,
+          domain: domain ?? undefined,
         },
       });
       return { ok: true, id: account.id };
@@ -72,6 +83,7 @@ builder.mutationField("updateAccount", (t) =>
       const userId = requireUser(ctx);
       if (!okString(input.name, LIMITS.NAME)) badRequest("Name is too long.");
       if (!okString(input.number, LIMITS.ACCOUNT_NUMBER)) badRequest("Account number is too long.");
+      if (!okString(input.institution, LIMITS.NAME)) badRequest("Bank name is too long.");
       if (!okMoney(input.balance)) badRequest("Balance is out of range.");
       if (!okColor(input.gradient)) badRequest("Invalid color.");
       const existing = await prisma.account.findFirst({ where: { id, userId } });
@@ -82,16 +94,32 @@ builder.mutationField("updateAccount", (t) =>
         badRequest("A connected account's balance is managed by your bank.");
       }
 
-      await prisma.account.update({
-        where: { id },
-        data: {
-          ...(input.name != null && { name: input.name }),
-          ...(input.type != null && { type: input.type }),
-          ...(input.balance != null && { balance: input.balance }),
-          ...(input.number !== undefined && { number: input.number || null }),
-          ...(input.gradient !== undefined && { gradient: input.gradient || null }),
-        },
-      });
+      const data: {
+        name?: string;
+        type?: string;
+        balance?: number;
+        number?: string | null;
+        gradient?: string | null;
+        institution?: string | null;
+        domain?: string | null;
+      } = {};
+      if (input.name != null) data.name = input.name;
+      if (input.type != null) data.type = input.type;
+      if (input.balance != null) data.balance = input.balance;
+      if (input.number !== undefined) data.number = input.number || null;
+      if (input.gradient !== undefined) data.gradient = input.gradient || null;
+      // Re-resolve the logo only when the institution changed. Clearing it wipes
+      // the logo; setting a new one resolves via the same path as subscriptions
+      // (dictionary → Merchant cache → Claude). A failed resolve keeps no logo.
+      if (input.institution !== undefined) {
+        const trimmed = (input.institution || "").trim();
+        if (trimmed !== (existing.institution ?? "")) {
+          data.institution = trimmed || null;
+          data.domain = trimmed ? ((await resolveMerchant(trimmed)).domain ?? null) : null;
+        }
+      }
+
+      await prisma.account.update({ where: { id }, data });
       return { ok: true, id };
     },
   }),
