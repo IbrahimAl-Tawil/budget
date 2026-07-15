@@ -16,6 +16,7 @@ import type { GoalPlanItem, GoalsPlanView, GoalView } from "@/lib/types";
 import type { OtterfundTheme } from "@/components/otterfund/theme";
 import { Button } from "@/components/ui/button";
 import { ProgressRing } from "@/components/otterfund/progress";
+import { Twemoji } from "@/components/otterfund/twemoji";
 import { GuillocheSeal } from "@/components/otterfund/guilloche";
 import { Statement, HeroBand } from "@/components/otterfund/ledger";
 import { Panel } from "@/components/otterfund/panel";
@@ -231,7 +232,7 @@ function GoalCard({
       {/* header — ring · name + pacing pill · percent */}
       <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
         <ProgressRing value={g.pct} size={52} stroke={5} color={accent}>
-          {g.emoji && <span style={{ fontSize: 22, lineHeight: 1 }}>{g.emoji}</span>}
+          {g.emoji && <Twemoji emoji={g.emoji} size={18} />}
         </ProgressRing>
         <div style={{ minWidth: 0, flex: 1 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>

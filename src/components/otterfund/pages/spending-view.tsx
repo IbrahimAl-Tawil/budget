@@ -16,7 +16,7 @@ export function SpendingView({
   /** The month being viewed — the category drill-in queries the same window. */
   period: { month: number; year: number };
 }) {
-  const { accent, theme, hrefFor, addSubscription, editSubscription, hasAccounts, addAccount, connectBank } = useOtterfundChrome();
+  const { accent, theme, hrefFor, addSubscription, editSubscription, editTransaction, hasAccounts, addAccount, connectBank, openSettings } = useOtterfundChrome();
   return (
     <OtterfundSpending
       plan={plan}
@@ -30,6 +30,8 @@ export function SpendingView({
       onConnect={connectBank}
       onAddSubscription={addSubscription}
       onEditSubscription={editSubscription}
+      onEditTransaction={editTransaction}
+      onEditPlan={() => openSettings("money")}
       goalsHref={hrefFor("/dashboard/goals")}
     />
   );

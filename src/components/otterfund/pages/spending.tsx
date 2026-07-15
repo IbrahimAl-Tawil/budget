@@ -13,9 +13,9 @@
 // leads, colour survives only in the data. Every figure derives from `plan`.
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowRight, House, ShoppingBag, PiggyBank, X, Loader2 } from "lucide-react";
-import type { SpendingPlanView, SpendingBucket, SpendingCategorySlice, SpendingCategoryDetail, SubscriptionView } from "@/lib/types";
+import type { SpendingPlanView, SpendingBucket, SpendingCategorySlice, SpendingCategoryDetail, SubscriptionView, TransactionView, InsightDetailTx } from "@/lib/types";
 import { type OtterfundTheme, hueOf, CATEGORY_TINTS } from "@/components/otterfund/theme";
 import { getBudgetPlan } from "@/lib/constants";
 import { fmt } from "@/lib/format";
@@ -27,6 +27,7 @@ import { Panel } from "@/components/otterfund/panel";
 import { CardLabel } from "@/components/otterfund/card";
 import { StatPill } from "@/components/otterfund/stat-pill";
 import { CategoryGlyph } from "@/components/otterfund/category-glyph";
+import { Twemoji } from "@/components/otterfund/twemoji";
 import { Button } from "@/components/ui/button";
 import { AddAccountEmptyState } from "@/components/otterfund/empty-state";
 import { OtterfundSubscriptions } from "@/components/otterfund/pages/subscriptions";
@@ -53,6 +54,10 @@ interface OtterfundSpendingProps {
   onConnect?: () => void;
   onAddSubscription?: () => void;
   onEditSubscription?: (s: SubscriptionView) => void;
+  /** Open the shared edit-transaction modal (chrome-owned) from a drill-in row. */
+  onEditTransaction?: (tx: TransactionView) => void;
+  /** Open settings on the Money tab, where the budget plan (50/30/20 etc.) is chosen. */
+  onEditPlan?: () => void;
   /** Link to Goals (where the savings pool is allocated to goals). */
   goalsHref: string;
 }
@@ -79,7 +84,7 @@ function glyphInk(name: string, theme: OtterfundTheme): string {
   return CATEGORY_TINTS[name]?.[1] ?? theme.accentDeep;
 }
 
-export function OtterfundSpending({ plan, accent, theme, period, subscriptions, currency: currencyProp, hasAccounts = true, onAddAccount, onConnect, onAddSubscription, onEditSubscription, goalsHref }: OtterfundSpendingProps) {
+export function OtterfundSpending({ plan, accent, theme, period, subscriptions, currency: currencyProp, hasAccounts = true, onAddAccount, onConnect, onAddSubscription, onEditSubscription, onEditTransaction, onEditPlan, goalsHref }: OtterfundSpendingProps) {
   const currency = plan.currency || currencyProp;
   const money = (n: number) => fmt(n, currency);
 
@@ -104,6 +109,40 @@ export function OtterfundSpending({ plan, accent, theme, period, subscriptions, 
     setDetailLoading(false);
   };
   const closeDetail = () => setOpenCat(null);
+
+  // Editing a drill-in row hands off to the chrome-owned edit modal (same one the
+  // Transactions page uses). The drawer's rows carry only the fields the modal
+  // reads (name, amount, category, id); all drilled rows are spend (resolver
+  // filters amount < 0), so the raw amount prefills "Expense" correctly. Close
+  // the drawer first so the modal isn't stacked over stale, soon-to-refresh rows.
+  const editFromDrawer = (t: InsightDetailTx, category: string) => {
+    closeDetail();
+    onEditTransaction?.({
+      id: t.id,
+      name: t.name,
+      amount: t.amount,
+      category,
+      date: t.date,
+      icon: "",
+      color: "",
+      accountId: null,
+      accountName: t.account,
+    });
+  };
+
+  // Clicking an actual-donut slice jumps to that bucket's group in the Category
+  // breakdown below and briefly tints it — reusing the breakdown that's already
+  // on the page rather than opening a separate drawer.
+  const bucketRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [flashBucket, setFlashBucket] = useState<string | null>(null);
+  useEffect(() => () => { if (flashTimer.current) clearTimeout(flashTimer.current); }, []);
+  const jumpToBucket = (key: string) => {
+    bucketRefs.current[key]?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setFlashBucket(key);
+    if (flashTimer.current) clearTimeout(flashTimer.current);
+    flashTimer.current = setTimeout(() => setFlashBucket(null), 1400);
+  };
 
   // Cold start — no accounts, and nothing to build a budget from (no income set,
   // no spending). The donut/bucket UI would only render as empty rings, so pivot
@@ -206,15 +245,21 @@ export function OtterfundSpending({ plan, accent, theme, period, subscriptions, 
         </p>
 
         <div style={{ display: "flex", gap: 32, flexWrap: "wrap", justifyContent: "center" }}>
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+          <button
+            type="button"
+            onClick={onEditPlan}
+            aria-label={`Change your plan, currently ${planMeta.name}`}
+            className="group flex flex-col items-center rounded-2xl outline-none transition-colors hover:bg-[var(--color-of-hover)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]"
+            style={{ gap: 10, padding: 8, background: "none", border: "none", cursor: "pointer" }}
+          >
             <DonutChart segments={targetSegments}>
               <span style={EYEBROW}>Target</span>
               <span className="of-num" style={{ fontSize: 15, fontWeight: 500 }}>{planMeta.name.split(" ")[0]}</span>
             </DonutChart>
-            <span style={{ ...EYEBROW, fontSize: 11.5 }}>Your plan</span>
-          </div>
+            <span style={{ ...EYEBROW, fontSize: 11.5 }} className="transition-colors group-hover:text-[var(--color-of-ink)]">Your plan</span>
+          </button>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
-            <DonutChart segments={actualSegments} formatValue={money}>
+            <DonutChart segments={actualSegments} formatValue={money} onSelect={(i) => jumpToBucket(plan.buckets[i].key)}>
               <span style={EYEBROW}>Spent</span>
               <span className="of-num" style={{ fontSize: 19, fontWeight: 500 }}>{money(totalSpent)}</span>
             </DonutChart>
@@ -251,7 +296,20 @@ export function OtterfundSpending({ plan, accent, theme, period, subscriptions, 
           // header sums those rather than the virtual surplus.
           const headerAmount = isSavings ? bucket.categories.reduce((s, c) => s + c.amount, 0) : bucket.actualAmount;
           return (
-            <div key={bucket.key} style={{ marginTop: i === 0 ? 10 : 22 }}>
+            <div
+              key={bucket.key}
+              ref={(el) => { bucketRefs.current[bucket.key] = el; }}
+              style={{
+                marginTop: i === 0 ? 2 : 6,
+                marginLeft: -10,
+                marginRight: -10,
+                padding: "8px 10px",
+                borderRadius: 14,
+                scrollMarginTop: 88,
+                transition: "background-color .5s ease",
+                background: flashBucket === bucket.key ? theme.accentTint : "transparent",
+              }}
+            >
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
                 <span style={{ width: 9, height: 9, borderRadius: 999, background: bucketColor[bucket.key], flexShrink: 0 }} />
                 <span style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--color-of-muted)" }}>
@@ -283,8 +341,8 @@ export function OtterfundSpending({ plan, accent, theme, period, subscriptions, 
                             // the Goals page does); fall back to a colour dot when it
                             // has none.
                             c.emoji ? (
-                              <span style={{ width: 26, display: "grid", placeItems: "center", fontSize: 18, lineHeight: 1, flexShrink: 0 }} aria-hidden="true">
-                                {c.emoji}
+                              <span style={{ width: 26, display: "grid", placeItems: "center", flexShrink: 0 }} aria-hidden="true">
+                                <Twemoji emoji={c.emoji} size={18} />
                               </span>
                             ) : (
                               <span style={{ width: 9, height: 9, borderRadius: 999, background: c.color, flexShrink: 0 }} />
@@ -350,6 +408,15 @@ export function OtterfundSpending({ plan, accent, theme, period, subscriptions, 
         theme={theme}
         money={money}
         onClose={closeDetail}
+        onEditTx={
+          // The synthetic "Uncategorized" slice folds together rows with no
+          // category (and Income-tagged spend), so its label isn't a real
+          // category — editing from it would misassign one. Leave those rows
+          // inert; every real category drills in editable.
+          onEditTransaction && openCat.categoryId !== "uncategorized"
+            ? (t) => editFromDrawer(t, openCat.name)
+            : undefined
+        }
       />
     )}
     </>
@@ -430,6 +497,7 @@ function CategoryDetailDrawer({
   theme,
   money,
   onClose,
+  onEditTx,
 }: {
   name: string;
   detail: SpendingCategoryDetail | null;
@@ -437,6 +505,8 @@ function CategoryDetailDrawer({
   theme: OtterfundTheme;
   money: (n: number) => string;
   onClose: () => void;
+  /** Edit a row's transaction; omitted when the host wires no edit handler. */
+  onEditTx?: (t: InsightDetailTx) => void;
 }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -549,29 +619,50 @@ function CategoryDetailDrawer({
                 {detail.count > 15 ? `Largest · top 15 of ${detail.count}` : "Transactions"}
               </div>
               <div style={{ display: "flex", flexDirection: "column" }}>
-                {detail.transactions.map((t, i) => (
-                  <div
-                    key={t.id}
-                    style={{
-                      display: "flex",
-                      alignItems: "baseline",
-                      justifyContent: "space-between",
-                      gap: 12,
-                      padding: "10px 0",
-                      borderTop: i === 0 ? "none" : "1px solid var(--color-of-line-soft)",
-                    }}
-                  >
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 13.5, color: "var(--color-of-ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.name}</div>
-                      <div style={{ fontSize: 11.5, color: "var(--color-of-faint)", marginTop: 2 }}>
-                        {t.date}{t.account ? ` · ${t.account}` : ""}
+                {detail.transactions.map((t, i) => {
+                  const rowStyle: React.CSSProperties = {
+                    display: "flex",
+                    alignItems: "baseline",
+                    justifyContent: "space-between",
+                    gap: 12,
+                    width: "calc(100% + 20px)",
+                    margin: "0 -10px",
+                    padding: "10px 10px",
+                    borderWidth: 0,
+                    borderTop: i === 0 ? undefined : "1px solid var(--color-of-line-soft)",
+                    borderRadius: 8,
+                    textAlign: "left",
+                    font: "inherit",
+                    color: "inherit",
+                  };
+                  const inner = (
+                    <>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 13.5, color: "var(--color-of-ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.name}</div>
+                        <div style={{ fontSize: 11.5, color: "var(--color-of-faint)", marginTop: 2 }}>
+                          {t.date}{t.account ? ` · ${t.account}` : ""}
+                        </div>
                       </div>
-                    </div>
-                    <span className="of-num" style={{ fontSize: 13.5, fontWeight: 600, color: "var(--color-of-ink)", flexShrink: 0 }}>
-                      {money(Math.abs(t.amount))}
-                    </span>
-                  </div>
-                ))}
+                      <span className="of-num" style={{ fontSize: 13.5, fontWeight: 600, color: "var(--color-of-ink)", flexShrink: 0 }}>
+                        {money(Math.abs(t.amount))}
+                      </span>
+                    </>
+                  );
+                  return onEditTx ? (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => onEditTx(t)}
+                      aria-label={`Edit ${t.name}`}
+                      className="bg-transparent hover:bg-[var(--color-of-hover)] transition-colors cursor-pointer"
+                      style={rowStyle}
+                    >
+                      {inner}
+                    </button>
+                  ) : (
+                    <div key={t.id} style={rowStyle}>{inner}</div>
+                  );
+                })}
               </div>
             </>
           )}

@@ -26,6 +26,7 @@ import { CardLabel } from "@/components/otterfund/card";
 import { NetWorthSparkline } from "@/components/otterfund/net-worth-sparkline";
 import { MerchantAvatar } from "@/components/otterfund/merchant-avatar";
 import { CategoryGlyph } from "@/components/otterfund/category-glyph";
+import { Twemoji } from "@/components/otterfund/twemoji";
 import { OtterFace } from "@/components/otterfund/logo";
 import { Wordmark } from "@/components/otterfund/wordmark";
 import { Statement, HeroBand, SectionHead, ViewAllLink, Ledger, Row } from "@/components/otterfund/ledger";
@@ -380,7 +381,7 @@ export function OtterfundOverview({ overview, name, theme, hasAccounts = true, o
               return (
                 <Row key={g.id} columns="44px 1fr auto" gap={15} padding="15px 12px">
                   <ProgressRing value={pct} size={44} stroke={5} color={theme.accent}>
-                    {g.emoji && <span style={{ fontSize: 16, lineHeight: 1 }}>{g.emoji}</span>}
+                    {g.emoji && <Twemoji emoji={g.emoji} size={16} />}
                   </ProgressRing>
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: 13.5, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>

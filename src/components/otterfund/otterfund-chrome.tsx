@@ -138,7 +138,7 @@ type RouteMeta = {
 const TITLES: Record<string, RouteMeta> = {
   "/dashboard": { title: "Overview", sub: () => "Here’s where your money stands today", periodic: true },
   "/dashboard/transactions": { title: "Transactions", sub: ({ txThisMonth, monthLabel }) => `${txThisMonth} this month · ${monthLabel}`, periodic: true },
-  "/dashboard/spending": { title: "Spending", sub: ({ monthLabel }) => `Budget vs. actual · ${monthLabel}`, periodic: true },
+  "/dashboard/spending": { title: "Spending", sub: ({ monthLabel }) => `Plan vs. actual · ${monthLabel}`, periodic: true },
   "/dashboard/accounts": { title: "Accounts", sub: () => "Everything in one place" },
   "/dashboard/investments": { title: "Investments", sub: () => "Your portfolio and holdings" },
   "/dashboard/goals": { title: "Goals", sub: () => "Saving with intent" },
@@ -646,6 +646,7 @@ export function OtterfundChrome({
         setShowAddInvestment(true);
       },
       importStatement: () => setShowImport(true),
+      openSettings,
       connectBank: (updateItemId?: string) => {
         // Reconnect (update mode) is for an existing linked item — allow it even
         // at/over the plan cap. A brand-new connection is gated on bank sync.
@@ -663,7 +664,7 @@ export function OtterfundChrome({
       txCount,
       setTxCount,
     }),
-    [accent, theme, setAccent, appearance, resolvedMode, setAppearance, hrefFor, txCount, plan, hasAccounts, requireFeature, promptUpgrade, openBillingPortal]
+    [accent, theme, setAccent, appearance, resolvedMode, setAppearance, hrefFor, txCount, plan, hasAccounts, requireFeature, promptUpgrade, openBillingPortal, openSettings]
   );
 
   return (

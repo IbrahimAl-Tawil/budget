@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { PRIORITY_LEVELS, toPriorityLevel } from "@/components/otterfund/priority-picker";
+import { Twemoji } from "@/components/otterfund/twemoji";
 import type { GoalPlanItem } from "@/lib/types";
 import type { OtterfundTheme } from "@/components/otterfund/theme";
 import { gqlClient, errMessage } from "@/lib/graphql/client";
@@ -205,10 +206,10 @@ export function AllocateSavingsModal({
                     className="flex w-full items-center gap-3 px-4 py-3 text-left outline-none"
                   >
                     <span
-                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[20px]"
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
                       style={{ background: "var(--color-of-canvas)", border: "1px solid var(--color-of-line-soft)" }}
                     >
-                      {g.emoji || "🎯"}
+                      <Twemoji emoji={g.emoji || "🎯"} size={20} />
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center gap-2">

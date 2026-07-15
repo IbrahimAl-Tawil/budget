@@ -45,6 +45,8 @@ export interface OtterfundChromeValue {
   addInvestment: () => void;
   /** Open the statement-import modal. */
   importStatement: () => void;
+  /** Open the settings modal, optionally on a specific tab (e.g. "money"). */
+  openSettings: (tab?: string) => void;
   /** Open the Connect-a-bank modal. Pass a Plaid itemId to reconnect (update mode). */
   connectBank: (updateItemId?: string) => void;
   editSubscription: (subscription: SubscriptionView) => void;
