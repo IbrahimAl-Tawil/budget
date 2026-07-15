@@ -150,7 +150,7 @@ function parseBlocks(md: string): Block[] {
 const codeStyle: React.CSSProperties = {
   fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
   fontSize: "0.9em",
-  background: "oklch(96% 0.005 90)",
+  background: "var(--color-of-field)",
   border: "1px solid var(--color-of-line-soft)",
   borderRadius: 5,
   padding: "1px 5px",

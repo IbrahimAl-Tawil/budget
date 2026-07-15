@@ -283,7 +283,7 @@ export function OtterfundInvestments({
                       }
                     : undefined
                 }
-                onMouseEnter={onEditPosition ? (e) => (e.currentTarget.style.background = "oklch(97.5% 0.005 90)") : undefined}
+                onMouseEnter={onEditPosition ? (e) => (e.currentTarget.style.background = "var(--color-of-hover)") : undefined}
                 onMouseLeave={onEditPosition ? (e) => (e.currentTarget.style.background = "transparent") : undefined}
                 style={{
                   display: "flex",
@@ -549,7 +549,7 @@ export function OtterfundInvestments({
                               }
                             : undefined
                         }
-                        onMouseEnter={clickable ? (e) => (e.currentTarget.style.background = "oklch(97.5% 0.005 90)") : undefined}
+                        onMouseEnter={clickable ? (e) => (e.currentTarget.style.background = "var(--color-of-hover)") : undefined}
                         onMouseLeave={clickable ? (e) => (e.currentTarget.style.background = "transparent") : undefined}
                         style={{
                           display: "flex",
@@ -627,7 +627,7 @@ export function OtterfundInvestments({
                               }
                             : undefined
                         }
-                        onMouseEnter={onEditAccount ? (e) => (e.currentTarget.style.background = "oklch(97.5% 0.005 90)") : undefined}
+                        onMouseEnter={onEditAccount ? (e) => (e.currentTarget.style.background = "var(--color-of-hover)") : undefined}
                         onMouseLeave={onEditAccount ? (e) => (e.currentTarget.style.background = "transparent") : undefined}
                         style={{
                           display: "flex",

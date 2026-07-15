@@ -589,11 +589,11 @@ export function OtterfundTransactions({ transactions, accounts, theme, currency 
             gap: 14,
             padding: "10px 12px 10px 20px",
             borderRadius: 999,
-            background: "var(--color-of-ink)",
+            background: "var(--color-of-tooltip)",
             boxShadow: "0 16px 40px oklch(20% 0.02 80 / 0.28)",
           }}
         >
-          <span style={{ fontSize: 13.5, fontWeight: 600, whiteSpace: "nowrap", color: deleteError ? "oklch(78% 0.09 33)" : "#fff" }}>
+          <span style={{ fontSize: 13.5, fontWeight: 600, whiteSpace: "nowrap", color: deleteError ? "oklch(78% 0.09 33)" : "var(--color-of-tooltip-ink)" }}>
             {deleteError ? "Couldn't delete. Try again" : confirmingDelete ? "Are you sure?" : `${selected.size} selected`}
           </span>
           <Button size="sm" onClick={clearSelection} disabled={isDeleting} className="bg-transparent text-white/70 hover:bg-white/10 hover:text-white">

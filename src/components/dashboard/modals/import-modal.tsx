@@ -241,7 +241,7 @@ export function ImportModal({ open, onClose, onImported }: ImportModalProps) {
                 {files.map((f, i) => (
                   <div
                     key={i}
-                    className="flex items-center gap-2 p-2.5 rounded-xl bg-[oklch(98%_0.004_90)] border border-[var(--color-of-line)]"
+                    className="flex items-center gap-2 p-2.5 rounded-xl bg-[var(--color-of-field)] border border-[var(--color-of-line)]"
                   >
                     <FileText className="w-4 h-4 text-[var(--color-primary)] shrink-0" />
                     <span className="text-sm flex-1 truncate max-w-[280px] text-[var(--color-of-ink)]">{f.name}</span>
@@ -359,7 +359,7 @@ export function ImportModal({ open, onClose, onImported }: ImportModalProps) {
               {transactions.map((tx, i) => (
                 <div
                   key={i}
-                  className="flex items-center justify-between px-3 py-2 rounded-xl bg-[oklch(98%_0.004_90)] border border-[var(--color-of-line)]"
+                  className="flex items-center justify-between px-3 py-2 rounded-xl bg-[var(--color-of-field)] border border-[var(--color-of-line)]"
                 >
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate text-[var(--color-of-ink)]">{tx.name}</p>

@@ -19,6 +19,7 @@ export const getUserRow = cache((userId: string) =>
       onboardingDone: true,
       isAdmin: true,
       accent: true,
+      appearance: true,
       currency: true,
       budgetPlan: true,
       monthlyIncome: true,

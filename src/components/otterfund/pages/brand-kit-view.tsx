@@ -5,10 +5,10 @@ import { BrandPatterns } from "@/components/otterfund/pages/brand-pattern";
 import { useOtterfundChrome } from "@/components/otterfund/chrome-context";
 
 export function BrandKitView() {
-  const { accent, theme, setAccent } = useOtterfundChrome();
+  const { accent, theme, setAccent, resolvedMode } = useOtterfundChrome();
   return (
     <>
-      <OtterfundBrandKit accent={accent} theme={theme} onAccentChange={setAccent} />
+      <OtterfundBrandKit accent={accent} theme={theme} mode={resolvedMode} onAccentChange={setAccent} />
       <BrandPatterns />
     </>
   );

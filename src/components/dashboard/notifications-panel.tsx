@@ -93,7 +93,7 @@ export function NotificationsPanel({
         {notifications.map((n, i) => (
           <div
             key={i}
-            className="flex gap-3 px-4 py-3 border-b border-[var(--color-of-line-soft)] last:border-b-0 hover:bg-[oklch(98%_0.004_90)]"
+            className="flex gap-3 px-4 py-3 border-b border-[var(--color-of-line-soft)] last:border-b-0 hover:bg-[var(--color-of-hover)]"
           >
             <div className="mt-0.5 shrink-0">{iconMap[n.type]}</div>
             <div>

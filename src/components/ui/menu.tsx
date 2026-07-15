@@ -58,7 +58,7 @@ function MenuContent({
 // semibold, accent-tinted hover), with truncation so long labels can't widen
 // the popup. Works for plain Items and the label of checkbox/radio items.
 const itemCls =
-  "flex w-full items-center gap-2.5 rounded-[9px] px-[11px] py-[9px] text-[13.5px] font-semibold text-[var(--color-of-ink)] no-underline outline-none cursor-pointer transition-colors data-highlighted:bg-[oklch(96%_0.005_90)] [&>span:first-child]:min-w-0 [&>span:first-child]:truncate"
+  "flex w-full items-center gap-2.5 rounded-[9px] px-[11px] py-[9px] text-[13.5px] font-semibold text-[var(--color-of-ink)] no-underline outline-none cursor-pointer transition-colors data-highlighted:bg-[var(--color-of-hover)] [&>span:first-child]:min-w-0 [&>span:first-child]:truncate"
 
 function MenuItem({ className, ...props }: MenuPrimitive.Item.Props) {
   return (

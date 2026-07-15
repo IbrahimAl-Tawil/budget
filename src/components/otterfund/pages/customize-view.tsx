@@ -70,7 +70,7 @@ export function CustomizeView({ currentPlan }: { currentPlan: PlanTier }) {
                   textAlign: "left",
                   padding: 14,
                   borderRadius: 14,
-                  background: active ? "oklch(98% 0.004 90)" : "#fff",
+                  background: active ? "var(--color-of-field)" : "var(--color-of-surface)",
                   border: active ? `1.5px solid ${theme.accent}` : "1px solid var(--color-of-line)",
                   cursor: pending ? "default" : "pointer",
                   transition: "border-color .15s, background .15s",

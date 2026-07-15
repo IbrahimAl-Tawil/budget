@@ -24,6 +24,12 @@
   --color-of-line: oklch(92% 0.006 85);        /* card borders */
   --color-of-line-soft: oklch(94.5% 0.004 85); /* inner dividers */
   --color-of-track: oklch(94% 0.005 85);       /* progress track */
+  --color-of-field: oklch(98% 0.004 90);       /* quiet input / inset fill */
+  --color-of-hover: oklch(96% 0.005 90);       /* row / menu hover wash */
+  --color-of-tooltip: oklch(26% 0.012 75);     /* dark flyout tooltip bg */
+  --color-of-tooltip-ink: oklch(100% 0 0);     /* tooltip label */
+  --color-of-warn: oklch(95% 0.05 90);         /* warm amber tint (e.g. "unused" flag) */
+  --color-of-warn-ink: oklch(46% 0.11 75);
   --color-of-sidebar: oklch(96.5% 0.006 90);   /* rail — matches the page canvas */
   --color-of-sidebar-line: oklch(92% 0.006 85);
   --color-of-rail-icon: oklch(48% 0.012 80);   /* resting rail icon */
@@ -106,6 +112,101 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
+/* ── otterfund dark scheme ──
+   A calm, matte night finish — warm graphite (never pure black), low chroma,
+   warm off-white ink. `.dark` is set on <html> by the shell (and a pre-paint
+   boot script), so these override the light values everywhere, INCLUDING the
+   body-portaled modals/popovers. Everything the app draws reads a var — nothing
+   is a baked light literal — so retinting the tokens retints the whole app.
+
+   The accent-derived vars (--primary, --ring, --accent, --accent-foreground,
+   --chart-1) are set at RUNTIME by themeVars() on <html>'s inline style (which
+   outranks this block), carrying the dark-aware deriveTheme() values. The
+   fallbacks here just keep the app coherent for the frame before that lands. */
+.dark {
+  /* neutrals */
+  --color-of-canvas: oklch(20.5% 0.006 75);    /* page / shell bg */
+  --color-of-surface: oklch(24% 0.007 75);     /* cards, main, rail — lifted */
+  --color-of-ink: oklch(93.5% 0.008 90);       /* primary text — warm off-white */
+  --color-of-muted: oklch(73% 0.01 85);        /* secondary text */
+  --color-of-faint: oklch(61% 0.01 85);        /* tertiary text */
+  --color-of-line: oklch(31% 0.008 75);        /* card borders */
+  --color-of-line-soft: oklch(27.5% 0.007 75); /* inner dividers */
+  --color-of-track: oklch(30% 0.008 75);       /* progress track */
+  --color-of-field: oklch(27.5% 0.008 75);     /* quiet input / inset fill */
+  --color-of-hover: oklch(30.5% 0.009 75);     /* row / menu hover wash */
+  --color-of-tooltip: oklch(38% 0.01 75);      /* lifted so it clears the graphite */
+  --color-of-tooltip-ink: oklch(95% 0.008 90);
+  --color-of-warn: oklch(33% 0.055 75);
+  --color-of-warn-ink: oklch(82% 0.1 80);
+  --color-of-sidebar: oklch(24% 0.007 75);
+  --color-of-sidebar-line: oklch(31% 0.008 75);
+  --color-of-rail-icon: oklch(69% 0.01 85);
+  --color-of-clay: oklch(70% 0.13 33);         /* alert — lifted so it reads on night */
+  --color-of-clay-tint: oklch(32% 0.055 33);
+
+  /* shadcn / base-ui primitive tokens */
+  --background: oklch(20.5% 0.006 75);
+  --foreground: oklch(93.5% 0.008 90);
+  --card: oklch(24% 0.007 75);
+  --card-foreground: oklch(93.5% 0.008 90);
+  --popover: oklch(26.5% 0.008 75);            /* menus/dropdowns sit above cards */
+  --popover-foreground: oklch(93.5% 0.008 90);
+  --primary: oklch(62% 0.13 158);              /* evergreen — themeVars overrides live */
+  --primary-foreground: oklch(99% 0 0);
+  --secondary: oklch(27.5% 0.008 75);
+  --secondary-foreground: oklch(90% 0.008 85);
+  --muted: oklch(27.5% 0.008 75);
+  --muted-foreground: oklch(73% 0.01 85);
+  --accent: oklch(30% 0.045 158);              /* dark accent tint — themeVars overrides */
+  --accent-foreground: oklch(80% 0.10 158);
+  --destructive: oklch(70% 0.13 33);
+  --border: oklch(31% 0.008 75);
+  --input: oklch(31% 0.008 75);
+  --ring: oklch(62% 0.13 158);
+  --chart-1: oklch(62% 0.13 158);
+  --chart-2: oklch(66% 0.12 232);
+  --chart-3: oklch(68% 0.14 30);
+  --chart-4: oklch(66% 0.13 300);
+  --chart-5: oklch(68% 0.1 70);
+  --sidebar: oklch(24% 0.007 75);
+  --sidebar-foreground: oklch(93.5% 0.008 90);
+  --sidebar-primary: oklch(93.5% 0.008 90);
+  --sidebar-primary-foreground: oklch(20.5% 0.006 75);
+  --sidebar-accent: oklch(27.5% 0.008 75);
+  --sidebar-accent-foreground: oklch(93.5% 0.008 90);
+  --sidebar-border: oklch(31% 0.008 75);
+  --sidebar-ring: oklch(69% 0.01 85);
+}
+
+/* Theme switch — while the shell adds `.of-theming` to <html> (for ~one beat
+   around the toggle), every element tweens its token-driven colours, so the app
+   melts light↔night instead of hard-cutting. We deliberately DON'T use a View
+   Transition here: that rasterizes the page into a snapshot, which drops
+   backdrop-filter — making the settings modal's frosted scrim vanish and pop
+   back. Tweening the live colours keeps every layer (blur included) on screen
+   the whole time. Only colour/shadow properties transition — never layout or
+   transform — so nothing shifts. */
+.of-theming,
+.of-theming *,
+.of-theming *::before,
+.of-theming *::after {
+  transition:
+    background-color 0.4s ease,
+    border-color 0.4s ease,
+    color 0.4s ease,
+    fill 0.4s ease,
+    stroke 0.4s ease,
+    box-shadow 0.4s ease,
+    outline-color 0.4s ease !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .of-theming,
+  .of-theming *,
+  .of-theming *::before,
+  .of-theming *::after { transition: none !important; }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -150,7 +251,7 @@
    overrides: change the field look here and it changes everywhere. Defined as
    Tailwind v4 @utility classes so `.of-field-select` can @apply `of-field`. */
 @utility of-field {
-  @apply w-full h-11 rounded-xl border border-[var(--color-of-line)] bg-[oklch(98%_0.004_90)] px-4 text-sm text-[var(--color-of-ink)] placeholder:text-[var(--color-of-faint)] outline-none transition-colors focus:border-[var(--color-primary)];
+  @apply w-full h-11 rounded-xl border border-[var(--color-of-line)] bg-[var(--color-of-field)] px-4 text-sm text-[var(--color-of-ink)] placeholder:text-[var(--color-of-faint)] outline-none transition-colors focus:border-[var(--color-primary)];
 }
 /* Same field, for <select>: strips platform chrome and leaves room on the
    right for the shared <ChevronDown> overlay. Wrap in a relative div + icon. */
@@ -257,7 +358,7 @@
   padding: 4px;
   border: 1px solid var(--color-of-line);
   border-radius: 12px;
-  background: oklch(98% 0.004 90);
+  background: var(--color-of-field);
   touch-action: manipulation;
 }
 .of-priority-thumb {
@@ -379,6 +480,10 @@
   background: linear-gradient(90deg, transparent, oklch(100% 0 0 / 0.55), transparent);
   animation: ofShimmer 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
+/* On night the white sheen would flare — drop it to a faint light glide. */
+.dark .of-skel::after {
+  background: linear-gradient(90deg, transparent, oklch(100% 0 0 / 0.06), transparent);
+}
 
 /* Popover reveal — calm scale-fade anchored to the top-right trigger
    (the month picker). Quicker than a page enter; same easing. */
@@ -473,7 +578,7 @@
   cursor: pointer;
   transition: background 0.14s, color 0.14s;
 }
-.of-stepper-btn:hover { background: oklch(96% 0.005 90); color: var(--color-of-ink); }
+.of-stepper-btn:hover { background: var(--color-of-hover); color: var(--color-of-ink); }
 .of-stepper-btn:disabled { opacity: 0.3; cursor: default; }
 .of-stepper-btn:disabled:hover { background: transparent; color: var(--color-of-muted); }
 
@@ -493,7 +598,7 @@
   cursor: pointer;
   transition: background 0.14s, color 0.14s;
 }
-.of-month-cell:hover { background: oklch(96% 0.005 90); color: var(--color-of-ink); }
+.of-month-cell:hover { background: var(--color-of-hover); color: var(--color-of-ink); }
 
 /* Sidebar icon-rail buttons — hover only when not the active (filled) item.
    Soft grey wash + ink, matching the Settings tab rail's hover state. */
@@ -509,6 +614,7 @@
   border-radius: 9px;
   border: 2px solid var(--color-of-canvas);
 }
+.dark .of-scroll::-webkit-scrollbar-thumb { background: oklch(40% 0.008 75); }
 .of-scroll::-webkit-scrollbar-track { background: transparent; }
 
 /* Topbar Add menu rows */
@@ -531,7 +637,7 @@
   transition: background 0.14s;
 }
 .of-menu-item:hover {
-  background: oklch(96% 0.005 90);
+  background: var(--color-of-hover);
 }
 
 /* ══ The statement — fluent page grammar ══
@@ -558,6 +664,10 @@
 .of-panel {
   border: 1px solid var(--color-of-line);
   box-shadow: 0 1px 2px oklch(20% 0.02 80 / 0.03), 0 12px 32px oklch(20% 0.02 80 / 0.05);
+}
+/* Deeper, softer cast on night so panels still lift off the graphite canvas. */
+.dark .of-panel {
+  box-shadow: 0 1px 2px oklch(0% 0 0 / 0.4), 0 16px 40px oklch(0% 0 0 / 0.5);
 }
 .of-panel-tap { cursor: pointer; outline: none; transition: transform 0.2s cubic-bezier(.22,.61,.36,1), box-shadow 0.2s, border-color 0.2s; }
 @media (hover: hover) {

@@ -51,7 +51,7 @@ function flagBadge(flag: string, theme: OtterfundTheme): { bg: string; color: st
   const isPriceChange = flag.toLowerCase().startsWith("price");
   return isPriceChange
     ? { bg: theme.clayTint, color: theme.clay, label: "Price up" }
-    : { bg: "oklch(95% 0.05 90)", color: "oklch(46% 0.11 75)", label: "No recent charge" };
+    : { bg: "var(--color-of-warn)", color: "var(--color-of-warn-ink)", label: "No recent charge" };
 }
 
 export function OtterfundSubscriptions({ subscriptions, theme, currency = "CAD", onAdd, onEdit, embedded = false }: OtterfundSubscriptionsProps) {
@@ -129,7 +129,7 @@ export function OtterfundSubscriptions({ subscriptions, theme, currency = "CAD",
                       : undefined
                   }
                   onMouseEnter={
-                    onEdit ? (e) => (e.currentTarget.style.background = "oklch(97.5% 0.005 90)") : undefined
+                    onEdit ? (e) => (e.currentTarget.style.background = "var(--color-of-hover)") : undefined
                   }
                   onMouseLeave={
                     onEdit ? (e) => (e.currentTarget.style.background = "transparent") : undefined

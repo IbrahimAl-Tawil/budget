@@ -108,7 +108,7 @@ export function OtterfundGoals({ plan, accent, theme, onAdd, onEdit }: Otterfund
                   <span
                     role="tooltip"
                     className="pointer-events-none absolute right-0 top-full z-50 mt-2 w-max max-w-[260px] translate-y-1 whitespace-normal rounded-[9px] px-2.5 py-1.5 text-left text-[12px] font-medium leading-snug opacity-0 transition-[opacity,transform] duration-150 group-hover:translate-y-0 group-hover:opacity-100"
-                    style={{ background: "oklch(26% 0.012 75)", color: "#fff", boxShadow: "0 8px 24px oklch(20% 0.02 80 / 0.3)" }}
+                    style={{ background: "var(--color-of-tooltip)", color: "var(--color-of-tooltip-ink)", boxShadow: "0 8px 24px oklch(20% 0.02 80 / 0.3)" }}
                   >
                     {assignReason}
                   </span>

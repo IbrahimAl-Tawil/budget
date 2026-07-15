@@ -11,7 +11,7 @@ import { useEffect, useState, type CSSProperties } from "react";
 
 import { LogoMark } from "@/components/otterfund/logo";
 import { Wordmark } from "@/components/otterfund/wordmark";
-import { BANKNOTE_SCHEMES, LOGO_GREEN, deriveTheme, themeVars, type OtterfundTheme } from "@/components/otterfund/theme";
+import { BANKNOTE_SCHEMES, LOGO_GREEN, deriveTheme, themeVars, type OtterfundTheme, type ThemeMode } from "@/components/otterfund/theme";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Field, TextInput, SelectInput } from "@/components/otterfund/form";
@@ -22,10 +22,11 @@ import { GuillocheLoader } from "@/components/otterfund/guilloche-loader";
 interface OtterfundBrandKitProps {
   accent: string;
   theme: OtterfundTheme;
+  mode: ThemeMode;
   onAccentChange: (accent: string) => void;
 }
 
-export function OtterfundBrandKit({ accent, theme, onAccentChange }: OtterfundBrandKitProps) {
+export function OtterfundBrandKit({ accent, theme, mode, onAccentChange }: OtterfundBrandKitProps) {
   // Mirrors the reference's componentDidMount → mounted flag: bars/progress
   // sweep from 0 to their target on first paint.
   const [mounted, setMounted] = useState(false);
@@ -53,7 +54,7 @@ export function OtterfundBrandKit({ accent, theme, onAccentChange }: OtterfundBr
   // a scheme (deriveTheme → themeVars), from the variation's $20 green (index 2).
   // This makes the preview a truthful dry run and keeps one source of truth for
   // the accent-token math — no bespoke preview palette to drift.
-  const previewTheme = deriveTheme(activeScheme.colors[2].value);
+  const previewTheme = deriveTheme(activeScheme.colors[2].value, mode);
 
   // Sample spending mapped one-category-per-note — the clearest proof of the
   // banknote palette: it earns its keep on multi-series data, not as a lone
@@ -170,7 +171,7 @@ export function OtterfundBrandKit({ accent, theme, onAccentChange }: OtterfundBr
                   cursor: "pointer",
                   padding: 14,
                   borderRadius: 14,
-                  background: isActive ? "oklch(98% 0.004 90)" : "#fff",
+                  background: isActive ? "var(--color-of-field)" : "var(--color-of-surface)",
                   border: isActive ? `1.5px solid ${s.accent}` : "1px solid var(--color-of-line)",
                   transition: "border-color .15s, background .15s",
                 }}
@@ -577,8 +578,8 @@ export function OtterfundBrandKit({ accent, theme, onAccentChange }: OtterfundBr
             <div
               key={mItem.title}
               style={{
-                background: "oklch(98% 0.004 90)",
-                border: "1px solid oklch(93% 0.005 85)",
+                background: "var(--color-of-field)",
+                border: "1px solid var(--color-of-line)",
                 borderRadius: 14,
                 padding: 16,
               }}

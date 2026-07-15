@@ -21,8 +21,11 @@ const SettingsUpdateInput = builder.inputType("SettingsUpdateInput", {
     currency: t.string(),
     budgetTarget: t.float(),
     accent: t.string(),
+    appearance: t.string(),
   }),
 });
+
+const APPEARANCE_MODES = ["light", "dark", "system"] as const;
 
 builder.mutationField("updateSettings", (t) =>
   t.field({
@@ -32,6 +35,7 @@ builder.mutationField("updateSettings", (t) =>
       const userId = requireUser(ctx);
       if (!okString(input.name, LIMITS.NAME)) badRequest("Name is too long.");
       if (!okString(input.accent, 80)) badRequest("Invalid accent.");
+      if (!okEnum(input.appearance, APPEARANCE_MODES)) badRequest("Invalid appearance.");
       // Premium accents are a paid perk (Standard + Pro) — the picker hides them
       // from Free, but a mutation is a public endpoint, so re-check before saving.
       if (input.accent != null && isPremiumAccent(input.accent)) {
@@ -53,6 +57,7 @@ builder.mutationField("updateSettings", (t) =>
           ...(input.currency != null && { currency: input.currency }),
           ...(input.budgetTarget != null && { budgetTarget: input.budgetTarget }),
           ...(input.accent !== undefined && { accent: input.accent }),
+          ...(input.appearance != null && { appearance: input.appearance }),
         },
       });
       return { ok: true, id: userId };

@@ -31,6 +31,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <OtterfundChrome
       initialAccent={prefs.accent}
+      initialAppearance={prefs.appearance}
       todayMonth={todayMonth}
       todayYear={todayYear}
       txThisMonth={txThisMonth}

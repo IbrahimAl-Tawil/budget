@@ -9,7 +9,7 @@
 // genuinely-global *client* state: the accent and the modal triggers.
 
 import { createContext, useContext } from "react";
-import type { OtterfundTheme } from "@/components/otterfund/theme";
+import type { OtterfundTheme, ThemeMode, AppearanceMode } from "@/components/otterfund/theme";
 import type { TransactionView, GoalView, AccountView, SubscriptionView, InvestmentView } from "@/lib/types";
 import type { Feature, PlanTier } from "@/lib/plans";
 
@@ -19,6 +19,12 @@ export interface OtterfundChromeValue {
   theme: OtterfundTheme;
   /** Switch + persist the accent (used by the Brand kit). */
   setAccent: (accent: string) => void;
+  /** The stored colour-scheme preference (light | dark | system). */
+  appearance: AppearanceMode;
+  /** The scheme actually being painted right now (System resolved via the OS). */
+  resolvedMode: ThemeMode;
+  /** Switch + persist the appearance; applies live with a smooth crossfade. */
+  setAppearance: (mode: AppearanceMode) => void;
   /** The user's billing tier — pages read it to render locked states. */
   plan: PlanTier;
   /** False when the user has NO accounts (none linked, none manual) — drives the

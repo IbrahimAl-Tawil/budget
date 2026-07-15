@@ -59,7 +59,7 @@ export function EmojiPicker({ value, onChange, label = "Emoji" }: EmojiPickerPro
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-label={value ? `Emoji: ${value}. Change` : "Choose an emoji"}
-        className="flex w-full h-11 items-center justify-center rounded-xl border border-[var(--color-of-line)] bg-[oklch(98%_0.004_90)] px-3 text-lg text-[var(--color-of-ink)] outline-none transition-colors hover:border-[var(--color-of-muted)] focus:border-[var(--color-primary)] cursor-pointer"
+        className="flex w-full h-11 items-center justify-center rounded-xl border border-[var(--color-of-line)] bg-[var(--color-of-field)] px-3 text-lg text-[var(--color-of-ink)] outline-none transition-colors hover:border-[var(--color-of-muted)] focus:border-[var(--color-primary)] cursor-pointer"
       >
         {/* Empty state: a monochrome outline icon, NOT a real emoji — a
             full-color glyph reads as an assigned value (emoji also ignore
@@ -93,7 +93,7 @@ export function EmojiPicker({ value, onChange, label = "Emoji" }: EmojiPickerPro
                   className={`h-9 w-9 flex items-center justify-center rounded-lg text-lg transition-colors ${
                     active
                       ? "bg-[var(--color-accent)] ring-1 ring-[var(--color-primary)]"
-                      : "hover:bg-[oklch(95%_0.005_90)]"
+                      : "hover:bg-[var(--color-of-hover)]"
                   }`}
                 >
                   {emoji}
@@ -104,7 +104,7 @@ export function EmojiPicker({ value, onChange, label = "Emoji" }: EmojiPickerPro
           <button
             type="button"
             onClick={() => pick("")}
-            className="mt-2 w-full h-8 rounded-lg text-[12.5px] font-medium text-[var(--color-of-muted)] hover:bg-[oklch(95%_0.005_90)] transition-colors"
+            className="mt-2 w-full h-8 rounded-lg text-[12.5px] font-medium text-[var(--color-of-muted)] hover:bg-[var(--color-of-hover)] transition-colors"
           >
             ✕ None
           </button>

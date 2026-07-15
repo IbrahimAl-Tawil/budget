@@ -9,7 +9,7 @@
 // and persists on `onChange`.
 
 import { BUDGET_PLANS } from "@/lib/constants";
-import { deriveTheme, hueOf } from "@/components/otterfund/theme";
+import { deriveTheme, hueOf, type ThemeMode } from "@/components/otterfund/theme";
 import { Check } from "lucide-react";
 
 export function BudgetPlanPicker({
@@ -17,20 +17,26 @@ export function BudgetPlanPicker({
   onChange,
   accent,
   disabled,
+  mode = "light",
 }: {
   value: string;
   onChange: (id: string) => void;
   /** Concrete accent (oklch) — drives the selected border + split-bar shades. */
   accent?: string;
   disabled?: boolean;
+  /** Resolved colour scheme (Settings passes the live one; onboarding is light). */
+  mode?: ThemeMode;
 }) {
   const acc = accent || "var(--color-primary)";
   // Three cohesive shades for the split bar: deep → accent → light tint of the
   // same hue. Falls back to the token palette when no concrete accent is given.
   const shades = accent
     ? (() => {
-        const theme = deriveTheme(accent);
-        return [theme.accentDeep, theme.accent, `oklch(76% 0.07 ${hueOf(accent)})`];
+        const theme = deriveTheme(accent, mode);
+        // On night the deep tone is already light, so the third shade goes dark
+        // (accentTintBorder) to keep a clean 3-step ramp; light is unchanged.
+        const third = mode === "dark" ? theme.accentTintBorder : `oklch(76% 0.07 ${hueOf(accent)})`;
+        return [theme.accentDeep, theme.accent, third];
       })()
     : ["var(--accent-foreground)", "var(--color-primary)", "var(--accent)"];
 
@@ -48,7 +54,7 @@ export function BudgetPlanPicker({
             className="relative flex flex-col gap-2.5 rounded-2xl border p-4 text-left transition-colors disabled:opacity-60"
             style={{
               borderColor: selected ? acc : "var(--color-of-line)",
-              background: selected ? "var(--accent)" : "oklch(98% 0.004 90)",
+              background: selected ? "var(--accent)" : "var(--color-of-field)",
               boxShadow: selected ? `0 0 0 1px ${acc}` : "none",
             }}
           >

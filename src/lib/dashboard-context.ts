@@ -76,6 +76,7 @@ export const userPrefs = async (userId: string) => {
   const u = await getUserRow(userId).catch(() => null);
   return {
     accent: u?.accent ?? null,
+    appearance: u?.appearance ?? "system",
     currency: u?.currency ?? "CAD",
     budgetPlan: u?.budgetPlan ?? null,
     plan: u?.plan ?? "free",

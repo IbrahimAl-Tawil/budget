@@ -130,9 +130,35 @@ export interface OtterfundTheme {
   muted: string;
 }
 
-/** Derive the full cohesive theme from a single accent. */
-export function deriveTheme(accent: string = DEFAULT_ACCENT): OtterfundTheme {
+/** The resolved colour scheme the app is painting in (System resolves to one of these). */
+export type ThemeMode = "light" | "dark";
+
+/** The user's stored appearance preference — System follows the OS. */
+export type AppearanceMode = "light" | "dark" | "system";
+
+/**
+ * Derive the full cohesive theme from a single accent, for the given scheme.
+ *
+ * `dark` is not a naive inversion — the tints, deep tone, and neutrals are
+ * re-tuned for a matte night finish so the accent still reads richly (the fill
+ * text/icon tone flips LIGHT, the soft fill goes to a dark tint, ink → warm
+ * off-white). The light branch is unchanged from the original single-mode theme.
+ */
+export function deriveTheme(accent: string = DEFAULT_ACCENT, mode: ThemeMode = "light"): OtterfundTheme {
   const hue = hueOf(accent);
+  if (mode === "dark") {
+    return {
+      accent, // fills/buttons keep the raw accent + white text — brand-consistent
+      accentDeep: `oklch(80% 0.1 ${hue})`,       // light accent: text/icons on dark tints
+      accentTint: `oklch(30% 0.045 ${hue})`,     // dark tinted fill (badges, insight card)
+      accentTintBorder: `oklch(40% 0.06 ${hue})`,
+      accentBorder: `oklch(52% 0.09 ${hue})`,
+      clay: "oklch(70% 0.13 33)",
+      clayTint: "oklch(32% 0.055 33)",
+      ink: "oklch(93.5% 0.008 90)",
+      muted: "oklch(73% 0.01 85)",
+    };
+  }
   return {
     accent,
     accentDeep: `oklch(38% 0.092 ${hue})`,

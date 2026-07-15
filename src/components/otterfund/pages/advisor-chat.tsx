@@ -374,7 +374,7 @@ export function AdvisorChat({
                 width: "min(320px, 86vw)",
                 overflow: "hidden",
                 borderRight: "1px solid var(--color-of-line-soft)",
-                background: "oklch(99% 0.003 90)",
+                background: "var(--color-of-surface)",
                 transform: showChats ? "translateX(0)" : "translateX(-100%)",
                 boxShadow: showChats ? "8px 0 40px oklch(20% 0.02 80 / 0.18)" : "none",
                 pointerEvents: showChats ? "auto" : "none",
@@ -386,7 +386,7 @@ export function AdvisorChat({
                 flexShrink: 0,
                 overflow: "hidden",
                 borderRight: `1px solid ${showChats ? "var(--color-of-line-soft)" : "transparent"}`,
-                background: "oklch(99% 0.003 90)",
+                background: "var(--color-of-surface)",
                 transition: resizing ? "border-color 360ms ease" : "width 360ms cubic-bezier(.4,0,.2,1), border-color 360ms ease",
               }
         }
@@ -611,7 +611,7 @@ export function AdvisorChat({
                         padding: "10px 15px",
                         borderRadius: 18,
                         borderBottomRightRadius: 5,
-                        background: theme.accentDeep,
+                        background: theme.accent,
                         color: "#fff",
                         fontSize: 14.5,
                         lineHeight: 1.5,
@@ -677,7 +677,7 @@ export function AdvisorChat({
                 // symmetrically rather than dropping below the button.
                 alignItems: "center",
                 gap: 8,
-                background: "oklch(98% 0.004 90)",
+                background: "var(--color-of-field)",
                 border: "1px solid var(--color-of-line)",
                 borderRadius: 18,
                 padding: "8px 8px 8px 16px",

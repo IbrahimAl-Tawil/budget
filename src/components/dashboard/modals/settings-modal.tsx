@@ -14,8 +14,8 @@ import { Wordmark } from "@/components/otterfund/wordmark";
 import { PlanBadgeIcon } from "@/components/otterfund/plan-badge-icon";
 import { Menu, MenuTrigger, MenuContent, MenuRadioGroup, MenuRadioItem } from "@/components/ui/menu";
 import { SchemePicker } from "@/components/otterfund/scheme-picker";
+import { AppearancePicker } from "@/components/otterfund/appearance-picker";
 import { braid } from "@/components/otterfund/guilloche";
-import { deriveTheme } from "@/components/otterfund/theme";
 import { ConfirmButton } from "@/components/otterfund/confirm-button";
 import { useOtterfundChrome } from "@/components/otterfund/chrome-context";
 import { createClient } from "@/lib/supabase/client";
@@ -26,7 +26,7 @@ import { OtterFace } from "@/components/otterfund/logo";
 import { GuillocheFlow } from "@/components/otterfund/guilloche-flow";
 import { CURRENCIES, getBudgetPlan } from "@/lib/constants";
 import { PLAN_META, FEATURE_COPY, FEATURE_REQUIRED_TIER, canUse } from "@/lib/plans";
-import type { OtterfundTheme } from "@/components/otterfund/theme";
+import type { OtterfundTheme, AppearanceMode } from "@/components/otterfund/theme";
 
 const PLAID_ITEMS = /* GraphQL */ `
   query PlaidItems {
@@ -97,6 +97,9 @@ interface SettingsModalProps {
   /** Active accent + setter — the Appearance tab hosts the theme picker. */
   accent: string;
   onAccentChange: (accent: string) => void;
+  /** Active colour scheme + setter — the Appearance tab hosts the theme toggle. */
+  appearance: AppearanceMode;
+  onAppearanceChange: (mode: AppearanceMode) => void;
   onSaved?: () => void;
   /** Tab to open on (from the ?settings=<tab> URL param). Defaults to profile. */
   initialTab?: string;
@@ -203,10 +206,9 @@ function ConnectionsUpsell({ theme, onUpgrade }: { theme: OtterfundTheme; onUpgr
   );
 }
 
-export function SettingsModal({ open, onClose, user, accent, onAccentChange, onSaved, initialTab, onTabChange }: SettingsModalProps) {
+export function SettingsModal({ open, onClose, user, accent, onAccentChange, appearance, onAppearanceChange, onSaved, initialTab, onTabChange }: SettingsModalProps) {
   const router = useRouter();
-  const { connectBank, plan, promptUpgrade, openBillingPortal } = useOtterfundChrome();
-  const theme = deriveTheme(accent);
+  const { connectBank, plan, promptUpgrade, openBillingPortal, theme, resolvedMode } = useOtterfundChrome();
   const [tab, setTab] = useState<SettingsTab>((initialTab as SettingsTab) ?? "profile");
   // Sync to the URL-driven tab whenever the modal opens (or the param changes),
   // so deep links + the "Back to Settings" return from pricing land on the right tab.
@@ -601,7 +603,7 @@ export function SettingsModal({ open, onClose, user, accent, onAccentChange, onS
 
                 <div className="mt-7 max-w-[540px]">
                   <label className={fieldLabelCls}>Budget plan</label>
-                  <BudgetPlanPicker value={planId} onChange={changePlan} accent={accent} />
+                  <BudgetPlanPicker value={planId} onChange={changePlan} accent={accent} mode={resolvedMode} />
                   <p className="mt-2 text-[12px] text-[var(--color-of-muted)]">
                     Splits your income across needs, wants, and savings, and powers the Spending page. Switching recomputes this month&apos;s category budgets.
                   </p>
@@ -707,12 +709,21 @@ export function SettingsModal({ open, onClose, user, accent, onAccentChange, onS
 
             {tab === "appearance" && (
               <section className="of-enter">
-                <SectionHead icon={Palette} title="Appearance" desc="Choose an accent color." />
-                <SchemePicker
-                  accent={accent}
-                  onAccentChange={onAccentChange}
-                  canUsePremium={plan !== "free"}
-                />
+                <SectionHead icon={Palette} title="Appearance" desc="Make it yours — theme and accent." />
+
+                <div className="mb-8">
+                  <div className={fieldLabelCls}>Theme</div>
+                  <AppearancePicker value={appearance} onChange={onAppearanceChange} accent={accent} />
+                </div>
+
+                <div>
+                  <div className={fieldLabelCls}>Accent</div>
+                  <SchemePicker
+                    accent={accent}
+                    onAccentChange={onAccentChange}
+                    canUsePremium={plan !== "free"}
+                  />
+                </div>
               </section>
             )}
 

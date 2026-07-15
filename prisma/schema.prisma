@@ -19,6 +19,7 @@ model User {
   budgetTarget   Float?
   budgetPlan     String?  @default("50-30-20") // Needs/Wants/Savings plan id (see lib/constants BUDGET_PLANS)
   accent         String?  // Brand-kit accent (oklch); null = the default evergreen
+  appearance     String?  @default("system") // Colour scheme: light | dark | system
   onboardingDone Boolean  @default(false)
   // otterfund staff flag. Gates the internal /dev tools (brand kit, AI usage,
   // plan-preview switcher). Set manually in the DB — never exposed in product UI.

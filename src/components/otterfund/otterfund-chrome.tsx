@@ -30,7 +30,7 @@ import { PaywallModal } from "@/components/dashboard/modals/paywall-modal";
 import { NotificationsPanel } from "@/components/dashboard/notifications-panel";
 import { SettingsModal } from "@/components/dashboard/modals/settings-modal";
 import type { TransactionView, GoalView, AccountView, SubscriptionView, InvestmentView, SpendCategory, BillView } from "@/lib/types";
-import { DEFAULT_ACCENT, deriveTheme, themeVars } from "@/components/otterfund/theme";
+import { DEFAULT_ACCENT, deriveTheme, themeVars, type OtterfundTheme, type ThemeMode, type AppearanceMode } from "@/components/otterfund/theme";
 import { LogoMark, OtterFace } from "@/components/otterfund/logo";
 import { PlanBadgeIcon } from "@/components/otterfund/plan-badge-icon";
 import { Button } from "@/components/ui/button";
@@ -48,6 +48,20 @@ const UPDATE_ACCENT = /* GraphQL */ `
     updateSettings(input: { accent: $accent }) { ok }
   }
 `;
+
+const UPDATE_APPEARANCE = /* GraphQL */ `
+  mutation UpdateAppearance($appearance: String) {
+    updateSettings(input: { appearance: $appearance }) { ok }
+  }
+`;
+
+// Cookie the pre-paint boot script (root layout) reads to set `.dark` before
+// first paint — so a reload lands in the right scheme with no flash. The DB is
+// the durable cross-device store; this cookie is the fast local mirror.
+const APPEARANCE_COOKIE = "of-appearance";
+
+// Safari's mobile chrome tint — warm canvas in light, warm graphite at night.
+const THEME_COLOR = { light: "#f5f3ec", dark: "#1e1c19" } as const;
 
 const CREATE_PORTAL = /* GraphQL */ `
   mutation CreatePortal {
@@ -152,7 +166,7 @@ function RailLink({ item, active, accent, href }: { item: NavItem; active: boole
       <span
         role="tooltip"
         className="pointer-events-none absolute left-full top-1/2 z-50 ml-3 -translate-y-1/2 translate-x-1 whitespace-nowrap rounded-[9px] px-2.5 py-1.5 text-[12px] font-semibold opacity-0 transition-[opacity,transform] duration-150 group-hover:translate-x-0 group-hover:opacity-100"
-        style={{ background: "oklch(26% 0.012 75)", color: "#fff", boxShadow: "0 8px 24px oklch(20% 0.02 80 / 0.3)" }}
+        style={{ background: "var(--color-of-tooltip)", color: "var(--color-of-tooltip-ink)", boxShadow: "0 8px 24px oklch(20% 0.02 80 / 0.3)" }}
       >
         {label}
       </span>
@@ -183,6 +197,7 @@ export interface ChromeNotice {
 
 export function OtterfundChrome({
   initialAccent,
+  initialAppearance,
   user,
   notice,
   txThisMonth,
@@ -192,6 +207,7 @@ export function OtterfundChrome({
   children,
 }: {
   initialAccent: string | null;
+  initialAppearance: string | null;
   user: ChromeUser;
   notice: ChromeNotice;
   txThisMonth: number;
@@ -208,6 +224,19 @@ export function OtterfundChrome({
   const [periodPending, startPeriodTransition] = useTransition();
 
   const [accent, setAccentState] = useState<string>(initialAccent ?? DEFAULT_ACCENT);
+  // Appearance (light | dark | system). For an EXPLICIT light/dark the server
+  // already knows the mode, so server + client render agree. For `system` the
+  // server can't read the OS, so `systemDark` MUST start false on both the server
+  // and the client's first render (matching SSR) — otherwise every theme-derived
+  // value hydration-mismatches. A mount effect then reads the OS and corrects it;
+  // the neutrals never flash because the pre-paint boot script + the live-read
+  // class effect below already put `.dark` on <html>. Only the accent-hued marks
+  // settle one frame later, and only for System-on-dark-OS.
+  const [appearance, setAppearanceState] = useState<AppearanceMode>(
+    (initialAppearance as AppearanceMode) ?? "system",
+  );
+  const [systemDark, setSystemDark] = useState<boolean>(false);
+  const resolvedMode: ThemeMode = appearance === "system" ? (systemDark ? "dark" : "light") : appearance;
   const [showAdd, setShowAdd] = useState(false);
   const [showImport, setShowImport] = useState(false);
   // Settings is a modal whose open state + active tab live in the URL (?settings=<tab>)
@@ -379,19 +408,91 @@ export function OtterfundChrome({
   }, []);
 
   // Memoized so the object identity is stable across renders that don't change
-  // the accent — otherwise the :root effect below would re-run every render.
-  const theme = useMemo(() => deriveTheme(accent), [accent]);
+  // the accent/scheme — otherwise the paint effect below would re-run every render.
+  const theme = useMemo(() => deriveTheme(accent, resolvedMode), [accent, resolvedMode]);
 
-  // Push accent-derived tokens onto :root so they reach EVERYTHING — including
-  // modals, which portal into document.body outside this subtree.
+  // Paint a resolved scheme onto <html>: the `.dark` class (retints every neutral
+  // + shadcn token via the .dark block in globals.css), color-scheme (native
+  // controls/scrollbars), and the accent-derived vars (themeVars — these reach the
+  // body-portaled modals too, which live outside this subtree), plus the mobile
+  // chrome tint. One helper so the effect and the live toggle stay in lockstep.
+  const paintMode = useCallback((t: OtterfundTheme, resolved: ThemeMode) => {
+    const el = document.documentElement;
+    el.classList.toggle("dark", resolved === "dark");
+    el.style.colorScheme = resolved;
+    const vars = themeVars(t);
+    for (const [k, v] of Object.entries(vars)) el.style.setProperty(k, v);
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", THEME_COLOR[resolved]);
+  }, []);
+
+  // Apply on mount + whenever the accent/scheme changes (accent swap, OS change).
+  // The `.dark` CLASS is driven by a LIVE OS read for `system` (not the SSR-safe
+  // `resolvedMode` state, which is light until the mount effect corrects it) — so
+  // on the first commit it agrees with the pre-paint boot script and never strips
+  // the night class. The accent VARS come from `theme` (state); for System-on-dark
+  // they settle a frame later, when `systemDark` corrects. Explicit modes match
+  // from the first commit (no flash).
   useEffect(() => {
-    const root = document.documentElement;
-    const vars = themeVars(theme);
-    for (const [k, v] of Object.entries(vars)) root.style.setProperty(k, v);
+    const osDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const liveResolved: ThemeMode = appearance === "system" ? (osDark ? "dark" : "light") : appearance;
+    paintMode(theme, liveResolved);
+  }, [theme, appearance, systemDark, paintMode]);
+
+  // Leaving the app (SPA-navigating to a pre-auth page unmounts the shell) must
+  // strip the night class + accent overrides so login/landing never inherit them.
+  // Full-reload logout is already covered by the boot script's route gate.
+  useEffect(() => {
     return () => {
-      for (const k of Object.keys(vars)) root.style.removeProperty(k);
+      const el = document.documentElement;
+      el.classList.remove("dark");
+      el.style.colorScheme = "";
+      for (const k of ["--of-accent", "--primary", "--ring", "--accent", "--accent-foreground", "--chart-1"]) {
+        el.style.removeProperty(k);
+      }
     };
-  }, [theme]);
+  }, []);
+
+  // Track the OS scheme so `system` follows it live.
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const onChange = () => setSystemDark(mq.matches);
+    onChange();
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+
+  // Mirror the DB-seeded preference into the cookie once on mount so the next
+  // load's pre-paint boot script matches (covers a fresh device with no cookie yet).
+  useEffect(() => {
+    document.cookie = `${APPEARANCE_COOKIE}=${appearance}; path=/; max-age=31536000; SameSite=Lax`;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Switch the appearance: persist (cookie + DB), then flip the scheme LIVE while
+  // <html> briefly carries `.of-theming`, which tweens every element's colours (see
+  // globals.css). We do NOT snapshot the page (a View Transition would rasterize it
+  // and drop the settings modal's backdrop-blur, making the scrim flicker) — every
+  // layer stays live, so the frosted blur holds steady through the switch. Reduced
+  // motion skips the tween for an instant flip.
+  const themingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const setAppearance = useCallback(
+    (next: AppearanceMode) => {
+      document.cookie = `${APPEARANCE_COOKIE}=${next}; path=/; max-age=31536000; SameSite=Lax`;
+      gqlClient.request(UPDATE_APPEARANCE, { appearance: next }).catch(() => {});
+      const osDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
+      const nextResolved: ThemeMode = next === "system" ? (osDark ? "dark" : "light") : next;
+      const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+      const el = document.documentElement;
+      if (!reduce) {
+        el.classList.add("of-theming");
+        if (themingTimer.current) clearTimeout(themingTimer.current);
+        themingTimer.current = setTimeout(() => el.classList.remove("of-theming"), 450);
+      }
+      paintMode(deriveTheme(accent, nextResolved), nextResolved);
+      setAppearanceState(next);
+    },
+    [accent, paintMode],
+  );
 
   // The selected period is the URL's source of truth (?month=&year=), resolved
   // the SAME way the server pages do (shared resolvePeriod) so URL == data.
@@ -528,6 +629,9 @@ export function OtterfundChrome({
       accent,
       theme,
       setAccent,
+      appearance,
+      resolvedMode,
+      setAppearance,
       plan,
       hasAccounts,
       requireFeature,
@@ -559,7 +663,7 @@ export function OtterfundChrome({
       txCount,
       setTxCount,
     }),
-    [accent, theme, setAccent, hrefFor, txCount, plan, hasAccounts, requireFeature, promptUpgrade, openBillingPortal]
+    [accent, theme, setAccent, appearance, resolvedMode, setAppearance, hrefFor, txCount, plan, hasAccounts, requireFeature, promptUpgrade, openBillingPortal]
   );
 
   return (
@@ -753,6 +857,8 @@ export function OtterfundChrome({
           onTabChange={setSettingsTab}
           accent={accent}
           onAccentChange={setAccent}
+          appearance={appearance}
+          onAppearanceChange={setAppearance}
           user={user}
         />
       </div>
