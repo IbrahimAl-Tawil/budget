@@ -84,6 +84,10 @@ builder.mutationField("createCheckoutSession", (t) =>
     args: {
       tier: t.arg.string({ required: true }),
       interval: t.arg.string({ required: false }),
+      // Where Stripe returns the user. "onboarding" keeps a mid-onboarding user
+      // in the wizard; anything else (the default) is the standard pricing flow.
+      // A fixed set of destinations, never a raw URL — no open-redirect surface.
+      returnTo: t.arg.string({ required: false }),
     },
     resolve: async (_root, args, ctx) => {
       const userId = requireUser(ctx);
@@ -105,6 +109,8 @@ builder.mutationField("createCheckoutSession", (t) =>
       const stripe = stripeOrThrow();
       const customerId = await ensureStripeCustomer(userId);
 
+      const onboarding = args.returnTo === "onboarding";
+
       const session = await stripe.checkout.sessions.create({
         mode: "subscription",
         customer: customerId,
@@ -114,8 +120,14 @@ builder.mutationField("createCheckoutSession", (t) =>
         allow_promotion_codes: true,
         subscription_data: { metadata: { userId, tier } },
         metadata: { userId, tier },
-        success_url: absoluteUrl("/dashboard?checkout=success"),
-        cancel_url: absoluteUrl("/pricing?checkout=cancel"),
+        // Mid-onboarding: return to the wizard (it reads `?checkout=` to resume
+        // past the plan step). Otherwise the standard pricing → dashboard flow.
+        success_url: absoluteUrl(
+          onboarding ? "/onboarding?checkout=success" : "/dashboard?checkout=success",
+        ),
+        cancel_url: absoluteUrl(
+          onboarding ? "/onboarding?checkout=cancel" : "/pricing?checkout=cancel",
+        ),
       });
 
       if (!session.url) badRequest("Couldn't start checkout. Please try again.");
