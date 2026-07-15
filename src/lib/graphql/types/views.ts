@@ -28,6 +28,7 @@ export const TransactionRef = builder
       amount: t.exposeFloat("amount"),
       icon: t.exposeString("icon"),
       color: t.exposeString("color"),
+      source: t.exposeString("source", { nullable: true }),
     }),
   });
 
@@ -91,6 +92,7 @@ export const AccountRef = builder.objectRef<AccountView>("Account").implement({
     domain: t.exposeString("domain", { nullable: true }),
     syncedLabel: t.exposeString("syncedLabel", { nullable: true }),
     excluded: t.exposeBoolean("excluded", { nullable: true }),
+    unsyncedManualCount: t.exposeInt("unsyncedManualCount", { nullable: true }),
   }),
 });
 

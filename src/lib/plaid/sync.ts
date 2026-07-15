@@ -1,10 +1,12 @@
 // Plaid → otterfund sync. Server-only.
 //
 // Pulls transaction deltas via /transactions/sync (cursor-based), upserts the
-// local Account + Transaction rows, and reconciles each synced account's stored
-// balance so the displayed balance (stored + SUM(transactions)) equals Plaid's
-// reported balance. Balances ride along in the sync response, so we never call
-// the per-call /accounts/balance/get.
+// local Account + Transaction rows, and stores each synced account's Plaid-
+// reported balance DIRECTLY as the account balance (bank truth — see
+// reconcileAnchor; getAccounts does NOT add the local transaction sum for synced
+// accounts). Balances ride along in the sync response, so we never call the
+// per-call /accounts/balance/get. Each brand-new synced row also auto-merges any
+// manual entry the user had logged for the same purchase (mergeManualDuplicate).
 
 import type {
   AccountBase,
@@ -241,6 +243,14 @@ async function upsertTransaction(
     pending: tx.pending,
   };
 
+  // Was this Plaid transaction already stored? Only a brand-new insert should
+  // trigger manual-duplicate cleanup — a re-sync of an existing row must never
+  // delete a manual entry the user has legitimately added since.
+  const alreadyStored = await prisma.transaction.findUnique({
+    where: { externalId: tx.transaction_id },
+    select: { id: true },
+  });
+
   await prisma.transaction.upsert({
     where: { externalId: tx.transaction_id },
     create: { ...data, externalId: tx.transaction_id },
@@ -253,6 +263,61 @@ async function upsertTransaction(
     await prisma.transaction.deleteMany({
       where: { userId, externalId: tx.pending_transaction_id },
     });
+  }
+
+  if (!alreadyStored) {
+    await mergeManualDuplicate(userId, accountId, amount, new Date(tx.date));
+  }
+}
+
+// Fuzzy-match window for merging a manual entry into its freshly-synced bank
+// counterpart. A user typically logs a purchase on its transaction date; the
+// bank posts it 0–3 days later, so a ±4-day window comfortably covers the lag
+// without reaching across into unrelated purchases.
+const MERGE_WINDOW_DAYS = 4;
+// Currency amounts compared with a small epsilon to sidestep float wobble
+// (a manual "-5" and Plaid's "-5.00" must count as equal).
+const MERGE_AMOUNT_EPSILON = 0.005;
+
+/**
+ * Auto-merge a manual duplicate: if the user had already logged this purchase by
+ * hand (same account, matching amount, within the date window), the just-synced
+ * bank row is canonical — delete the manual one so it stops double-counting in
+ * spending / budgets / the savings rate. Conservative match (account + amount +
+ * narrow date window) so two genuinely-different purchases are never merged; on
+ * a tie we drop the manual entry closest in date to the bank row.
+ */
+async function mergeManualDuplicate(
+  userId: string,
+  accountId: string,
+  amount: number,
+  date: Date
+) {
+  const start = new Date(date);
+  start.setDate(start.getDate() - MERGE_WINDOW_DAYS);
+  const end = new Date(date);
+  end.setDate(end.getDate() + MERGE_WINDOW_DAYS);
+
+  const candidates = await prisma.transaction.findMany({
+    where: {
+      userId,
+      accountId,
+      source: "manual",
+      externalId: null,
+      date: { gte: start, lte: end },
+    },
+  });
+
+  const match = candidates
+    .filter((c) => Math.abs(c.amount - amount) < MERGE_AMOUNT_EPSILON)
+    .sort(
+      (a, b) =>
+        Math.abs(a.date.getTime() - date.getTime()) -
+        Math.abs(b.date.getTime() - date.getTime())
+    )[0];
+
+  if (match) {
+    await prisma.transaction.delete({ where: { id: match.id } });
   }
 }
 

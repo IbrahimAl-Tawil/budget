@@ -10,6 +10,7 @@
 // when a bank is linked. Wired to real AccountView data passed in as props.
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Plus, Landmark, RefreshCw, Check, ChevronDown, SlidersHorizontal, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -98,6 +99,7 @@ export function OtterfundAccounts({ accounts, netWorth, netWorthTrend = [], netW
   const nwDown = netWorthChange < 0;
   const [isSyncing, startSync] = useTransition();
   const [syncError, setSyncError] = useState("");
+  const router = useRouter();
 
   // Grouping view. "type" is the default; "bank" clusters each linked
   // institution's accounts, manual ones pooled last. Only reachable with a
@@ -357,6 +359,35 @@ export function OtterfundAccounts({ accounts, netWorth, netWorthTrend = [], netW
                         )}
                       </div>
                       {meta && <div style={{ fontSize: 12.5, color: "var(--color-of-muted)", marginTop: 1 }}>{meta}</div>}
+                      {/* Manual entries sitting on a synced account don't move its
+                          bank-truth balance — surface them (and let the user review /
+                          remove duplicates) via the Transactions ledger, pre-filtered
+                          to this account's manual rows. */}
+                      {a.synced && (a.unsyncedManualCount ?? 0) > 0 && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            router.push(`/dashboard/transactions?account=${a.id}&source=manual`);
+                          }}
+                          style={{
+                            marginTop: 3,
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 5,
+                            padding: 0,
+                            border: "none",
+                            background: "none",
+                            cursor: "pointer",
+                            fontFamily: "inherit",
+                            fontSize: 12,
+                            fontWeight: 600,
+                            color: theme.accentDeep,
+                          }}
+                        >
+                          {a.unsyncedManualCount} {a.unsyncedManualCount === 1 ? "entry" : "entries"} not from your bank · Review
+                        </button>
+                      )}
                     </div>
                     <div className="of-num" style={{ fontSize: 16, fontWeight: 500, color: negative ? theme.clay : "var(--color-of-ink)" }}>
                       {(negative ? "−" : "") + fmt(Math.abs(a.balance), currency)}

@@ -296,6 +296,7 @@ export async function getDashboardOverview(
     color: t.color || "#f0f0f0",
     accountId: t.accountId,
     accountName: t.account?.name ?? null,
+    source: t.source as TransactionView["source"],
   }));
 
   return {
@@ -672,6 +673,7 @@ export async function getTransactions(
     color: t.color || "#f0f0f0",
     accountId: t.accountId,
     accountName: t.account?.name ?? null,
+    source: t.source as TransactionView["source"],
   }));
 
   return { transactions: txViews, total, totalPages: Math.ceil(total / limit) };
@@ -734,13 +736,27 @@ export function getAccountOptions(userId: string): Promise<{ id: string; name: s
 }
 
 export async function getAccounts(userId: string): Promise<AccountView[]> {
-  const [accounts, balances] = await Promise.all([
+  const [accounts, balances, manualCounts] = await Promise.all([
     prisma.account.findMany({
       where: { userId },
       orderBy: { createdAt: "asc" },
     }),
     computeAccountBalances(userId),
+    // Manual entries per account — surfaced on synced accounts as "not from your
+    // bank" (they don't move the bank-truth balance, but they do exist in the
+    // ledger and can be reviewed/removed). "manual" only; csv-imported rows are
+    // their own thing and aren't flagged here.
+    prisma.transaction.groupBy({
+      by: ["accountId"],
+      where: { userId, source: "manual", accountId: { not: null } },
+      _count: { _all: true },
+    }),
   ]);
+
+  const manualByAccount = new Map<string, number>();
+  for (const row of manualCounts) {
+    if (row.accountId) manualByAccount.set(row.accountId, row._count._all);
+  }
 
   return accounts.map((a) => ({
     id: a.id,
@@ -758,6 +774,9 @@ export async function getAccounts(userId: string): Promise<AccountView[]> {
     domain: a.domain ?? undefined,
     syncedLabel: a.syncedAt ? formatDate(a.syncedAt) : undefined,
     excluded: a.excluded,
+    // Only meaningful for synced accounts — a manual account's entries ARE its
+    // balance, so there's nothing "unreflected" to flag.
+    unsyncedManualCount: a.plaidItemId ? (manualByAccount.get(a.id) ?? 0) : 0,
   }));
 }
 

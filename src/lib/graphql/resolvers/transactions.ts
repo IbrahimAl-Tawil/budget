@@ -59,12 +59,18 @@ builder.mutationField("createTransaction", (t) =>
       const finalAmount =
         input.type === "credit" ? Math.abs(input.amount) : -Math.abs(input.amount);
 
-      // A client-supplied accountId must belong to the caller (BOLA guard).
-      if (input.accountId) {
-        const acct = await prisma.account.findFirst({
-          where: { id: input.accountId, userId },
-        });
-        if (!acct) notFound("Account not found.");
+      // A manual transaction must come out of a manual account the caller owns.
+      // Synced accounts are bank-truth — their balance is Plaid's number and a
+      // hand-entered row wouldn't move it — so we require a manual account here
+      // (the add-transaction modal only offers manual accounts). The account
+      // lookup also serves as the BOLA guard (must belong to the caller).
+      if (!input.accountId) badRequest("Choose which account this comes out of.");
+      const acct = await prisma.account.findFirst({
+        where: { id: input.accountId, userId },
+      });
+      if (!acct) notFound("Account not found.");
+      if (acct.plaidItemId) {
+        badRequest("Transactions can only be added to a manual account, not a synced one.");
       }
 
       let categoryId: string | undefined;
@@ -82,7 +88,7 @@ builder.mutationField("createTransaction", (t) =>
           amount: finalAmount,
           date: input.date ? new Date(input.date) : new Date(),
           categoryId,
-          accountId: input.accountId || undefined,
+          accountId: input.accountId,
           source: "manual",
         },
       });

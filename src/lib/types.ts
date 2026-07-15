@@ -14,6 +14,10 @@ export interface TransactionView {
   /** Owning account — null for transactions with no account (rare/manual). */
   accountId: string | null;
   accountName: string | null;
+  /** Where the row came from: "plaid" = live bank sync, "manual" = typed by the
+   *  user, "csv" = extracted from an uploaded statement. Drives the Transactions
+   *  page source filter + the "not from your bank" marker. */
+  source?: "manual" | "plaid" | "csv";
 }
 
 export interface SpendCategory {
@@ -217,6 +221,11 @@ export interface AccountView {
   syncedLabel?: string;
   /** Locally hidden — kept synced but omitted from net worth/totals. */
   excluded?: boolean;
+  /** For synced accounts only: how many manual entries sit on this bank-linked
+   *  account and so aren't reflected in its bank-truth balance. 0/undefined for
+   *  manual accounts (where manual entries ARE the balance). Drives the
+   *  "N not from your bank" review affordance. */
+  unsyncedManualCount?: number;
 }
 
 export interface InsightView {

@@ -62,6 +62,11 @@ interface OtterfundTransactionsProps {
 }
 
 type Segment = "all" | "income" | "spending";
+// "bank" = live Plaid sync; "manual" = anything the user added themselves
+// (typed or CSV-imported). Lets the ledger answer "which of these came from my
+// bank vs. did I add?" — and powers the Accounts-page deep-link to review the
+// manual entries sitting on a synced account.
+type SourceFilter = "all" | "bank" | "manual";
 
 const SEGMENTS: { value: Segment; label: string }[] = [
   { value: "all", label: "All" },
@@ -95,6 +100,7 @@ export function OtterfundTransactions({ transactions, accounts, theme, currency 
   const [segment, setSegment] = useState<Segment>("all");
   // Empty set = all accounts. Otherwise, only these account ids are shown.
   const [acctFilter, setAcctFilter] = useState<Set<string>>(new Set());
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [isDeleting, startDelete] = useTransition();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -107,16 +113,33 @@ export function OtterfundTransactions({ transactions, accounts, theme, currency 
     setTodayKey(localISO(new Date()));
   }, []);
 
+  // Honor a deep-link from the Accounts page ("N not from your bank" →
+  // ?account=<id>&source=manual): preset the filters once on mount so the ledger
+  // opens already narrowed to those entries. Read the URL directly (not
+  // useSearchParams, which would force a Suspense boundary); applied post-mount
+  // so it can't cause a hydration mismatch.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const src = params.get("source");
+    if (src === "manual" || src === "bank") setSourceFilter(src);
+    const acct = params.get("account");
+    if (acct) setAcctFilter(new Set([acct]));
+  }, []);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return transactions.filter((t) => {
       if (segment === "income" && t.amount <= 0) return false;
       if (segment === "spending" && t.amount >= 0) return false;
+      // bank = Plaid-synced; manual = everything else (typed or CSV).
+      if (sourceFilter === "bank" && t.source !== "plaid") return false;
+      if (sourceFilter === "manual" && t.source === "plaid") return false;
       if (acctFilter.size > 0 && !(t.accountId && acctFilter.has(t.accountId))) return false;
       if (!q) return true;
       return t.name.toLowerCase().includes(q) || t.category.toLowerCase().includes(q);
     });
-  }, [transactions, query, segment, acctFilter]);
+  }, [transactions, query, segment, sourceFilter, acctFilter]);
 
   // Bucket the (already date-desc) rows into contiguous day groups.
   const groups = useMemo<DayGroup[]>(() => {
@@ -158,9 +181,10 @@ export function OtterfundTransactions({ transactions, accounts, theme, currency 
     });
   };
 
-  // A search/segment/account filter is narrowing the set — distinguishes "no
-  // match for this filter" from "genuinely nothing here yet" in the empty view.
-  const filterActive = query.trim() !== "" || segment !== "all" || acctFilter.size > 0;
+  // A search/segment/source/account filter is narrowing the set — distinguishes
+  // "no match for this filter" from "genuinely nothing here yet" in the empty view.
+  const filterActive =
+    query.trim() !== "" || segment !== "all" || sourceFilter !== "all" || acctFilter.size > 0;
 
   const acctLabel =
     acctFilter.size === 0
@@ -168,6 +192,23 @@ export function OtterfundTransactions({ transactions, accounts, theme, currency 
       : acctFilter.size === 1
         ? accounts.find((a) => acctFilter.has(a.id))?.name ?? "1 account"
         : `${acctFilter.size} accounts`;
+
+  // Show the source control + per-row "Manual" marker only when the ledger
+  // actually mixes bank-synced and self-added rows — an all-manual (free-tier)
+  // or all-synced ledger has nothing to disambiguate.
+  const mixedSources = useMemo(() => {
+    let bank = false;
+    let other = false;
+    for (const t of transactions) {
+      if (t.source === "plaid") bank = true;
+      else if (t.source) other = true;
+      if (bank && other) return true;
+    }
+    return false;
+  }, [transactions]);
+
+  const sourceLabel =
+    sourceFilter === "bank" ? "From your bank" : sourceFilter === "manual" ? "Added manually" : "Any source";
 
   // Only ids currently visible can be selected; "select all" targets the filter.
   const visibleIds = useMemo(() => filtered.map((t) => t.id), [filtered]);
@@ -321,6 +362,40 @@ export function OtterfundTransactions({ transactions, accounts, theme, currency 
             </Menu>
           )}
 
+          {/* source filter — only when the ledger mixes bank + manual rows */}
+          {mixedSources && (
+            <Menu>
+              <MenuTrigger
+                render={
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    style={sourceFilter !== "all" ? { background: theme.accentTint, color: theme.accentDeep, borderColor: "transparent" } : undefined}
+                  >
+                    {sourceLabel}
+                    <ChevronDown size={14} strokeWidth={2.2} aria-hidden="true" />
+                  </Button>
+                }
+              />
+              <MenuContent align="end" className="min-w-[200px]">
+                <MenuRadioGroup value={sourceFilter}>
+                  <MenuRadioItem value="all" onClick={() => setSourceFilter("all")}>
+                    <span>Any source</span>
+                    {sourceFilter === "all" && <Check size={15} strokeWidth={2.5} style={{ color: theme.accent, flexShrink: 0 }} aria-hidden="true" />}
+                  </MenuRadioItem>
+                  <MenuRadioItem value="bank" onClick={() => setSourceFilter("bank")}>
+                    <span>From your bank</span>
+                    {sourceFilter === "bank" && <Check size={15} strokeWidth={2.5} style={{ color: theme.accent, flexShrink: 0 }} aria-hidden="true" />}
+                  </MenuRadioItem>
+                  <MenuRadioItem value="manual" onClick={() => setSourceFilter("manual")}>
+                    <span>Added manually</span>
+                    {sourceFilter === "manual" && <Check size={15} strokeWidth={2.5} style={{ color: theme.accent, flexShrink: 0 }} aria-hidden="true" />}
+                  </MenuRadioItem>
+                </MenuRadioGroup>
+              </MenuContent>
+            </Menu>
+          )}
+
           {onImport && (
             <Button variant="outline" size="sm" onClick={onImport} aria-label="Import statement">
               <Upload data-icon="inline-start" size={15} strokeWidth={2} aria-hidden="true" />
@@ -449,8 +524,29 @@ export function OtterfundTransactions({ transactions, accounts, theme, currency 
                       <div style={{ display: "flex", alignItems: "center", gap: 13, minWidth: 0 }}>
                         <MerchantAvatar name={t.name} bg={tint} ink={ink} size={36} />
                         <div style={{ minWidth: 0 }}>
-                          <div style={{ fontSize: 13.5, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                            {t.name}
+                          <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
+                            <span style={{ fontSize: 13.5, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                              {t.name}
+                            </span>
+                            {/* subtle marker for a self-added row — only shown when
+                                the ledger mixes bank + manual, so it reads as "this
+                                one isn't from your bank" rather than noise */}
+                            {mixedSources && t.source && t.source !== "plaid" && (
+                              <span
+                                style={{
+                                  flexShrink: 0,
+                                  padding: "1px 7px",
+                                  borderRadius: 9999,
+                                  background: "var(--color-of-line-soft)",
+                                  color: "var(--color-of-muted)",
+                                  fontSize: 10,
+                                  fontWeight: 600,
+                                  letterSpacing: "0.02em",
+                                }}
+                              >
+                                Manual
+                              </span>
+                            )}
                           </div>
                           {meta && (
                             <div style={{ fontSize: 12, color: "var(--color-of-faint)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginTop: 1 }}>

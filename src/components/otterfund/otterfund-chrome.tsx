@@ -727,7 +727,7 @@ export function OtterfundChrome({
         </main>
 
         {/* CRUD + settings modals — owned by the chrome, opened via context */}
-        <AddTransactionModal open={showAdd} onClose={() => setShowAdd(false)} onAdded={() => { setShowAdd(false); refresh(); }} />
+        <AddTransactionModal open={showAdd} onClose={() => setShowAdd(false)} onAdded={() => { setShowAdd(false); refresh(); }} onAddAccount={() => { setShowAdd(false); setShowAddAccount(true); }} />
         <ImportModal open={showImport} onClose={() => setShowImport(false)} onImported={() => { setShowImport(false); refresh(); }} />
         <EditTransactionModal open={!!editTx} transaction={editTx} onClose={() => setEditTx(null)} onUpdated={() => { setEditTx(null); refresh(); }} />
         <AddGoalModal open={showAddGoal} onClose={() => setShowAddGoal(false)} onAdded={() => { setShowAddGoal(false); refresh(); }} />
