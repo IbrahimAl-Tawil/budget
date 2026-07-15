@@ -130,6 +130,28 @@ export function SkelAvatarRows({
   );
 }
 
+/** Textured surface panel matching <Panel> — the rounded-20 card the redesigned
+    pages group content in. `.of-panel` supplies the border + lift; the radius,
+    surface fill and padding mirror the component's inline defaults. */
+export function SkelPanel({
+  children,
+  className,
+  padding = "22px 24px",
+}: {
+  children: React.ReactNode;
+  className?: string;
+  padding?: string | number;
+}) {
+  return (
+    <div
+      className={cn("of-panel", className)}
+      style={{ borderRadius: 20, background: "var(--color-of-surface)", padding, minWidth: 0 }}
+    >
+      {children}
+    </div>
+  );
+}
+
 /** Card header: title left, hint/link right. (Legacy card layout.) */
 export function SkelCardHeader() {
   return (

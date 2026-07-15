@@ -312,6 +312,7 @@ export function OtterfundSpending({ plan, accent, theme, period, subscriptions, 
                 <Button
                   variant="link"
                   size="sm"
+                  nativeButton={false}
                   className="mt-3 text-[12.5px]"
                   render={<Link href={`${goalsHref}${goalsHref.includes("?") ? "&" : "?"}allocate=1`} />}
                 >
