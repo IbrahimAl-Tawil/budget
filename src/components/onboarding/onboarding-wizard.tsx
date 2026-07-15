@@ -25,9 +25,11 @@ import {
 import { ACCOUNT_TYPES, CURRENCIES, getBudgetPlan, DEFAULT_BUDGET_PLAN_ID } from "@/lib/constants";
 import { BudgetPlanPicker } from "@/components/otterfund/budget-plan-picker";
 import { OnboardingBrandPanel, type PanelStep } from "@/components/onboarding/onboarding-brand-panel";
+import { PlanStep } from "@/components/onboarding/plan-step";
 import { Wordmark } from "@/components/otterfund/wordmark";
 import { ConnectBankModal } from "@/components/dashboard/modals/connect-bank-modal";
 import { gqlClient, gqlUpload, errMessage } from "@/lib/graphql/client";
+import { type PlanTier } from "@/lib/plans";
 
 const AUTO_ONBOARD = /* GraphQL */ `
   mutation AutoOnboardFromFiles($files: [File!]!, $currency: String, $monthlyIncome: Float) {
@@ -50,6 +52,14 @@ const CONFIRM_IMPORT = /* GraphQL */ `
 const DETECTED_INCOME = /* GraphQL */ `
   query DetectedMonthlyIncome {
     detectedMonthlyIncome
+  }
+`;
+
+// Onboarding checkout returns to `/onboarding?checkout=…`, not the pricing flow,
+// so the wizard can resume past the plan step (see `returnTo` in billing.ts).
+const CREATE_CHECKOUT = /* GraphQL */ `
+  mutation CreateCheckout($tier: String!, $interval: String, $returnTo: String) {
+    createCheckoutSession(tier: $tier, interval: $interval, returnTo: $returnTo)
   }
 `;
 
@@ -107,7 +117,27 @@ const LABEL_CLASS =
 const HEADING_CLASS =
   "text-2xl sm:text-[28px] font-semibold tracking-[-0.02em] leading-[1.05] text-[var(--color-of-ink)] mb-2";
 
-export function OnboardingWizard({ userName }: { userName: string }) {
+export function OnboardingWizard({
+  userName,
+  currentPlan,
+  initialCheckout,
+}: {
+  userName: string;
+  /** The user's tier from the DB — non-free once a paid Checkout's webhook lands. */
+  currentPlan: PlanTier;
+  /** How the user arrived: `success`/`cancel` after a Stripe Checkout round-trip. */
+  initialCheckout?: "success" | "cancel";
+}) {
+  // Gate the whole wizard behind a plan choice. Returning from a successful
+  // Checkout skips straight to the setup flow (the plan is already handled — the
+  // webhook sets the tier; we don't block on it). A cancel lands back on the
+  // plan step with a nudge.
+  const [stage, setStage] = useState<"plan" | "wizard">(
+    initialCheckout === "success" ? "wizard" : "plan",
+  );
+  // Tier whose Stripe Checkout is currently being created (disables its button).
+  const [checkoutTier, setCheckoutTier] = useState<string | null>(null);
+
   const [mode, setMode] = useState<Mode>("choose");
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -315,6 +345,27 @@ export function OnboardingWizard({ userName }: { userName: string }) {
     setError("");
   };
 
+  // Plan step → free/current continues into the flow; paid hands off to Stripe.
+  const handlePlanContinue = () => {
+    setError("");
+    setStage("wizard");
+  };
+  const handlePlanCheckout = async (tier: PlanTier, interval: "month" | "year") => {
+    setError("");
+    setCheckoutTier(tier);
+    try {
+      const res = await gqlClient.request<{ createCheckoutSession: string }>(CREATE_CHECKOUT, {
+        tier,
+        interval,
+        returnTo: "onboarding",
+      });
+      window.location.href = res.createCheckoutSession;
+    } catch (e) {
+      setError(errMessage(e));
+      setCheckoutTier(null);
+    }
+  };
+
   return (
     <div className="min-h-screen w-full bg-[var(--color-of-canvas)] lg:grid lg:grid-cols-[1.02fr_1fr] xl:grid-cols-[1.08fr_1fr]">
       <OnboardingBrandPanel userName={userName} steps={inFlow ? steps : null} step={step} />
@@ -336,7 +387,9 @@ export function OnboardingWizard({ userName }: { userName: string }) {
         </div>
 
         <div className="flex flex-1 items-center justify-center py-10">
-          <div className="w-full max-w-xl">
+          {/* The plan step lays 3 tier cards side by side, so it needs a wider
+              column than the single-field wizard steps. */}
+          <div className={`w-full ${stage === "plan" ? "max-w-5xl" : "max-w-xl"}`}>
             {inFlow && (
               <button
                 onClick={changeMode}
@@ -364,7 +417,18 @@ export function OnboardingWizard({ userName }: { userName: string }) {
               </div>
             )}
 
-            {mode === "choose" ? (
+            {stage === "plan" ? (
+              <div className="of-enter">
+                <PlanStep
+                  currentPlan={currentPlan}
+                  busyTier={checkoutTier}
+                  canceled={initialCheckout === "cancel"}
+                  onContinue={handlePlanContinue}
+                  onCheckout={handlePlanCheckout}
+                />
+                {error && <p className="mt-5 text-sm text-[var(--color-of-clay)] font-medium">{error}</p>}
+              </div>
+            ) : mode === "choose" ? (
               <div className="of-enter">
                 <h2 className={HEADING_CLASS}>How would you like to start?</h2>
                 <p className="mb-7 text-sm text-[var(--color-of-muted)]">

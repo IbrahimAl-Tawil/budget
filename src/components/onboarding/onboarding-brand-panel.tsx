@@ -80,7 +80,7 @@ export function OnboardingBrandPanel({
           style={{ animationDelay: "220ms", fontSize: 14.5, lineHeight: 1.6, color: PANEL_MUTED, maxWidth: 360 }}
         >
           {steps
-            ? "A calm, guided setup. You can jump back to any completed step."
+            ? "Make your way through the guided setup. You can jump back at any time to a completed step and make changes."
             : "Three ways to begin. Pick whichever fits, and we'll do the math from here."}
         </p>
 
@@ -123,13 +123,15 @@ function StepTracker({ steps, step }: { steps: PanelStep[]; step: number }) {
         return (
           <li key={s.label} className="relative flex items-center gap-3.5 py-1.5">
             <span
-              className="grid h-[31px] w-[31px] shrink-0 place-items-center rounded-full transition-colors"
+              // relative + z-10 lifts the node above the spine line, and the
+              // fills are opaque, so the connector never shows through a node.
+              className="relative z-10 grid h-[31px] w-[31px] shrink-0 place-items-center rounded-full transition-colors"
               style={{
                 background:
                   state === "done"
                     ? PANEL_ACCENT
                     : state === "active"
-                      ? "oklch(90% 0.09 158 / 0.16)"
+                      ? "oklch(32% 0.07 158)"
                       : "oklch(24% 0.05 158)",
                 border:
                   state === "active"
