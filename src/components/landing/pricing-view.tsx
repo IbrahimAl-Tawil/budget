@@ -20,7 +20,7 @@ import { LogoMark } from "@/components/otterfund/logo";
 import { Wordmark } from "@/components/otterfund/wordmark";
 import { BRAND_THEME, SCHEMES } from "@/components/otterfund/theme";
 import { TIERS, TierCard, tierOrderClass, type BillingPeriod, type Tier } from "@/components/otterfund/tier-card";
-import { SocialProof } from "@/components/otterfund/social-proof";
+import { SOCIAL_PROOF } from "@/components/otterfund/social-proof";
 import { PANEL_ACCENT, PANEL_BG, PANEL_INK, PANEL_LINE, PANEL_LINE_DEEP } from "@/components/otterfund/brand-panel";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -250,9 +250,9 @@ export function PricingView({
               className="of-enter mx-auto mt-3 max-w-2xl text-[clamp(34px,5vw,56px)] leading-[1.05] tracking-[-0.03em] text-balance"
               style={{ ...SERIF, fontWeight: 500 }}
             >
-              Simple pricing,{" "}
+              {SOCIAL_PROOF.stat.lead}{" "}
               <em className="text-[var(--color-primary)]" style={{ fontStyle: "italic" }}>
-                for every stage.
+                {SOCIAL_PROOF.stat.emphasis}
               </em>
             </h1>
             <p className="of-enter mx-auto mt-4 max-w-md text-[16px] leading-relaxed text-[var(--color-of-muted)]">
@@ -337,13 +337,8 @@ export function PricingView({
           <p className="mt-6 text-center text-[13px] font-medium text-[var(--color-of-clay)]">{error}</p>
         )}
 
-        {/* ── Social proof — the mechanism stat + rating + testimonials ── */}
-        <section className="mt-20 w-full sm:mt-24">
-          <SocialProof theme={T} />
-        </section>
-
         {/* ── Trust line ── */}
-        <p className="mt-14 text-center text-[12.5px] font-medium text-[var(--color-of-faint)]">
+        <p className="mt-16 text-center text-[12.5px] font-medium text-[var(--color-of-faint)]">
           No commitment · cancel anytime · bank-grade encryption on every plan
         </p>
       </main>
