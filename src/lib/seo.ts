@@ -105,6 +105,20 @@ export const KEYWORDS = {
     "bank account aggregator",
     "investment tracker",
   ],
+  // Comparison / displacement intent: the terms people type when leaving a
+  // named competitor. Powers the blog cluster and lifts the site-wide keyword mix.
+  compare: [
+    "mint alternative",
+    "best mint alternative",
+    "apps like mint",
+    "ynab alternative",
+    "monarch money alternative",
+    "copilot money alternative",
+    "rocket money alternative",
+    "everydollar alternative",
+    "budgeting app comparison",
+    "best budgeting app 2026",
+  ],
 } as const;
 
 /** The full de-duplicated keyword list (site-wide default). */

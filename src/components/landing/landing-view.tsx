@@ -1559,6 +1559,12 @@ function ClosingBand() {
           </div>
           <nav className="flex items-center gap-5 text-[12px]" aria-label="Footer">
             <Link
+              href="/blog"
+              className="text-[oklch(86%_0.03_150_/_0.75)] transition-colors hover:text-[oklch(97%_0.014_95)]"
+            >
+              Blog
+            </Link>
+            <Link
               href="/privacy"
               className="text-[oklch(86%_0.03_150_/_0.75)] transition-colors hover:text-[oklch(97%_0.014_95)]"
             >

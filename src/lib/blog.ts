@@ -190,7 +190,7 @@ export const BLOG_POSTS: BlogPost[] = [
       },
       {
         type: "p",
-        text: "**YNAB** and **EveryDollar** are built around zero-based budgeting, a different and more hands-on philosophy where every dollar gets a job across dozens of categories. **Copilot Money** and **Monarch Money** are polished trackers, but they lean on flexible categories rather than a native needs, wants, and savings split, and both are subscription-only with no free tier. If the 50/30/20 rule is the method you actually want to run, most of the market makes you rebuild it yourself.",
+        text: "**YNAB** and **EveryDollar** are built around zero-based budgeting, a different and more hands-on philosophy where every dollar gets a job across dozens of categories. **Copilot Money** and **Monarch Money** are trackers that lean on flexible categories rather than a native needs, wants, and savings split, and both are subscription-only with no free tier. If the 50/30/20 rule is the method you actually want to run, most of the market makes you rebuild it yourself.",
       },
       { type: "h2", text: "How otterfund runs the 50/30/20 rule for you" },
       {
@@ -284,7 +284,7 @@ export const BLOG_POSTS: BlogPost[] = [
       },
       {
         type: "p",
-        text: "This is where tool choice matters. **Empower** (formerly Personal Capital) is excellent for watching net worth, but it barely budgets, offering only a single overall spending goal rather than a real allocation. **Rocket Money** is built around canceling subscriptions and negotiating bills, with budgeting as a side feature. **Goodbudget** uses a manual envelope system that many people find tedious to keep up. Each is fine at its specialty, yet none is designed around the simple act of allocating a paycheck into needs, wants, and savings.",
+        text: "This is where tool choice matters. **Empower** (formerly Personal Capital) tracks net worth, but it barely budgets, offering only a single overall spending goal rather than a real allocation. **Rocket Money** is built around canceling subscriptions and negotiating bills, with budgeting as a side feature. **Goodbudget** uses a manual envelope system that many people find tedious to keep up. None of them is designed around the simple act of allocating a paycheck into needs, wants, and savings.",
       },
       { type: "h2", text: "How otterfund allocates your paycheck automatically" },
       {
@@ -360,7 +360,7 @@ export const BLOG_POSTS: BlogPost[] = [
           ["[[of]]", "Yes", "From $15/mo optional", "Needs/wants/savings budgeting with an AI advisor"],
           ["Monarch Money", "No", "About $99.99/year", "Net worth and couples tracking"],
           ["YNAB", "No", "$109/year", "Hands-on zero-based budgeting"],
-          ["Copilot Money", "No", "$95/year", "Design, Apple-first, no Android"],
+          ["Copilot Money", "No", "$95/year", "Apple-only, no Android app"],
           ["Rocket Money", "Yes (limited)", "About $7 to $14/mo", "Canceling subscriptions"],
           ["Empower", "Yes", "Free dashboard", "Investment and net worth tracking"],
         ],
@@ -368,22 +368,22 @@ export const BLOG_POSTS: BlogPost[] = [
       { type: "h3", text: "Monarch Money" },
       {
         type: "p",
-        text: "**Monarch Money** absorbed a large share of Mint's refugees, partly because it was co-founded by a former Mint product leader. It is a capable, polished tracker with net worth views and strong support for couples. The catch is that it is subscription-only at around $99.99 per year with no free tier, so the very thing Mint users valued most, a free product, is gone.",
+        text: "**Monarch Money** absorbed a large share of Mint's users, partly because it was co-founded by a former Mint product leader. It is a tracker with net worth views and features aimed at couples. The catch is that it is subscription-only at around $99.99 per year with no free tier, so the very thing Mint users valued most, a free product, is gone.",
       },
       { type: "h3", text: "YNAB (You Need A Budget)" },
       {
         type: "p",
-        text: "**YNAB** is beloved by hardcore budgeters, but it is a different animal from Mint. It uses zero-based budgeting where you assign every dollar a job, which is powerful and also demanding. At $109 per year with a real learning curve, it is a big leap for someone who just wants Mint's simple tracking back.",
+        text: "**YNAB** takes a very different approach from Mint. It uses zero-based budgeting where you assign every dollar a job, which is demanding to keep up. At $109 per year with a steep learning curve, it is a big leap for someone who just wants Mint's simple tracking back.",
       },
       { type: "h3", text: "Copilot Money" },
       {
         type: "p",
-        text: "**Copilot Money** is gorgeous and a favorite on Apple devices, with smart machine-learning categorization. But it has no free tier at $95 per year, and it still has no Android app, so a huge slice of former Mint users cannot use it at all.",
+        text: "**Copilot Money** is an Apple-focused app with machine-learning categorization. But it has no free tier at $95 per year, and it still has no Android app, so a large slice of former Mint users cannot use it at all.",
       },
       { type: "h3", text: "Rocket Money and Empower" },
       {
         type: "p",
-        text: "**Rocket Money** has a free tier, but its heart is subscription cancellation and bill negotiation, not budgeting, and its bill-negotiation service takes a cut of your savings. **Empower** offers a genuinely free dashboard, but it is built for tracking investments and net worth, not for budgeting a paycheck, so it leaves the actual budget unsolved.",
+        text: "**Rocket Money** has a free tier, but its focus is subscription cancellation and bill negotiation, not budgeting, and its bill-negotiation service takes a cut of your savings. **Empower** offers a free dashboard, but it is built for tracking investments and net worth, not for budgeting a paycheck, so it leaves the actual budget unsolved.",
       },
       { type: "h2", text: "The closest thing to what Mint should have become" },
       {
@@ -447,12 +447,12 @@ export const BLOG_POSTS: BlogPost[] = [
       { type: "h3", text: "Empower (formerly Personal Capital)" },
       {
         type: "p",
-        text: "**Empower** offers a fully free dashboard that is excellent for tracking net worth and investments. The trade-off is that it is not really a budgeting app: it gives you a single overall spending goal rather than category budgets, and the free product exists to funnel you toward paid wealth-management services, which means sales calls once your balances grow.",
+        text: "**Empower** offers a fully free dashboard for tracking net worth and investments. The trade-off is that it is not really a budgeting app: it gives you a single overall spending goal rather than category budgets, and the free product exists to funnel you toward paid wealth-management services, which means sales calls once your balances grow.",
       },
       { type: "h3", text: "Rocket Money" },
       {
         type: "p",
-        text: "**Rocket Money** has a free tier that tracks spending and subscriptions. It is genuinely useful for spotting forgotten charges, but the free budgeting is thin (just a couple of custom categories), and the product is designed to sell you Premium and a bill-negotiation service that keeps a share of what it saves you.",
+        text: "**Rocket Money** has a free tier that tracks spending and subscriptions. It can surface forgotten charges, but the free budgeting is thin (just a couple of custom categories), and the product is designed to sell you Premium and a bill-negotiation service that keeps a share of what it saves you.",
       },
       { type: "h3", text: "PocketGuard and Goodbudget" },
       {
@@ -475,7 +475,7 @@ export const BLOG_POSTS: BlogPost[] = [
       { type: "h2", text: "How to choose" },
       {
         type: "p",
-        text: "If your priority is investments and net worth, Empower's free dashboard is hard to beat. If you mostly want to catch runaway subscriptions, Rocket Money's free tier does that. But if you want to actually budget, to allocate your income and see needs, wants, and savings clearly, most free tiers are too limited or too far from budgeting to help.",
+        text: "If your only priority is investments and net worth, Empower's free dashboard covers that. If you mostly want to catch runaway subscriptions, Rocket Money's free tier does that. But if you want to actually budget, to allocate your income and see needs, wants, and savings clearly, most free tiers are too limited or too far from budgeting to help.",
       },
       { type: "h2", text: "Why otterfund is the best free budgeting app for most people" },
       {
@@ -504,7 +504,7 @@ export const BLOG_POSTS: BlogPost[] = [
     slug: "otterfund-vs-ynab",
     title: "otterfund vs YNAB: A Calmer, Free Way to Budget",
     description:
-      "YNAB is powerful zero-based budgeting at $109 a year. otterfund is a calmer needs, wants, and savings app that starts free. Here is how they compare.",
+      "YNAB is hands-on zero-based budgeting at $109 a year. otterfund is a calmer needs, wants, and savings app that starts free. Here is how they compare.",
     excerpt:
       "YNAB asks you to give every dollar a job across dozens of categories. otterfund asks you to pick a split and lets it do the work. Here is the honest comparison.",
     category: "Comparison",
@@ -522,12 +522,12 @@ export const BLOG_POSTS: BlogPost[] = [
     body: [
       {
         type: "p",
-        text: "**YNAB** (You Need A Budget) has a devoted following, and for good reason: it is a serious tool that has helped a lot of people take control of their money. But it is also demanding and subscription-only, and it is not the right fit for everyone. If you have wondered whether there is a calmer, cheaper way to get the same control, here is an honest comparison of [[of]] and YNAB.",
+        text: "**YNAB** (You Need A Budget) has a devoted following, but it is demanding and subscription-only, and it is not the right fit for everyone. If you have wondered whether there is a calmer, cheaper way to get the same control, here is an honest comparison of [[of]] and YNAB.",
       },
       { type: "h2", text: "The core difference: philosophy" },
       {
         type: "p",
-        text: "YNAB is built on zero-based budgeting. You assign every single dollar a job across as many categories as you create, and you re-balance whenever life changes. It is powerful, and it is also a lot of ongoing work. [[of]] is built on the needs, wants, and savings model. You pick a split like 50/30/20, and the app allocates your income into three clear buckets automatically. One approach maximizes control at the cost of effort. The other maximizes calm at the cost of granularity.",
+        text: "YNAB is built on zero-based budgeting. You assign every single dollar a job across as many categories as you create, and you re-balance whenever life changes. It is a hands-on method that demands ongoing work. [[of]] is built on the needs, wants, and savings model. You pick a split like 50/30/20, and the app allocates your income into three clear buckets automatically. One approach maximizes control at the cost of effort. The other maximizes calm at the cost of granularity.",
       },
       { type: "h2", text: "Price" },
       {
@@ -584,9 +584,9 @@ export const BLOG_POSTS: BlogPost[] = [
     slug: "otterfund-vs-monarch-money",
     title: "otterfund vs Monarch Money: Which Budgeting App Wins in 2026?",
     description:
-      "Monarch Money is a polished Mint successor at $99.99 a year. otterfund starts free and budgets with a native 50/30/20 model. See how they compare.",
+      "Monarch Money is a subscription Mint successor at $99.99 a year. otterfund starts free and budgets with a native 50/30/20 model. See how they compare.",
     excerpt:
-      "Monarch became a favorite Mint replacement, but it is subscription-only. Here is how it stacks up against a free, method-first alternative.",
+      "Monarch became a popular Mint replacement, but it is subscription-only. Here is how it stacks up against a free, method-first alternative.",
     category: "Comparison",
     keywords: [
       "otterfund vs monarch money",
@@ -602,12 +602,12 @@ export const BLOG_POSTS: BlogPost[] = [
     body: [
       {
         type: "p",
-        text: "**Monarch Money** rose fast after Mint's shutdown, helped by a founding team with Mint roots and a clean, modern interface. It is one of the strongest trackers on the market. But it is subscription-only, and it takes a different approach to budgeting than a method-first app. Here is how [[of]] and Monarch compare in 2026.",
+        text: "**Monarch Money** rose fast after Mint's shutdown, helped by a founding team with Mint roots. It is subscription-only, and it takes a different approach to budgeting than a method-first app. Here is how [[of]] and Monarch compare in 2026.",
       },
-      { type: "h2", text: "What Monarch does well" },
+      { type: "h2", text: "How Monarch Money works" },
       {
         type: "p",
-        text: "Monarch is polished and pleasant to use. It shows net worth across all your accounts, handles couples and shared finances gracefully, and added an AI assistant and AI-assisted categorization. If your priority is a beautiful, all-in-one financial dashboard for a household, Monarch is a legitimately good product.",
+        text: "Monarch shows net worth across all your accounts, supports couples and shared finances, and added an AI assistant and AI-assisted categorization. It is built to be an all-in-one financial dashboard for a household, which is a different job than running a specific budgeting method.",
       },
       { type: "h2", text: "Where the two differ" },
       {
@@ -636,20 +636,20 @@ export const BLOG_POSTS: BlogPost[] = [
       { type: "h2", text: "AI, on both sides" },
       {
         type: "p",
-        text: "Both apps use AI, so the question is what it is for. Monarch's assistant lets you ask questions about your data. [[of]]'s advisor is proactive and quiet: it reads your spending and savings and offers plain-language nudges toward your goals, without lecturing. Both are useful, and neither replaces your judgment.",
+        text: "Both apps use AI, so the question is what it is for. Monarch's assistant lets you ask questions about your data. [[of]]'s advisor is proactive and quiet: it reads your spending and savings and offers plain-language nudges toward your goals, without lecturing. Neither replaces your judgment.",
       },
       { type: "h2", text: "Who should pick which" },
       {
         type: "ul",
         items: [
-          "**Pick Monarch** if you want a premium household dashboard with strong couples features and do not mind paying for it.",
+          "**Pick Monarch** if you want a household dashboard with couples features and do not mind paying about $100 a year for it.",
           "**Pick [[of]]** if you want a native 50/30/20 budget, an AI advisor, and the option to start free before you ever pay.",
         ],
       },
       {
         type: "callout",
         title: "The bottom line",
-        text: "Monarch is a fine tracker if you will pay $100 a year for polish. If you want a budget built around the needs, wants, and savings method, and you would rather start free, [[of]] is the better fit.",
+        text: "Monarch is a subscription tracker built for households. If you want a budget built around the needs, wants, and savings method, and you would rather start free, [[of]] is the better fit.",
       },
     ],
   },
@@ -659,9 +659,9 @@ export const BLOG_POSTS: BlogPost[] = [
     slug: "otterfund-vs-copilot-money",
     title: "otterfund vs Copilot Money: The Free, Everywhere Alternative",
     description:
-      "Copilot Money is a beautiful Apple-first app with no Android and no free tier. otterfund works in any browser and starts free. Here is the comparison.",
+      "Copilot Money is an Apple-first app with no Android and no free tier. otterfund works in any browser and starts free. Here is the comparison.",
     excerpt:
-      "Copilot is stunning if you live in Apple's world. otterfund runs anywhere and starts free. Here is how they really compare.",
+      "Copilot is Apple-only and subscription-only. otterfund runs anywhere and starts free. Here is how they really compare.",
     category: "Comparison",
     keywords: [
       "otterfund vs copilot money",
@@ -677,7 +677,7 @@ export const BLOG_POSTS: BlogPost[] = [
     body: [
       {
         type: "p",
-        text: "**Copilot Money** is regularly called the most beautiful budgeting app, and the praise is earned. Its design and machine-learning categorization are genuinely excellent. But it has two limitations that rule it out for a lot of people: it is Apple-first with no Android app, and it has no free tier. Here is how [[of]] compares.",
+        text: "**Copilot Money** is an Apple-first app known for its design and machine-learning categorization. But it has two limitations that rule it out for a lot of people: it has no Android app, and it has no free tier. Here is how [[of]] compares.",
       },
       { type: "h2", text: "The Android problem" },
       {
@@ -687,7 +687,7 @@ export const BLOG_POSTS: BlogPost[] = [
       { type: "h2", text: "The price problem" },
       {
         type: "p",
-        text: "Copilot has no free tier and costs about $13 per month or $95 per year. That is a fair price for the quality, but it is a commitment you make before you have lived with the app. [[of]] is free to start with no credit card, so you can build a real budget first and only pay (from $15 per month) if you want bank sync, the AI advisor, and investment tracking.",
+        text: "Copilot has no free tier and costs about $13 per month or $95 per year, a commitment you make before you have even lived with the app. [[of]] is free to start with no credit card, so you can build a real budget first and only pay (from $15 per month) if you want bank sync, the AI advisor, and investment tracking.",
       },
       {
         type: "table",
@@ -705,20 +705,20 @@ export const BLOG_POSTS: BlogPost[] = [
       { type: "h2", text: "Method versus tracking" },
       {
         type: "p",
-        text: "Copilot is a superb tracker with adaptive categorization, but like most trackers it leaves the budgeting framework to you. [[of]] is built around the needs, wants, and savings method, so it does not just record where your money went, it helps you decide where it should go using a proven split. If you want structure rather than just a clean ledger, that is the difference.",
+        text: "Copilot is a tracker with adaptive categorization, but like most trackers it leaves the budgeting framework to you. [[of]] is built around the needs, wants, and savings method, so it does not just record where your money went, it helps you decide where it should go using a proven split. If you want structure rather than just a ledger, that is the difference.",
       },
       { type: "h2", text: "Who should pick which" },
       {
         type: "ul",
         items: [
-          "**Pick Copilot** if you are all-in on Apple devices, want the most beautiful tracker, and will pay for it.",
+          "**Pick Copilot** if you are all-in on Apple devices and will pay for a tracker.",
           "**Pick [[of]]** if you use Android or mixed devices, want a native 50/30/20 budget, and would like to start free.",
         ],
       },
       {
         type: "callout",
         title: "The bottom line",
-        text: "Copilot is a gorgeous app for Apple users who will pay. If you want a budget that works on every device and starts free, [[of]] is the alternative that does not lock you out.",
+        text: "Copilot is an Apple-only app for users who will pay. If you want a budget that works on every device and starts free, [[of]] is the alternative that does not lock you out.",
       },
     ],
   },
@@ -728,7 +728,7 @@ export const BLOG_POSTS: BlogPost[] = [
     slug: "otterfund-vs-rocket-money",
     title: "otterfund vs Rocket Money: Budgeting App or Bill Negotiator?",
     description:
-      "Rocket Money is great at canceling subscriptions but thin on budgeting, and its bill service takes a cut. otterfund is a full budget that starts free.",
+      "Rocket Money focuses on canceling subscriptions but is thin on budgeting, and its bill service takes a cut. otterfund is a full budget that starts free.",
     excerpt:
       "Rocket Money is really a subscription-canceling tool with budgeting bolted on. If you want to actually budget, here is the comparison.",
     category: "Comparison",
@@ -748,10 +748,10 @@ export const BLOG_POSTS: BlogPost[] = [
         type: "p",
         text: "**Rocket Money** (formerly Truebill) is a popular app, but it is worth being clear about what it is really for. Its standout features are finding and canceling forgotten subscriptions and negotiating your bills. Budgeting is a secondary feature. If your main goal is a genuine budget, here is how [[of]] compares.",
       },
-      { type: "h2", text: "What Rocket Money is best at" },
+      { type: "h2", text: "What Rocket Money actually does" },
       {
         type: "p",
-        text: "Rocket Money is legitimately good at spotting recurring charges you forgot about and helping you cancel them, and it will attempt to negotiate bills like cable and internet on your behalf. That can save real money. It also tracks spending and net worth. For subscription cleanup, it is a useful tool.",
+        text: "Rocket Money's main function is spotting recurring charges you forgot about and helping you cancel them, and it will attempt to negotiate bills like cable and internet on your behalf. It also tracks spending and net worth. What it is not, primarily, is a budgeting app.",
       },
       { type: "h2", text: "The catches" },
       {
@@ -815,7 +815,7 @@ export const BLOG_POSTS: BlogPost[] = [
     body: [
       {
         type: "p",
-        text: "**EveryDollar** is the budgeting app from Ramsey Solutions, built tightly around Dave Ramsey's zero-based method and his Baby Steps. It has fans who love that structure. But its approach and its pricing are worth understanding before you commit. Here is how [[of]] compares.",
+        text: "**EveryDollar** is the budgeting app from Ramsey Solutions, built tightly around Dave Ramsey's zero-based method and his Baby Steps. Some people prefer that structure, but its approach and its pricing are worth understanding before you commit. Here is how [[of]] compares.",
       },
       { type: "h2", text: "Two different philosophies" },
       {
@@ -895,12 +895,12 @@ export const BLOG_POSTS: BlogPost[] = [
       { type: "h3", text: "Copilot Money" },
       {
         type: "p",
-        text: "**Copilot Money** uses machine learning for categorization that adapts to your habits, and it is very good at it. That is real, useful AI, though it is focused on tidying your ledger rather than advising you. It is also Apple-first with no Android app and no free tier.",
+        text: "**Copilot Money** uses machine learning for categorization that adapts to your habits. That is genuine AI, though it is focused on tidying your ledger rather than advising you, and it is Apple-first with no Android app and no free tier.",
       },
       { type: "h3", text: "Monarch Money" },
       {
         type: "p",
-        text: "**Monarch Money** added an AI assistant you can ask questions and AI-assisted categorization. It is a capable, polished product, but it is subscription-only at about $99.99 per year with no free tier.",
+        text: "**Monarch Money** added an AI assistant you can ask questions and AI-assisted categorization. It is subscription-only at about $99.99 per year with no free tier.",
       },
       { type: "h3", text: "PocketGuard and the rest" },
       {
@@ -994,6 +994,114 @@ export function postUrl(slug: string): string {
   return absoluteUrl(`/blog/${slug}`);
 }
 
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+/** "2026-07-14" -> "July 14, 2026". Parsed by hand to avoid timezone drift. */
+export function formatPostDate(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  if (!y || !m || !d) return iso;
+  return `${MONTHS[m - 1]} ${d}, ${y}`;
+}
+
 export const BLOG_TITLE = `${SITE_NAME} blog`;
 export const BLOG_DESCRIPTION =
   "Guides on budgeting the calm way: the 50/30/20 rule, how to allocate your paycheck, and honest comparisons of the best budgeting apps in 2026.";
+
+/** Approximate word count of a post (for Article JSON-LD). Brand token counts as one word. */
+export function postWordCount(post: BlogPost): number {
+  const parts: string[] = [post.title, post.excerpt];
+  for (const b of post.body) {
+    switch (b.type) {
+      case "p":
+      case "h2":
+      case "h3":
+        parts.push(b.text);
+        break;
+      case "ul":
+      case "ol":
+        parts.push(...b.items);
+        break;
+      case "callout":
+        parts.push(b.title, b.text);
+        break;
+      case "table":
+        parts.push(...b.head, ...b.rows.flat());
+        if (b.caption) parts.push(b.caption);
+        break;
+    }
+  }
+  return parts
+    .join(" ")
+    .replace(/\[\[of\]\]/g, "otterfund")
+    .replace(/\*\*/g, "")
+    .split(/\s+/)
+    .filter(Boolean).length;
+}
+
+// ── JSON-LD builders ──────────────────────────────────────────────────────────
+// Rendered with <JsonLd data={...} />. Reference the site-wide Organization node
+// (defined in seo.ts) by @id so the graph stays connected.
+
+const BLOG_IMAGE = absoluteUrl("/otterfund-logo.png");
+
+/** Blog schema for the /blog index, listing every post. */
+export function blogListingLd() {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Blog",
+    "@id": `${SITE_URL}/blog#blog`,
+    name: BLOG_TITLE,
+    description: BLOG_DESCRIPTION,
+    url: absoluteUrl("/blog"),
+    inLanguage: "en",
+    publisher: { "@id": `${SITE_URL}/#organization` },
+    blogPost: getAllPosts().map((p) => ({
+      "@type": "BlogPosting",
+      "@id": `${postUrl(p.slug)}#article`,
+      headline: p.title,
+      description: p.description,
+      url: postUrl(p.slug),
+      datePublished: p.publishedAt,
+      dateModified: p.updatedAt,
+    })),
+  };
+}
+
+/** BlogPosting (Article) schema for a single post. */
+export function blogPostingLd(post: BlogPost) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    "@id": `${postUrl(post.slug)}#article`,
+    headline: post.title,
+    description: post.description,
+    url: postUrl(post.slug),
+    datePublished: post.publishedAt,
+    dateModified: post.updatedAt,
+    inLanguage: "en",
+    keywords: post.keywords.join(", "),
+    articleSection: post.category,
+    wordCount: postWordCount(post),
+    image: BLOG_IMAGE,
+    author: { "@type": "Organization", name: BLOG_AUTHOR.name, url: SITE_URL },
+    publisher: { "@id": `${SITE_URL}/#organization` },
+    mainEntityOfPage: { "@type": "WebPage", "@id": postUrl(post.slug) },
+    isPartOf: { "@id": `${SITE_URL}/blog#blog` },
+  };
+}
+
+/** BreadcrumbList: Home › Blog › Post. */
+export function blogBreadcrumbLd(post: BlogPost) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: SITE_NAME, item: SITE_URL },
+      { "@type": "ListItem", position: 2, name: "Blog", item: absoluteUrl("/blog") },
+      { "@type": "ListItem", position: 3, name: post.title, item: postUrl(post.slug) },
+    ],
+  };
+}
