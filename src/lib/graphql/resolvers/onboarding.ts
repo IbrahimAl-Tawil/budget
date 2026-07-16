@@ -10,7 +10,8 @@ import {
 } from "@/lib/db/seed-categories";
 import { getBudgetPlan } from "@/lib/constants";
 import { rateLimit, MINUTE, HOUR } from "@/lib/rate-limit";
-import { LIMITS, okMoney } from "@/lib/validate";
+import { LIMITS, okMoney, okString, okColor } from "@/lib/validate";
+import { resolveMerchant } from "@/lib/merchant/resolve";
 
 // ── completeOnboarding ────────────────────────────────────────────────────────
 
@@ -19,6 +20,11 @@ const OnboardingAccountInput = builder.inputType("OnboardingAccountInput", {
     name: t.string({ required: true }),
     type: t.string({ required: true }),
     balance: t.float({ required: true }),
+    // Optional bank/logo/number/colour — same fields as the in-app account form,
+    // so an account created here is indistinguishable from one added later.
+    number: t.string(),
+    gradient: t.string(),
+    institution: t.string(),
   }),
 });
 
@@ -31,6 +37,17 @@ const OnboardingRecurringInput = builder.inputType("OnboardingRecurringInput", {
   }),
 });
 
+// Savings goals set on the first onboarding screen. Same shape as createGoal so
+// a goal made here is identical to one added later (name + target required).
+const OnboardingGoalInput = builder.inputType("OnboardingGoalInput", {
+  fields: (t) => ({
+    name: t.string({ required: true }),
+    emoji: t.string(),
+    target: t.float({ required: true }),
+    deadline: t.string(),
+  }),
+});
+
 const OnboardingInput = builder.inputType("OnboardingInput", {
   fields: (t) => ({
     monthlyIncome: t.float({ required: true }),
@@ -39,6 +56,9 @@ const OnboardingInput = builder.inputType("OnboardingInput", {
     budgetPlan: t.string(),
     accounts: t.field({ type: [OnboardingAccountInput] }),
     recurringExpenses: t.field({ type: [OnboardingRecurringInput] }),
+    goals: t.field({ type: [OnboardingGoalInput] }),
+    // "How did you hear about us?" — acquisition attribution, stored once.
+    referralSource: t.string(),
   }),
 });
 
@@ -56,9 +76,50 @@ builder.mutationField("completeOnboarding", (t) =>
       ) {
         badRequest("Income/budget is out of range.");
       }
-      if ((input.accounts?.length ?? 0) > 50 || (input.recurringExpenses?.length ?? 0) > 100) {
+      if (
+        (input.accounts?.length ?? 0) > 50 ||
+        (input.recurringExpenses?.length ?? 0) > 100 ||
+        (input.goals?.length ?? 0) > 50
+      ) {
         badRequest("Too many items submitted.");
       }
+      // Validate each account's optional fields the SAME way createAccount does,
+      // so onboarding can't write a shape the in-app editor would reject.
+      for (const acc of input.accounts ?? []) {
+        if (!okString(acc.name, LIMITS.NAME)) badRequest("Account name is too long.");
+        if (!okString(acc.number, LIMITS.ACCOUNT_NUMBER)) badRequest("Account number is too long.");
+        if (!okString(acc.institution, LIMITS.NAME)) badRequest("Bank name is too long.");
+        if (!okMoney(acc.balance)) badRequest("Account balance is out of range.");
+        if (!okColor(acc.gradient)) badRequest("Invalid account color.");
+      }
+      // Same rules as createGoal so onboarding goals match in-app ones.
+      for (const g of input.goals ?? []) {
+        if (!okString(g.name, LIMITS.NAME)) badRequest("Goal name is too long.");
+        if (!okString(g.emoji, LIMITS.EMOJI)) badRequest("Invalid emoji.");
+        if (!okMoney(g.target) || g.target < 0) badRequest("Goal target is out of range.");
+      }
+      if (!okString(input.referralSource, LIMITS.NAME)) badRequest("Referral source is too long.");
+
+      // Resolve each account's bank logo BEFORE opening the transaction — the
+      // SAME dictionary → cache → Claude path createAccount uses. Kept outside
+      // the transaction so a slow lookup on an unknown bank can't time it out;
+      // failures degrade to no logo.
+      const preparedAccounts = await Promise.all(
+        (input.accounts ?? []).map(async (acc) => {
+          const institution = acc.institution?.trim() || undefined;
+          const domain = institution ? (await resolveMerchant(institution)).domain ?? undefined : undefined;
+          return {
+            name: acc.name,
+            type: acc.type,
+            balance: acc.balance,
+            number: acc.number || undefined,
+            gradient: acc.gradient || undefined,
+            institution,
+            domain,
+          };
+        }),
+      );
+
       const now = new Date();
       const currentMonth = now.getMonth() + 1;
       const currentYear = now.getFullYear();
@@ -79,6 +140,8 @@ builder.mutationField("completeOnboarding", (t) =>
             budgetTarget,
             budgetPlan: plan.id,
             onboardingDone: true,
+            // undefined leaves it unchanged when the user skipped the question.
+            referralSource: input.referralSource?.trim() || undefined,
           },
         });
 
@@ -134,11 +197,29 @@ builder.mutationField("completeOnboarding", (t) =>
           );
         }
 
-        if (input.accounts?.length) {
+        if (preparedAccounts.length) {
           await Promise.all(
-            input.accounts.map((acc) =>
-              tx.account.create({
-                data: { userId, name: acc.name, type: acc.type, balance: acc.balance },
+            preparedAccounts.map((acc) =>
+              tx.account.create({ data: { userId, ...acc } }),
+            ),
+          );
+        }
+
+        if (input.goals?.length) {
+          await Promise.all(
+            input.goals.map((g) =>
+              tx.goal.create({
+                data: {
+                  userId,
+                  name: g.name,
+                  emoji: g.emoji || undefined,
+                  target: g.target,
+                  // Medium priority (matches the in-app New Goal default) so
+                  // equal-priority goals split the monthly savings evenly.
+                  priority: 2,
+                  deadline: g.deadline ? new Date(g.deadline) : undefined,
+                  color: `oklch(${55 + Math.random() * 10}% 0.09 ${Math.round(Math.random() * 360)})`,
+                },
               }),
             ),
           );

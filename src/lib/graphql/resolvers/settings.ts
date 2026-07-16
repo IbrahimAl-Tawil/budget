@@ -65,6 +65,31 @@ builder.mutationField("updateSettings", (t) =>
   }),
 );
 
+// Persist the user's customized sidebar: the nav item order + the hidden set
+// (both arrays of stable item keys — see components/otterfund/nav-items). Stored
+// as-is; the client's resolveNav tolerates drift (unknown keys dropped, new
+// items appended), so no key whitelist is enforced here — only cheap bounds to
+// keep the JSON from growing unbounded.
+builder.mutationField("updateSidebarLayout", (t) =>
+  t.field({
+    type: MutationResultRef,
+    args: {
+      order: t.arg({ type: ["String"], required: true }),
+      hidden: t.arg({ type: ["String"], required: true }),
+    },
+    resolve: async (_root, { order, hidden }, ctx) => {
+      const userId = requireUser(ctx);
+      const clean = (arr: readonly string[]) =>
+        Array.from(new Set(arr.filter((k) => typeof k === "string" && k.length <= 40))).slice(0, 32);
+      await prisma.user.update({
+        where: { id: userId },
+        data: { sidebarLayout: { order: clean(order), hidden: clean(hidden) } },
+      });
+      return { ok: true, id: userId };
+    },
+  }),
+);
+
 // Mark the first-run product tour as seen. Called by the dashboard when the
 // user finishes OR skips the tour, so it never auto-starts again. Idempotent —
 // stamps `tourCompletedAt` once and leaves it (replays from the profile menu

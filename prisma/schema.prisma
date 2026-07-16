@@ -20,6 +20,11 @@ model User {
   budgetPlan     String?  @default("50-30-20") // Needs/Wants/Savings plan id (see lib/constants BUDGET_PLANS)
   accent         String?  // Brand-kit accent (oklch); null = the default evergreen
   appearance     String?  @default("system") // Colour scheme: light | dark | system
+  // Personalized sidebar: { order: string[], hidden: string[] } of nav item
+  // keys (see components/otterfund/nav-items). null = default order, nothing
+  // hidden. Robust to drift — unknown keys are ignored and new items append
+  // (see resolveNav), so it never needs backfilling when the nav changes.
+  sidebarLayout  Json?
   onboardingDone Boolean  @default(false)
   // When the first-run product tour was finished OR skipped. Null = the user
   // has never seen it, so the dashboard auto-starts the tour on their next
@@ -29,6 +34,9 @@ model User {
   // otterfund staff flag. Gates the internal /dev tools (brand kit, AI usage,
   // plan-preview switcher). Set manually in the DB — never exposed in product UI.
   isAdmin        Boolean  @default(false)
+  // Acquisition attribution — the "How did you hear about us?" answer collected
+  // once during onboarding (null = never answered / pre-dates the question).
+  referralSource String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

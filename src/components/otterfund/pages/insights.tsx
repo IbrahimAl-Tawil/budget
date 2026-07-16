@@ -19,7 +19,7 @@
 
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ArrowUpRight, ChevronRight, Loader2, PanelLeft, Plus, RefreshCw, Sparkles, X } from "lucide-react";
+import { ArrowUpRight, ChevronRight, Loader2, PanelLeft, Plus, RefreshCw, Lightbulb, X } from "lucide-react";
 import type { InsightView, InsightDetail } from "@/lib/types";
 import { type OtterfundTheme } from "@/components/otterfund/theme";
 import { BlinkingOtter } from "@/components/otterfund/blinking-otter";
@@ -253,7 +253,7 @@ export function OtterfundInsights({ insights: initial, accent, theme, currency }
                   ) : hasInsights ? (
                     <RefreshCw size={16} />
                   ) : (
-                    <Sparkles size={16} />
+                    <Lightbulb size={16} />
                   )}
                 </Button>
               )}

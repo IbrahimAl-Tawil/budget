@@ -160,14 +160,6 @@ function StepTracker({ steps, step }: { steps: PanelStep[]; step: number }) {
             >
               {s.label}
             </span>
-            {state === "active" && (
-              <span
-                className="ml-1 rounded-full px-2 py-0.5"
-                style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", background: "oklch(90% 0.09 158 / 0.16)", color: PANEL_ACCENT }}
-              >
-                Now
-              </span>
-            )}
           </li>
         );
       })}

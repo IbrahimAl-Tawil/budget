@@ -174,7 +174,7 @@ export function AddTransactionModal({
             <p className="mx-auto mt-1.5 max-w-[340px] text-sm leading-relaxed text-[var(--color-of-muted)]">
               A transaction has to come out of a manual account, and you don&apos;t have
               one yet. Connected bank accounts sync their own transactions
-              automatically — this is for money you track by hand.
+              automatically. This is for money you track by hand.
             </p>
             <div className="mt-6 flex gap-3">
               <Button variant="secondary" size="sm" onClick={onClose} className="flex-1">

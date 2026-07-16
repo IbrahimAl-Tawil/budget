@@ -72,7 +72,7 @@ export const TIERS: Tier[] = [
       { text: "Everything in Free, plus", included: true, lead: true },
       { text: "Connect up to 3 bank accounts", included: true },
       { text: "Automatic sync & categorization", included: true },
-      { text: "AI advisor — 20 chats a month", included: true },
+      { text: "AI advisor: 20 chats a month", included: true },
       { text: "10 AI insight refreshes a month", included: true },
       { text: "Investment tracking", included: false },
     ],
@@ -102,6 +102,27 @@ export function money(n: number): string {
 export function savingsPct(t: Tier): number {
   if (!t.monthly) return 0;
   return Math.round((1 - t.yearly / (t.monthly * 12)) * 100);
+}
+
+/** Price anchored to a small weekly number (the guide's "break it into weekly
+    amounts"). Derived from the per-month figure actually shown, so it tracks the
+    selected billing period. */
+export function perWeek(perMonth: number): string {
+  return money(Math.round(((perMonth * 12) / 52) * 100) / 100);
+}
+
+// Mobile stacking order — lead with the most-popular (featured) tier and push
+// Free to the bottom so the paid plans aren't buried below the fold on phones.
+// Order resets to DOM order (Free · Standard · Pro) once the cards sit in a row.
+// Literal class strings so Tailwind's JIT picks them up. Pass the breakpoint the
+// parent grid becomes a row at ("md" on /pricing, "lg" in onboarding).
+const MOBILE_ORDER: Record<string, { md: string; lg: string }> = {
+  standard: { md: "order-first md:order-none", lg: "order-first lg:order-none" },
+  pro: { md: "order-2 md:order-none", lg: "order-2 lg:order-none" },
+  free: { md: "order-last md:order-none", lg: "order-last lg:order-none" },
+};
+export function tierOrderClass(tierId: string, bp: "md" | "lg"): string {
+  return MOBILE_ORDER[tierId]?.[bp] ?? "";
 }
 
 // How fast the count runs and how much the digits smear while they spin.
@@ -210,10 +231,13 @@ export function PriceBlock({
   tier,
   period,
   compact = false,
+  anchor = false,
 }: {
   tier: Tier;
   period: BillingPeriod;
   compact?: boolean;
+  /** Show the small "about $X a week" price anchor beneath the figure. */
+  anchor?: boolean;
 }) {
   // Free is always $0. Paid tiers show the per-month figure; yearly divides the
   // annual price by 12 so both periods read as "/month".
@@ -234,6 +258,14 @@ export function PriceBlock({
           {tier.monthly === 0 ? "forever" : compact ? "/mo" : "/ month"}
         </span>
       </div>
+
+      {/* Price anchor — the figure broken into a small weekly number. Free keeps
+          the row (a non-breaking space) so paid/free cards stay aligned. */}
+      {anchor && (
+        <div className={cn("font-medium text-[var(--color-of-faint)]", compact ? "mt-1 text-[11.5px]" : "mt-1.5 text-[12px]")}>
+          {tier.monthly === 0 ? " " : `about ${perWeek(perMonth)} a week`}
+        </div>
+      )}
 
       {/* Sub-line: annual billing note or the yearly-saving nudge. */}
       <div className={cn("font-medium", compact ? "mt-1.5 h-4 text-[12px]" : "mt-2 h-4 text-[12.5px]")}>
@@ -287,6 +319,9 @@ export function TierCard({
   current = false,
   showOtter = false,
   compact = false,
+  featureLimit,
+  anchor = false,
+  className,
   children,
 }: {
   tier: Tier;
@@ -294,9 +329,17 @@ export function TierCard({
   current?: boolean;
   showOtter?: boolean;
   compact?: boolean;
+  /** Cap the feature list to the first N rows — keeps the compact onboarding
+      cards from running tall. Unset (the /pricing page) shows every feature. */
+  featureLimit?: number;
+  /** Show the "about $X a week" price anchor beneath the figure. */
+  anchor?: boolean;
+  /** Extra classes on the card root — e.g. the responsive mobile-order class. */
+  className?: string;
   children: React.ReactNode;
 }) {
   const featured = !!tier.featured;
+  const features = featureLimit ? tier.features.slice(0, featureLimit) : tier.features;
   const [strokeLine, strokeDeep] = TIER_STROKES[tier.id] ?? TIER_STROKES.standard;
   // A tiny tile of two dashed diagonals → a cross-hatch of short strokes when
   // tiled. The dash pattern keeps each mark tiny.
@@ -311,6 +354,7 @@ export function TierCard({
         // The featured tier sits slightly larger and lifted toward the viewer —
         // but not in compact (onboarding), where the row stays aligned.
         featured && !compact && "md:z-10 md:scale-[1.045] md:-translate-y-1",
+        className,
       )}
       style={{
         background: featured
@@ -372,16 +416,22 @@ export function TierCard({
           Current plan
         </span>
       ) : featured ? (
+        // Compact (onboarding) cards are narrow — a shorter "Popular" tag with
+        // tighter padding keeps the badge off the plan name.
         <span
-          className="absolute right-4 top-4 z-20 rounded-full px-2.5 py-[5px] text-[10px] font-semibold uppercase tracking-[0.07em]"
+          className={cn(
+            "absolute z-20 rounded-full font-semibold uppercase tracking-[0.07em]",
+            compact ? "right-3 top-3 px-2 py-1 text-[9px]" : "right-4 top-4 px-2.5 py-[5px] text-[10px]",
+          )}
           style={{ background: T.accent, color: "#fff", boxShadow: "0 3px 8px oklch(20% 0.04 160 / 0.2)" }}
         >
-          Most popular
+          {compact ? "Popular" : "Most popular"}
         </span>
       ) : null}
 
       <div className="relative z-[1] flex flex-col">
-        <div className={cn("font-semibold tracking-[-0.01em] text-[var(--color-of-ink)]", compact ? "text-[17px]" : "text-[18px]")}>
+        {/* Reserve room on the right so a top-right badge never crowds the name. */}
+        <div className={cn("pr-16 font-semibold tracking-[-0.01em] text-[var(--color-of-ink)]", compact ? "text-[17px]" : "text-[18px]")}>
           {tier.name}
         </div>
         <p className={cn("mt-1 min-h-[40px] max-w-[240px] leading-relaxed text-[var(--color-of-muted)]", compact ? "text-[12.5px]" : "text-[13px]")}>
@@ -389,7 +439,7 @@ export function TierCard({
         </p>
 
         <div className={compact ? "mt-4" : "mt-5"}>
-          <PriceBlock tier={tier} period={period} compact={compact} />
+          <PriceBlock tier={tier} period={period} compact={compact} anchor={anchor} />
         </div>
 
         {children}
@@ -400,7 +450,7 @@ export function TierCard({
             compact ? "mt-6 gap-2.5 pt-6" : "mt-7 gap-3.5 pt-7",
           )}
         >
-          {tier.features.map((f) => (
+          {features.map((f) => (
             <li key={f.text} className="flex items-start gap-3">
               <span
                 className="mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full"

@@ -40,6 +40,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <OtterfundChrome
         initialAccent={prefs.accent}
         initialAppearance={prefs.appearance}
+        initialSidebarLayout={prefs.sidebarLayout}
         todayMonth={todayMonth}
         todayYear={todayYear}
         txThisMonth={txThisMonth}

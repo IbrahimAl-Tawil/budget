@@ -127,7 +127,7 @@ export function OtterfundOverview({ overview, name, theme, hasAccounts = true, o
   const topCat = [...overview.spendingByCategory].sort((a, b) => b.amount - a.amount)[0];
   const insight =
     savingsRate > 0
-      ? `You're saving ${savingsRate}% of your income this month — ${money(overview.monthlySurplus)} set aside toward what matters.`
+      ? `You're saving ${savingsRate}% of your income this month: ${money(overview.monthlySurplus)} set aside toward what matters.`
       : topCat
         ? `${topCat.name} is your largest category at ${money(topCat.amount)}, about ${Math.round(topCat.pct)}% of this month's spending.`
         : `You've spent ${money(overview.monthlySpend)} so far this month against ${money(overview.monthlyIncome)} of income.`;
@@ -405,7 +405,7 @@ export function OtterfundOverview({ overview, name, theme, hasAccounts = true, o
             })}
           </Ledger>
         ) : (
-          <EmptyBlock theme={theme} text="No goals yet — set one to start saving with intent." />
+          <EmptyBlock theme={theme} text="No goals yet. Set one to start saving with intent." />
         )}
         </Panel>
 
@@ -451,7 +451,7 @@ export function OtterfundOverview({ overview, name, theme, hasAccounts = true, o
             color: band.accent,
           }}
         >
-          <OtterFace size={15} strokeWidth={1.9} />
+          <OtterFace size={15} />
           <Wordmark style={{ fontWeight: 700, letterSpacing: "0.08em" }} />{" "}insight
         </div>
         <p

@@ -19,7 +19,8 @@ import { GuillocheFlow } from "@/components/otterfund/guilloche-flow";
 import { LogoMark } from "@/components/otterfund/logo";
 import { Wordmark } from "@/components/otterfund/wordmark";
 import { BRAND_THEME, SCHEMES } from "@/components/otterfund/theme";
-import { TIERS, TierCard, type BillingPeriod, type Tier } from "@/components/otterfund/tier-card";
+import { TIERS, TierCard, tierOrderClass, type BillingPeriod, type Tier } from "@/components/otterfund/tier-card";
+import { SocialProof } from "@/components/otterfund/social-proof";
 import { PANEL_ACCENT, PANEL_BG, PANEL_INK, PANEL_LINE, PANEL_LINE_DEEP } from "@/components/otterfund/brand-panel";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -175,7 +176,9 @@ export function PricingView({
     }
     return { href: "/dashboard", label: "Go to dashboard" };
   })();
-  const [period, setPeriod] = useState<BillingPeriod>("monthly");
+  // Default to yearly — the highest-LTV plan, and the one the paywall playbook
+  // says to lead with. Monthly is one tap away.
+  const [period, setPeriod] = useState<BillingPeriod>("yearly");
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState("");
 
@@ -310,6 +313,10 @@ export function PricingView({
                 period={period}
                 current={authed && currentPlan === tier.id}
                 showOtter
+                anchor
+                // On phones the cards stack — lead with Standard (Most popular)
+                // and drop Free to the bottom so the paid plans aren't buried.
+                className={tierOrderClass(tier.id, "md")}
               >
                 <TierCta
                   tier={tier}
@@ -330,9 +337,14 @@ export function PricingView({
           <p className="mt-6 text-center text-[13px] font-medium text-[var(--color-of-clay)]">{error}</p>
         )}
 
+        {/* ── Social proof — the mechanism stat + rating + testimonials ── */}
+        <section className="mt-20 w-full sm:mt-24">
+          <SocialProof theme={T} />
+        </section>
+
         {/* ── Trust line ── */}
-        <p className="mt-10 text-center text-[12.5px] font-medium text-[var(--color-of-faint)]">
-          All plans include bank-grade encryption. Cancel anytime.
+        <p className="mt-14 text-center text-[12.5px] font-medium text-[var(--color-of-faint)]">
+          No commitment · cancel anytime · bank-grade encryption on every plan
         </p>
       </main>
 

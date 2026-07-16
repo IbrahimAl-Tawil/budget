@@ -2,9 +2,10 @@
 
 // In-page locked state for a routed page a user's plan doesn't include (the
 // Insights + Investments routes). Deep-linkable and calm: the page still loads,
-// but instead of the real content it shows this on-brand upsell panel whose CTA
-// sends the user to the pricing page. The hard enforcement lives in the
-// resolvers — this is the friendly front door.
+// but instead of the real content it shows this on-brand upsell panel. It sells
+// the OUTCOME (the future the feature unlocks), then its CTA opens the in-app
+// paywall flow (outcome → offer → Checkout) for that feature — the hard
+// enforcement lives in the resolvers; this is the friendly front door.
 //
 // Built from the brand's signature language — a guilloché-textured header in
 // the active accent, a Newsreader display title, the otter mark, accent-tint
@@ -15,6 +16,7 @@ import { Card } from "@/components/otterfund/card";
 import { OtterFace } from "@/components/otterfund/logo";
 import { Wordmark } from "@/components/otterfund/wordmark";
 import { GuillocheFlow } from "@/components/otterfund/guilloche-flow";
+import { StarRow } from "@/components/otterfund/social-proof";
 import { Button } from "@/components/ui/button";
 import { useOtterfundChrome } from "@/components/otterfund/chrome-context";
 import { FEATURE_COPY, FEATURE_REQUIRED_TIER, PLAN_META, type Feature } from "@/lib/plans";
@@ -22,7 +24,7 @@ import { FEATURE_COPY, FEATURE_REQUIRED_TIER, PLAN_META, type Feature } from "@/
 const SERIF: React.CSSProperties = { fontFamily: "var(--font-num), Georgia, serif" };
 
 export function LockedFeature({ feature }: { feature: Feature }) {
-  const { theme, promptUpgrade } = useOtterfundChrome();
+  const { theme, openPaywall } = useOtterfundChrome();
   const copy = FEATURE_COPY[feature];
   const tier = FEATURE_REQUIRED_TIER[feature];
 
@@ -54,41 +56,42 @@ export function LockedFeature({ feature }: { feature: Feature }) {
               className="mt-4 text-[30px] leading-[1.08] tracking-[-0.02em] text-[var(--color-of-ink)]"
               style={{ ...SERIF, fontWeight: 500 }}
             >
-              {copy.title}
+              {copy.outcome.headline}
             </h2>
             <p className="mx-auto mt-2.5 max-w-[360px] text-[14px] leading-relaxed text-[var(--color-of-muted)]">
-              {copy.blurb}
+              {copy.outcome.sub}
             </p>
           </div>
         </div>
 
-        {/* ── Perks + CTA on the warm surface. ── */}
+        {/* ── Outcome bullets + social proof + CTA on the warm surface. ── */}
         <div className="px-8 pb-9 pt-7 sm:px-12">
           <ul className="mx-auto flex max-w-[320px] flex-col gap-3">
-            {copy.perks.map((perk) => (
-              <li key={perk} className="flex items-start gap-2.5">
+            {copy.outcome.bullets.map((b) => (
+              <li key={b} className="flex items-start gap-2.5">
                 <span
                   className="mt-[1px] flex h-[19px] w-[19px] shrink-0 items-center justify-center rounded-full"
                   style={{ background: theme.accentTint, color: theme.accentDeep }}
                 >
                   <Check className="h-3 w-3" strokeWidth={2.6} />
                 </span>
-                <span className="text-[13.5px] leading-snug text-[var(--color-of-ink)]">{perk}</span>
+                <span className="text-[13.5px] leading-snug text-[var(--color-of-ink)]">{b}</span>
               </li>
             ))}
           </ul>
 
+          <StarRow theme={theme} className="mt-6" />
+
           <Button
             size="lg"
-            onClick={promptUpgrade}
-            className="mt-7 w-full font-semibold"
+            onClick={() => openPaywall(feature)}
+            className="mt-6 w-full font-semibold"
             style={{ background: theme.accent }}
           >
-            Upgrade plan <ArrowRight className="h-4 w-4" />
+            See plans <ArrowRight className="h-4 w-4" />
           </Button>
           <p className="mt-3 text-center text-[11.5px] text-[var(--color-of-faint)]">
-            Cancel anytime ·{" "}
-            <Wordmark />
+            No commitment · cancel anytime · <Wordmark />
           </p>
         </div>
       </Card>

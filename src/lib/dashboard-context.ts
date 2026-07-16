@@ -77,11 +77,26 @@ export const userPrefs = async (userId: string) => {
   return {
     accent: u?.accent ?? null,
     appearance: u?.appearance ?? "system",
+    sidebarLayout: normalizeSidebarLayout(u?.sidebarLayout),
     currency: u?.currency ?? "CAD",
     budgetPlan: u?.budgetPlan ?? null,
     plan: u?.plan ?? "free",
   };
 };
+
+/** Coerce the stored Json into the `{ order, hidden }` shape the chrome expects,
+ *  tolerating anything malformed (returns null → chrome uses the default order). */
+function normalizeSidebarLayout(
+  value: unknown,
+): { order: string[]; hidden: string[] } | null {
+  if (!value || typeof value !== "object") return null;
+  const v = value as Record<string, unknown>;
+  const strs = (x: unknown) =>
+    Array.isArray(x) ? x.filter((s): s is string => typeof s === "string") : [];
+  const order = strs(v.order);
+  const hidden = strs(v.hidden);
+  return order.length || hidden.length ? { order, hidden } : null;
+}
 
 /** Convenience: the user's currency, reusing the cached userPrefs row read. */
 export const userCurrency = async (userId: string) => (await userPrefs(userId)).currency;

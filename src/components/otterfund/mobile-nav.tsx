@@ -14,10 +14,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Dialog } from "@base-ui/react/dialog";
 import Link from "next/link";
-import { Settings, LogOut, Compass } from "lucide-react";
+import { Settings, LogOut, Compass, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { LucideProps } from "lucide-react";
 import { useMediaQuery } from "@/lib/use-media-query";
+import { SidebarEditor } from "@/components/otterfund/sidebar-customizer";
+import type { NavItem } from "@/components/otterfund/nav-items";
 import { LogoMark } from "@/components/otterfund/logo";
 import { PlanBadgeIcon } from "@/components/otterfund/plan-badge-icon";
 import { Wordmark } from "@/components/otterfund/wordmark";
@@ -31,17 +32,6 @@ const DESKTOP_QUERY = "(min-width: 769px)";
 // Dragged past this (px) when the finger lifts → dismiss; short of it → spring back.
 const DRAG_CLOSE_PX = 90;
 
-interface NavItem {
-  href: string;
-  label: string;
-  Icon: React.ComponentType<LucideProps>;
-}
-
-interface NavSection {
-  label: string;
-  items: NavItem[];
-}
-
 /** Eyebrow section label — the CardLabel voice, tuned for the sheet. */
 function SheetLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -52,7 +42,11 @@ function SheetLabel({ children }: { children: React.ReactNode }) {
 }
 
 export function MobileNav({
-  sections,
+  navItems,
+  orderedItems,
+  hidden,
+  onReorder,
+  onToggle,
   secondary,
   pathname,
   hrefFor,
@@ -66,7 +60,13 @@ export function MobileNav({
   onTakeTour,
   onSignOut,
 }: {
-  sections: NavSection[];
+  /** Visible nav items, in the user's order — the tappable nav rows. */
+  navItems: NavItem[];
+  /** Full ordered list (hidden included) — the customize editor. */
+  orderedItems: NavItem[];
+  hidden: Set<string>;
+  onReorder: (keys: string[]) => void;
+  onToggle: (key: string) => void;
   secondary: NavItem[];
   pathname: string;
   hrefFor: (href: string) => string;
@@ -88,6 +88,9 @@ export function MobileNav({
   // is the visual backstop; this keeps the JS `open` state honest so the sheet
   // doesn't reappear when the viewport shrinks back to mobile.
   const [open, setOpen] = useState(false);
+  // In-sheet "customize" mode — swaps the nav list for the reorder/hide editor
+  // (no nested dialog). Reset whenever the sheet closes so it reopens on nav.
+  const [editing, setEditing] = useState(false);
   const isDesktop = useMediaQuery(DESKTOP_QUERY, true); // SSR default desktop
   useEffect(() => {
     if (isDesktop) setOpen(false);
@@ -174,7 +177,7 @@ export function MobileNav({
   };
 
   return (
-    <Dialog.Root open={open} onOpenChange={setOpen}>
+    <Dialog.Root open={open} onOpenChange={(o) => { setOpen(o); if (!o) setEditing(false); }}>
       <Dialog.Trigger
         data-tour="mobile-menu"
         className="of-hamburger group relative grid h-10 w-10 cursor-pointer place-items-center rounded-full border border-[var(--color-border)] bg-[var(--color-background)] outline-none transition-colors hover:bg-[var(--color-of-line-soft)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40 data-popup-open:bg-[var(--of-accent)]"
@@ -214,36 +217,57 @@ export function MobileNav({
             </svg>
           </div>
 
-          {/* nav rows — grouped Flow · Holdings · Advisor, then More. `stagger`
-              keeps the entrance animation's --i running across every group so
-              the rows cascade in as one list. Scroll if a short screen can't
-              fit them all. */}
+          {/* nav rows — one user-ordered list, then the admin-only More group.
+              In customize mode the list swaps for the drag/hide editor. `stagger`
+              runs the entrance animation across the whole run so it cascades in
+              as one list. Scroll if a short screen can't fit them all. */}
           <nav aria-label="Primary" className="of-scroll flex-1 overflow-y-auto px-3 pt-3">
-            {(() => {
-              let stagger = 0;
-              return (
-                <>
-                  {sections.map((section) => (
-                    <div key={section.label} className="mb-2">
-                      <SheetLabel>{section.label}</SheetLabel>
-                      <div className="flex flex-col gap-1">
-                        {section.items.map((item) => row(item, stagger++))}
-                      </div>
+            {editing ? (
+              <>
+                <div className="mb-1 flex items-center justify-between px-2.5">
+                  <span className="text-[10.5px] font-semibold uppercase tracking-[0.09em] text-[var(--color-of-faint)]">
+                    Drag to reorder · tap the eye to hide
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setEditing(false)}
+                    className="text-[13px] font-semibold text-[var(--of-accent)] outline-none"
+                  >
+                    Done
+                  </button>
+                </div>
+                <div className="pb-2">
+                  <SidebarEditor
+                    items={orderedItems}
+                    hidden={hidden}
+                    accent={accent}
+                    onReorder={onReorder}
+                    onToggle={onToggle}
+                  />
+                </div>
+              </>
+            ) : (
+              (() => {
+                let stagger = 0;
+                return (
+                  <>
+                    <div className="mb-2 flex flex-col gap-1">
+                      {navItems.map((item) => row(item, stagger++))}
                     </div>
-                  ))}
-                  {secondary.length > 0 && (
-                    <>
-                      <div className="mt-1">
-                        <SheetLabel>More</SheetLabel>
-                      </div>
-                      <div className="flex flex-col gap-1 pb-2">
-                        {secondary.map((item) => row(item, stagger++))}
-                      </div>
-                    </>
-                  )}
-                </>
-              );
-            })()}
+                    {secondary.length > 0 && (
+                      <>
+                        <div className="mt-1">
+                          <SheetLabel>More</SheetLabel>
+                        </div>
+                        <div className="flex flex-col gap-1 pb-2">
+                          {secondary.map((item) => row(item, stagger++))}
+                        </div>
+                      </>
+                    )}
+                  </>
+                );
+              })()
+            )}
           </nav>
 
           {/* footer — the account, as a quiet canvas card: identity on top,
@@ -287,6 +311,13 @@ export function MobileNav({
                     }
                   />
                 </div>
+                {/* stays in-sheet (not a Dialog.Close) — toggles the editor above */}
+                {!editing && (
+                  <Button variant="outline" size="sm" onClick={() => setEditing(true)} className="w-full">
+                    <Pencil data-icon="inline-start" size={16} strokeWidth={2} aria-hidden="true" />
+                    Customize sidebar
+                  </Button>
+                )}
                 <Dialog.Close
                   render={
                     <Button variant="danger" size="sm" onClick={onSignOut} className="w-full">

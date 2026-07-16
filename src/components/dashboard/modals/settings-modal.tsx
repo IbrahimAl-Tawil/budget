@@ -312,6 +312,32 @@ export function SettingsModal({ open, onClose, user, accent, onAccentChange, app
   const [deleting, setDeleting] = useState(false);
   const deleteUnlocked = confirmText.trim() === DELETE_PHRASE;
 
+  type ExportStatus = "idle" | "exporting" | "error";
+  const [exportStatus, setExportStatus] = useState<ExportStatus>("idle");
+
+  // Fetch the full data export and trigger a download. Surfaces a failure
+  // inline (rather than silently doing nothing) and always revokes the blob URL.
+  const handleExport = async () => {
+    setExportStatus("exporting");
+    try {
+      const res = await fetch("/api/settings/export");
+      if (!res.ok) throw new Error(`Export failed (${res.status})`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      try {
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "otterfund-export.json";
+        a.click();
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+      setExportStatus("idle");
+    } catch {
+      setExportStatus("error");
+    }
+  };
+
   const disarmDelete = () => {
     setConfirmDelete(false);
     setConfirmText("");
@@ -709,7 +735,7 @@ export function SettingsModal({ open, onClose, user, accent, onAccentChange, app
 
             {tab === "appearance" && (
               <section className="of-enter">
-                <SectionHead icon={Palette} title="Appearance" desc="Make it yours — theme and accent." />
+                <SectionHead icon={Palette} title="Appearance" desc="Make it yours: theme and accent." />
 
                 <div className="mb-8">
                   <div className={fieldLabelCls}>Theme</div>
@@ -737,20 +763,23 @@ export function SettingsModal({ open, onClose, user, accent, onAccentChange, app
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={async () => {
-                      const res = await fetch("/api/settings/export");
-                      if (res.ok) {
-                        const blob = await res.blob();
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement("a");
-                        a.href = url;
-                        a.download = "otterfund-export.json";
-                        a.click();
-                      }
-                    }}
+                    onClick={handleExport}
+                    disabled={exportStatus === "exporting"}
                   >
-                    Export data
+                    {exportStatus === "exporting" ? (
+                      <>
+                        <Loader2 data-icon="inline-start" className="w-4 h-4 animate-spin" />
+                        Exporting…
+                      </>
+                    ) : (
+                      "Export data"
+                    )}
                   </Button>
+                  {exportStatus === "error" && (
+                    <p className="mt-3 text-[12.5px] font-medium text-[var(--color-of-clay)]">
+                      Couldn’t export your data. Please try again.
+                    </p>
+                  )}
                 </section>
 
                 {/* Danger zone — delete only */}

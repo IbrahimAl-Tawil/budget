@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { TextInput, SelectInput } from "@/components/otterfund/form";
+import { TextInput, SelectInput, DateInput } from "@/components/otterfund/form";
+import { EmojiPicker } from "@/components/otterfund/emoji-picker";
 import { BRAND_THEME } from "@/components/otterfund/theme";
 import { LogoMark } from "@/components/otterfund/logo";
 import {
@@ -20,6 +21,10 @@ import {
   PenLine,
   Check,
   ArrowRight,
+  Lock,
+  CreditCard,
+  Target,
+  HelpCircle,
   type LucideIcon,
 } from "lucide-react";
 import { ACCOUNT_TYPES, CURRENCIES, getBudgetPlan, DEFAULT_BUDGET_PLAN_ID } from "@/lib/constants";
@@ -28,8 +33,11 @@ import { OnboardingBrandPanel, type PanelStep } from "@/components/onboarding/on
 import { PlanStep } from "@/components/onboarding/plan-step";
 import { Wordmark } from "@/components/otterfund/wordmark";
 import { ConnectBankModal } from "@/components/dashboard/modals/connect-bank-modal";
+import { PaywallModal } from "@/components/dashboard/modals/paywall-modal";
+import { MerchantAvatar } from "@/components/otterfund/merchant-avatar";
+import { dictionaryDomain } from "@/lib/merchant/dictionary";
 import { gqlClient, gqlUpload, errMessage } from "@/lib/graphql/client";
-import { type PlanTier } from "@/lib/plans";
+import { canUse, FEATURE_REQUIRED_TIER, PLAN_META, type Feature, type PlanTier } from "@/lib/plans";
 
 const AUTO_ONBOARD = /* GraphQL */ `
   mutation AutoOnboardFromFiles($files: [File!]!, $currency: String, $monthlyIncome: Float) {
@@ -63,9 +71,58 @@ const CREATE_CHECKOUT = /* GraphQL */ `
   }
 `;
 
-type AccountEntry = { name: string; type: string; balance: string };
+type AccountEntry = { name: string; type: string; balance: string; institution: string };
 type RecurringEntry = { name: string; amount: string; cycle: string; dueDay?: number };
+type GoalEntry = { name: string; emoji: string; target: string; deadline: string };
 type Mode = "choose" | "manual" | "auto" | "connect";
+// The flow, in order. Goal-setting hooks the user first, then a quick attribution
+// question, then the plan menu, then the tier-aware account setup.
+type Stage = "goals" | "referral" | "plan" | "setup";
+
+// The three intro phases, shown as the left-panel step tracker before setup.
+const INTRO_STEPS = [
+  { label: "Goals", icon: Target },
+  { label: "About you", icon: HelpCircle },
+  { label: "Plan", icon: CreditCard },
+] as const;
+const INTRO_INDEX: Record<"goals" | "referral" | "plan", number> = { goals: 0, referral: 1, plan: 2 };
+
+// "How did you hear about us?" choices — stored verbatim as the referral source.
+const REFERRAL_OPTIONS = [
+  "Friend or family",
+  "Social media",
+  "Search engine",
+  "YouTube",
+  "A news article or blog",
+  "Something else",
+];
+
+type AutoAnalysis = {
+  accounts: { name: string; type: string; balance: number }[];
+  recurringExpenses: { name: string; amount: number; cycle: string }[];
+  monthlyIncome: number;
+  monthlySpend: number;
+  budgetTarget: number;
+  transactions: { name: string; amount: number; date: string; category: string; isRecurring: boolean }[];
+  fileCount: number;
+  transactionCount: number;
+};
+
+// Stripe Checkout is a full-page redirect, so the wizard's in-memory state would
+// be lost across it. Checkout only ever starts from the plan menu, so on return
+// we drop the user into the (now-unlocked) setup phase — no per-case routing
+// needed. We just rehydrate everything they'd entered so far.
+const RESUME_KEY = "of-onboarding-resume";
+type ResumeBlob = {
+  goals: GoalEntry[];
+  referral: string;
+  monthlyIncome: string;
+  currency: string;
+  plan: string;
+  accounts: AccountEntry[];
+  recurring: RecurringEntry[];
+  autoAnalysis: AutoAnalysis | null;
+};
 
 const MANUAL_STEPS = [
   { label: "Income", icon: DollarSign },
@@ -86,14 +143,17 @@ const CONNECT_STEPS = [
   { label: "Connect", icon: Landmark },
 ];
 
-// The three ways to begin, shown as stacked rows on the chooser screen.
-const MODE_OPTIONS: { mode: Mode; icon: LucideIcon; title: string; desc: string; badge?: string }[] = [
+// The three ways to begin, shown as stacked rows on the chooser screen. `feature`
+// marks a path that needs a paid tier — the chooser locks it for plans that lack
+// it and opens the paywall inline instead of entering the flow.
+const MODE_OPTIONS: { mode: Mode; icon: LucideIcon; title: string; desc: string; badge?: string; feature?: Feature }[] = [
   {
     mode: "connect",
     icon: Landmark,
     title: "Connect a bank",
     desc: "Link your bank to sync accounts and transactions automatically.",
     badge: "Fastest",
+    feature: "bank_sync",
   },
   {
     mode: "auto",
@@ -128,20 +188,27 @@ export function OnboardingWizard({
   /** How the user arrived: `success`/`cancel` after a Stripe Checkout round-trip. */
   initialCheckout?: "success" | "cancel";
 }) {
-  // Gate the whole wizard behind a plan choice. Returning from a successful
-  // Checkout skips straight to the setup flow (the plan is already handled — the
-  // webhook sets the tier; we don't block on it). A cancel lands back on the
-  // plan step with a nudge.
-  const [stage, setStage] = useState<"plan" | "wizard">(
-    initialCheckout === "success" ? "wizard" : "plan",
-  );
+  // Flow order: goals → referral → plan → setup. Goal-setting comes first as a
+  // low-friction hook; the plan menu sits before the tier-aware account setup.
+  const [stage, setStage] = useState<Stage>("goals");
   // Tier whose Stripe Checkout is currently being created (disables its button).
   const [checkoutTier, setCheckoutTier] = useState<string | null>(null);
+  // When set, the inline paywall is open for this locked feature (chooser lock).
+  const [paywall, setPaywall] = useState<Feature | null>(null);
+  // Briefly true while we rehydrate state after returning from a Checkout
+  // redirect — avoids flashing the chooser before we route to the right place.
+  const [resuming, setResuming] = useState(!!initialCheckout);
 
   const [mode, setMode] = useState<Mode>("choose");
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // Goals phase (savings goals) + referral phase ("how did you hear about us").
+  const [goals, setGoals] = useState<GoalEntry[]>([
+    { name: "", emoji: "", target: "", deadline: "" },
+  ]);
+  const [referral, setReferral] = useState("");
 
   // Manual fields
   const [monthlyIncome, setMonthlyIncome] = useState("");
@@ -155,7 +222,7 @@ export function OnboardingWizard({
     Math.max(0, Math.round((incomeNum * (selectedPlan.needs + selectedPlan.wants)) / 100))
   );
   const [accounts, setAccounts] = useState<AccountEntry[]>([
-    { name: "", type: "Chequing", balance: "" },
+    { name: "", type: "Chequing", balance: "", institution: "" },
   ]);
   const [recurring, setRecurring] = useState<RecurringEntry[]>([
     { name: "", amount: "", cycle: "Monthly" },
@@ -170,16 +237,62 @@ export function OnboardingWizard({
 
   // Auto fields
   const [files, setFiles] = useState<File[]>([]);
-  const [autoAnalysis, setAutoAnalysis] = useState<{
-    accounts: { name: string; type: string; balance: number }[];
-    recurringExpenses: { name: string; amount: number; cycle: string }[];
-    monthlyIncome: number;
-    monthlySpend: number;
-    budgetTarget: number;
-    transactions: { name: string; amount: number; date: string; category: string; isRecurring: boolean }[];
-    fileCount: number;
-    transactionCount: number;
-  } | null>(null);
+  const [autoAnalysis, setAutoAnalysis] = useState<AutoAnalysis | null>(null);
+
+  // Stash the current wizard state before a Checkout redirect so we can pick up
+  // where we left off when Stripe sends the user back.
+  const persistResume = () => {
+    try {
+      const blob: ResumeBlob = {
+        goals,
+        referral,
+        monthlyIncome,
+        currency,
+        plan,
+        accounts,
+        recurring,
+        autoAnalysis,
+      };
+      sessionStorage.setItem(RESUME_KEY, JSON.stringify(blob));
+    } catch {
+      // Private mode / storage disabled — the round-trip just starts fresh.
+    }
+  };
+
+  // On return from Checkout, rehydrate and route. Runs once (keyed on the stable
+  // `initialCheckout` prop). Success lands in the now-unlocked setup phase; a
+  // cancel drops back on the plan menu with a gentle nudge.
+  useEffect(() => {
+    if (!initialCheckout) return;
+    let blob: ResumeBlob | null = null;
+    try {
+      const raw = sessionStorage.getItem(RESUME_KEY);
+      if (raw) blob = JSON.parse(raw) as ResumeBlob;
+      sessionStorage.removeItem(RESUME_KEY);
+    } catch {
+      blob = null;
+    }
+    if (blob) {
+      setGoals(blob.goals?.length ? blob.goals : [{ name: "", emoji: "", target: "", deadline: "" }]);
+      setReferral(blob.referral ?? "");
+      setMonthlyIncome(blob.monthlyIncome);
+      setCurrency(blob.currency);
+      setPlan(blob.plan);
+      setAccounts(blob.accounts?.length ? blob.accounts : [{ name: "", type: "Chequing", balance: "", institution: "" }]);
+      setRecurring(blob.recurring?.length ? blob.recurring : [{ name: "", amount: "", cycle: "Monthly" }]);
+      setAutoAnalysis(blob.autoAnalysis);
+    }
+    if (initialCheckout === "success") {
+      // Paid — nothing is locked now. Drop into the setup chooser.
+      setStage("setup");
+      setMode("choose");
+      setStep(0);
+    } else {
+      // Canceled — no charge. Back to the plan menu.
+      setStage("plan");
+    }
+    setResuming(false);
+  }, [initialCheckout]);
 
   // --- Helpers ---
   const canAdvance = () => {
@@ -201,7 +314,7 @@ export function OnboardingWizard({
     return false;
   };
 
-  const addAccount = () => setAccounts([...accounts, { name: "", type: "Chequing", balance: "" }]);
+  const addAccount = () => setAccounts([...accounts, { name: "", type: "Chequing", balance: "", institution: "" }]);
   const removeAccount = (i: number) => setAccounts(accounts.filter((_, idx) => idx !== i));
   const updateAccount = (i: number, field: keyof AccountEntry, value: string) => {
     const updated = [...accounts];
@@ -215,6 +328,16 @@ export function OnboardingWizard({
     updated[i] = { ...updated[i], [field]: value };
     setRecurring(updated);
   };
+
+  const addGoal = () => setGoals([...goals, { name: "", emoji: "", target: "", deadline: "" }]);
+  const removeGoal = (i: number) => setGoals(goals.filter((_, idx) => idx !== i));
+  const updateGoal = (i: number, field: keyof GoalEntry, value: string) => {
+    const updated = [...goals];
+    updated[i] = { ...updated[i], [field]: value };
+    setGoals(updated);
+  };
+  // At least one goal has both a name and a positive target → worth saving.
+  const goalsValid = goals.some((g) => g.name.trim() && Number(g.target) > 0);
 
   const fmtCurrency = (value: string | number) => {
     const num = Number(value);
@@ -260,8 +383,9 @@ export function OnboardingWizard({
               name: a.name,
               type: ACCOUNT_TYPES.find((t) => t.toLowerCase().replace(" ", "-") === a.type) || "Other",
               balance: String(a.balance),
+              institution: "",
             }))
-          : [{ name: "", type: "Chequing", balance: "" }]
+          : [{ name: "", type: "Chequing", balance: "", institution: "" }]
       );
       setRecurring(
         data.analysis.recurringExpenses.length > 0
@@ -287,8 +411,12 @@ export function OnboardingWizard({
     setError("");
 
     try {
-      const validAccounts = accounts.filter((a) => a.name && a.balance);
+      // A name is all it takes — balance defaults to $0 (same rule as the in-app
+      // account form). Requiring a balance here silently dropped named accounts.
+      const validAccounts = accounts.filter((a) => a.name.trim());
       const validRecurring = recurring.filter((r) => r.name && r.amount);
+      // Goals need a name + a positive target; partial rows are dropped.
+      const validGoals = goals.filter((g) => g.name.trim() && Number(g.target) > 0);
 
       await gqlClient.request(COMPLETE_ONBOARDING, {
         input: {
@@ -298,9 +426,10 @@ export function OnboardingWizard({
           budgetTarget: Math.max(0, Number(budgetTarget) || 0),
           budgetPlan: plan,
           accounts: validAccounts.map((a) => ({
-            name: a.name,
+            name: a.name.trim(),
             type: a.type.toLowerCase().replace(" ", "-"),
-            balance: Number(a.balance),
+            balance: Number(a.balance) || 0,
+            institution: a.institution.trim() || undefined,
           })),
           recurringExpenses: validRecurring.map((r) => ({
             name: r.name,
@@ -308,6 +437,13 @@ export function OnboardingWizard({
             cycle: r.cycle,
             dueDay: r.dueDay,
           })),
+          goals: validGoals.map((g) => ({
+            name: g.name.trim(),
+            emoji: g.emoji || undefined,
+            target: Number(g.target),
+            deadline: g.deadline || undefined,
+          })),
+          referralSource: referral || undefined,
         },
       });
 
@@ -332,12 +468,22 @@ export function OnboardingWizard({
     }
   };
 
-  // Steps for the active flow (empty on the chooser screen).
-  const steps: PanelStep[] =
+  // Steps for the active setup flow (empty on the chooser screen).
+  const modeSteps: PanelStep[] =
     mode === "manual" ? MANUAL_STEPS : mode === "connect" ? CONNECT_STEPS : mode === "auto" ? AUTO_STEPS : [];
-  const totalSteps = steps.length;
+  const totalSteps = modeSteps.length;
   const isLastStep = step === totalSteps - 1;
-  const inFlow = mode !== "choose";
+  // Where we are, in coarse terms — drives the left tracker, back link, layout.
+  const isIntro = stage === "goals" || stage === "referral" || stage === "plan";
+  const inMode = stage === "setup" && mode !== "choose";
+  // Left tracker: the 3 intro nodes during goals/referral/plan; the mode's steps
+  // once inside a setup flow; nothing (the "expect" list) on the chooser.
+  const panelSteps: PanelStep[] | null = isIntro
+    ? (INTRO_STEPS as unknown as PanelStep[])
+    : inMode
+      ? modeSteps
+      : null;
+  const panelStep = isIntro ? INTRO_INDEX[stage as "goals" | "referral" | "plan"] : step;
 
   const changeMode = () => {
     setMode("choose");
@@ -345,12 +491,23 @@ export function OnboardingWizard({
     setError("");
   };
 
-  // Plan step → free/current continues into the flow; paid hands off to Stripe.
-  const handlePlanContinue = () => {
+  // Contextual back across the whole flow: unwind intro phases, or in setup drop
+  // the mode (change path) / return to the plan menu from the chooser.
+  const canGoBack = stage !== "goals";
+  const backLabel = stage === "setup" && mode !== "choose" ? "Change path" : "Back";
+  const goBack = () => {
     setError("");
-    setStage("wizard");
+    if (stage === "referral") setStage("goals");
+    else if (stage === "plan") setStage("referral");
+    else if (stage === "setup") {
+      if (mode !== "choose") changeMode();
+      else setStage("plan");
+    }
   };
-  const handlePlanCheckout = async (tier: PlanTier, interval: "month" | "year") => {
+
+  // Hand off to Stripe Checkout (same server mutation /pricing uses), returning to
+  // /onboarding?checkout=… so the wizard can resume. Callers stash state first.
+  const startCheckout = async (tier: PlanTier, interval: "month" | "year") => {
     setError("");
     setCheckoutTier(tier);
     try {
@@ -366,9 +523,66 @@ export function OnboardingWizard({
     }
   };
 
+  // Plan menu → Free (or an already-paid tier) proceeds into setup; a paid tier
+  // stashes state and heads to Checkout, returning into the now-unlocked setup.
+  const handlePlanContinue = () => {
+    setError("");
+    setStage("setup");
+    setMode("choose");
+    setStep(0);
+  };
+  const handlePlanCheckout = (tier: PlanTier, interval: "month" | "year") => {
+    persistResume();
+    startCheckout(tier, interval);
+  };
+
+  // The chooser paywall is a full offer flow now. Its "Get {tier}" CTA stashes
+  // state and hands off to Checkout inline (resuming into the unlocked setup when
+  // Stripe returns); "View all plans" drops back to the plan menu — the full tier
+  // comparison — rather than jumping straight to Stripe.
+  const handleChooserCheckout = (tier: PlanTier, interval: "month" | "year") => {
+    persistResume();
+    startCheckout(tier, interval);
+  };
+  const handleChooserViewAllPlans = () => {
+    setPaywall(null);
+    setError("");
+    setStage("plan");
+  };
+
+  // A locked path was clicked in the chooser: open the paywall instead of entering.
+  const chooseMode = (opt: (typeof MODE_OPTIONS)[number]) => {
+    if (opt.feature && !canUse(currentPlan, opt.feature)) {
+      setPaywall(opt.feature);
+      return;
+    }
+    setMode(opt.mode);
+  };
+
+  // Returning from Checkout — hold a calm loader until the resume effect routes us.
+  if (resuming) {
+    return (
+      <div className="grid min-h-screen w-full place-items-center bg-[var(--color-of-canvas)]">
+        <div className="flex flex-col items-center gap-3 text-[var(--color-of-muted)]">
+          <Loader2 className="h-7 w-7 animate-spin text-[var(--color-primary)]" />
+          <p className="text-sm font-medium">Finishing up…</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen w-full bg-[var(--color-of-canvas)] lg:grid lg:grid-cols-[1.02fr_1fr] xl:grid-cols-[1.08fr_1fr]">
-      <OnboardingBrandPanel userName={userName} steps={inFlow ? steps : null} step={step} />
+    <div
+      className={`min-h-screen w-full bg-[var(--color-of-canvas)] lg:grid ${
+        // The plan step lays 3 cards on the right — give that side more width by
+        // slimming the brand panel, so the cards breathe (and centre with margins
+        // on wide screens). Other steps keep the balanced split.
+        stage === "plan"
+          ? "lg:grid-cols-[0.62fr_1fr] xl:grid-cols-[0.55fr_1fr]"
+          : "lg:grid-cols-[1.02fr_1fr] xl:grid-cols-[1.08fr_1fr]"
+      }`}
+    >
+      <OnboardingBrandPanel userName={userName} steps={panelSteps} step={panelStep} />
 
       <main className="relative flex min-h-screen flex-col px-6 py-8 sm:px-10">
         {/* compact brand header — the panel owns branding on lg+ */}
@@ -376,34 +590,34 @@ export function OnboardingWizard({
           <Link href="/" aria-label="otterfund home" className="inline-flex items-center">
             <LogoMark size={38} />
           </Link>
-          {inFlow && (
+          {canGoBack && (
             <button
-              onClick={changeMode}
+              onClick={goBack}
               className="text-[13px] font-medium text-[var(--color-of-muted)] transition-colors hover:text-[var(--color-of-ink)]"
             >
-              Change path
+              {backLabel}
             </button>
           )}
         </div>
 
-        <div className="flex flex-1 items-center justify-center py-10">
+        <div className={`flex flex-1 justify-center py-10 ${stage === "plan" ? "items-start" : "items-center"}`}>
           {/* The plan step lays 3 tier cards side by side, so it needs a wider
               column than the single-field wizard steps. */}
           <div className={`w-full ${stage === "plan" ? "max-w-5xl" : "max-w-xl"}`}>
-            {inFlow && (
+            {canGoBack && (
               <button
-                onClick={changeMode}
+                onClick={goBack}
                 className="mb-7 hidden items-center gap-1.5 text-[13px] font-medium text-[var(--color-of-muted)] transition-colors hover:text-[var(--color-of-ink)] lg:inline-flex"
               >
-                <span aria-hidden>←</span> Change path
+                <span aria-hidden>←</span> {backLabel}
               </button>
             )}
 
             {/* mobile step progress — the panel's tracker is hidden on small screens */}
-            {inFlow && (
+            {inMode && (
               <div className="mb-7 lg:hidden">
                 <div className="mb-2 flex items-center justify-between text-[12px]">
-                  <span className="font-semibold text-[var(--color-of-ink)]">{steps[step].label}</span>
+                  <span className="font-semibold text-[var(--color-of-ink)]">{modeSteps[step].label}</span>
                   <span className="of-num text-[var(--color-of-muted)]">
                     Step {step + 1} of {totalSteps}
                   </span>
@@ -417,7 +631,67 @@ export function OnboardingWizard({
               </div>
             )}
 
-            {stage === "plan" ? (
+            {stage === "goals" ? (
+              <div className="of-enter space-y-6 sm:space-y-7">
+                <div>
+                  <h2 className={HEADING_CLASS}>What are you saving for?</h2>
+                  <p className="text-sm text-[var(--color-of-muted)]">
+                    Set a goal or two: a name, a target, and when you want it by. You can skip
+                    this and add goals anytime later.
+                  </p>
+                </div>
+                <GoalRows goals={goals} onUpdate={updateGoal} onAdd={addGoal} onRemove={removeGoal} />
+                <div className="flex justify-end pt-1">
+                  <Button size="sm" onClick={() => { setError(""); setStage("referral"); }} className="px-6">
+                    {goalsValid ? "Continue" : "Skip for now"}
+                  </Button>
+                </div>
+              </div>
+            ) : stage === "referral" ? (
+              <div className="of-enter space-y-6 sm:space-y-7">
+                <div>
+                  <h2 className={HEADING_CLASS}>How did you hear about us?</h2>
+                  <p className="text-sm text-[var(--color-of-muted)]">
+                    One quick question. It helps us reach more people like you. Optional.
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                  {REFERRAL_OPTIONS.map((opt) => {
+                    const on = referral === opt;
+                    return (
+                      <button
+                        key={opt}
+                        type="button"
+                        aria-pressed={on}
+                        onClick={() => setReferral(on ? "" : opt)}
+                        className="flex items-center gap-2.5 rounded-xl border px-4 py-3 text-left text-[13.5px] font-medium transition-colors"
+                        style={
+                          on
+                            ? { borderColor: "var(--color-primary)", background: "var(--accent)", color: "var(--color-of-ink)" }
+                            : { borderColor: "var(--color-of-line)", background: "oklch(98% 0.004 90)", color: "var(--color-of-muted)" }
+                        }
+                      >
+                        <span
+                          className="grid h-4 w-4 shrink-0 place-items-center rounded-full border"
+                          style={{
+                            borderColor: on ? "var(--color-primary)" : "var(--color-of-line)",
+                            background: on ? "var(--color-primary)" : "transparent",
+                          }}
+                        >
+                          {on && <Check className="h-2.5 w-2.5 text-white" strokeWidth={3} />}
+                        </span>
+                        {opt}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="flex justify-end pt-1">
+                  <Button size="sm" onClick={() => { setError(""); setStage("plan"); }} className="px-6">
+                    Continue
+                  </Button>
+                </div>
+              </div>
+            ) : stage === "plan" ? (
               <div className="of-enter">
                 <PlanStep
                   currentPlan={currentPlan}
@@ -435,33 +709,48 @@ export function OnboardingWizard({
                   Pick a path. You can switch anytime.
                 </p>
                 <div className="flex flex-col gap-3">
-                  {MODE_OPTIONS.map((o) => (
-                    <button
-                      key={o.mode}
-                      onClick={() => setMode(o.mode)}
-                      className="group flex w-full items-center gap-4 rounded-2xl border border-[var(--color-of-line)] bg-[oklch(98%_0.004_90)] p-4 text-left transition-colors hover:border-[var(--color-primary)] hover:bg-[var(--color-of-surface)] sm:p-5"
-                    >
-                      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[var(--accent)]">
-                        <o.icon className="h-5 w-5 text-[var(--color-primary)]" strokeWidth={1.9} />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="flex items-center gap-2">
-                          <span className="text-[15px] font-semibold tracking-[-0.01em] text-[var(--color-of-ink)]">
-                            {o.title}
-                          </span>
-                          {o.badge && (
-                            <span className="rounded-full bg-[var(--accent)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.05em] text-[var(--color-primary)]">
-                              {o.badge}
+                  {MODE_OPTIONS.map((o) => {
+                    // Locked when the path needs a feature the current tier lacks.
+                    // The row still shows — click opens the paywall, not a dead end.
+                    const locked = o.feature ? !canUse(currentPlan, o.feature) : false;
+                    const reqTier = o.feature ? PLAN_META[FEATURE_REQUIRED_TIER[o.feature]].name : "";
+                    return (
+                      <button
+                        key={o.mode}
+                        onClick={() => chooseMode(o)}
+                        className="group flex w-full items-center gap-4 rounded-2xl border border-[var(--color-of-line)] bg-[oklch(98%_0.004_90)] p-4 text-left transition-colors hover:border-[var(--color-primary)] hover:bg-[var(--color-of-surface)] sm:p-5"
+                      >
+                        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[var(--accent)]">
+                          <o.icon className="h-5 w-5 text-[var(--color-primary)]" strokeWidth={1.9} />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="flex items-center gap-2">
+                            <span className="text-[15px] font-semibold tracking-[-0.01em] text-[var(--color-of-ink)]">
+                              {o.title}
                             </span>
-                          )}
+                            {locked ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.05em] text-[var(--color-primary)]">
+                                <Lock className="h-2.5 w-2.5" strokeWidth={2.6} />
+                                {reqTier}
+                              </span>
+                            ) : o.badge ? (
+                              <span className="rounded-full bg-[var(--accent)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.05em] text-[var(--color-primary)]">
+                                {o.badge}
+                              </span>
+                            ) : null}
+                          </span>
+                          <span className="mt-0.5 block text-[12.5px] leading-relaxed text-[var(--color-of-muted)]">
+                            {o.desc}
+                          </span>
                         </span>
-                        <span className="mt-0.5 block text-[12.5px] leading-relaxed text-[var(--color-of-muted)]">
-                          {o.desc}
-                        </span>
-                      </span>
-                      <ArrowRight className="h-4 w-4 shrink-0 text-[var(--color-of-faint)] transition-colors group-hover:text-[var(--color-primary)]" />
-                    </button>
-                  ))}
+                        {locked ? (
+                          <Lock className="h-4 w-4 shrink-0 text-[var(--color-of-faint)] transition-colors group-hover:text-[var(--color-primary)]" />
+                        ) : (
+                          <ArrowRight className="h-4 w-4 shrink-0 text-[var(--color-of-faint)] transition-colors group-hover:text-[var(--color-primary)]" />
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             ) : (
@@ -510,35 +799,9 @@ export function OnboardingWizard({
               <div className="space-y-6 sm:space-y-7" key="accounts">
                 <div>
                   <h2 className={HEADING_CLASS}>Your Accounts</h2>
-                  <p className="text-sm text-[var(--color-of-muted)]">Add your bank accounts and credit cards.</p>
+                  <p className="text-sm text-[var(--color-of-muted)]">Add your bank accounts and credit cards. Name the bank and we&apos;ll show its logo.</p>
                 </div>
-                <div className="space-y-3 max-h-[300px] overflow-y-auto of-scroll pr-1">
-                  {accounts.map((acc, i) => (
-                    <div key={i} className="flex gap-2 items-start p-3 rounded-xl bg-[oklch(98%_0.004_90)] border border-[var(--color-of-line)]">
-                      <div className="flex-1 space-y-2">
-                        <TextInput value={acc.name} onChange={(e) => updateAccount(i, "name", e.target.value)} placeholder="Account name" />
-                        <div className="flex gap-2">
-                          <div className="flex-1">
-                            <SelectInput value={acc.type} onChange={(e) => updateAccount(i, "type", e.target.value)}>
-                              {ACCOUNT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-                            </SelectInput>
-                          </div>
-                          <div className="flex-1">
-                            <TextInput type="number" value={acc.balance} onChange={(e) => updateAccount(i, "balance", e.target.value)} placeholder="Balance" />
-                          </div>
-                        </div>
-                      </div>
-                      {accounts.length > 1 && (
-                        <button onClick={() => removeAccount(i)} className="mt-2.5 text-[var(--color-of-muted)] hover:text-[var(--color-of-clay)] transition-colors">
-                          <X className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-                <button onClick={addAccount} className="flex items-center gap-1.5 text-sm text-[var(--color-primary)] font-semibold hover:underline">
-                  <Plus className="w-3.5 h-3.5" /> Add another account
-                </button>
+                <AccountRows accounts={accounts} onUpdate={updateAccount} onAdd={addAccount} onRemove={removeAccount} />
               </div>
             )}
 
@@ -776,25 +1039,7 @@ export function OnboardingWizard({
                   <div className="text-[11px] font-semibold tracking-[0.09em] uppercase text-[var(--color-of-faint)] mb-2">
                     Accounts ({accounts.filter((a) => a.name).length})
                   </div>
-                  <div className="space-y-2 max-h-[160px] overflow-y-auto of-scroll pr-1">
-                    {accounts.map((acc, i) => (
-                      <div key={i} className="flex gap-2 items-center p-2.5 rounded-xl bg-[oklch(98%_0.004_90)] border border-[var(--color-of-line)]">
-                        <div className="flex-1"><TextInput value={acc.name} onChange={(e) => updateAccount(i, "name", e.target.value)} placeholder="Account name" /></div>
-                        <div className="w-32">
-                          <SelectInput value={acc.type} onChange={(e) => updateAccount(i, "type", e.target.value)}>
-                            {ACCOUNT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-                          </SelectInput>
-                        </div>
-                        <div className="w-28"><TextInput type="number" value={acc.balance} onChange={(e) => updateAccount(i, "balance", e.target.value)} placeholder="Balance" /></div>
-                        {accounts.length > 1 && (
-                          <button onClick={() => removeAccount(i)} className="text-[var(--color-of-muted)] hover:text-[var(--color-of-clay)]"><X className="w-3.5 h-3.5" /></button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                  <button onClick={addAccount} className="flex items-center gap-1 text-xs text-[var(--color-primary)] font-semibold hover:underline mt-1.5">
-                    <Plus className="w-3 h-3" /> Add
-                  </button>
+                  <AccountRows accounts={accounts} onUpdate={updateAccount} onAdd={addAccount} onRemove={removeAccount} />
                 </div>
 
                 {/* Recurring */}
@@ -896,7 +1141,132 @@ export function OnboardingWizard({
           }
         }}
       />
+
+      {/* Inline upgrade prompt for a locked path in the chooser — the full
+          outcome → offer flow. Buying resumes into the now-unlocked setup when
+          Stripe returns; "View all plans" drops back to the plan menu. */}
+      <PaywallModal
+        open={paywall !== null}
+        feature={paywall}
+        theme={BRAND_THEME}
+        onClose={() => setPaywall(null)}
+        onCheckout={handleChooserCheckout}
+        onViewAllPlans={handleChooserViewAllPlans}
+      />
     </div>
+  );
+}
+
+// --- Account rows (shared by the manual step + the auto-analysis review) ---
+// Each row mirrors the in-app account form's fields — name, bank (with a live
+// logo), type, balance — so an account added here looks and stores identically.
+function AccountRows({
+  accounts,
+  onUpdate,
+  onAdd,
+  onRemove,
+}: {
+  accounts: AccountEntry[];
+  onUpdate: (i: number, field: keyof AccountEntry, value: string) => void;
+  onAdd: () => void;
+  onRemove: (i: number) => void;
+}) {
+  return (
+    <>
+      <div className="space-y-3 max-h-[320px] overflow-y-auto of-scroll pr-1">
+        {accounts.map((acc, i) => {
+          // Best-effort live logo from the client dictionary; the server resolves
+          // the rest (cache → Claude) on submit, so unknown banks still get a logo.
+          const bank = acc.institution.trim();
+          const domain = bank ? dictionaryDomain(bank) : null;
+          return (
+            <div key={i} className="flex gap-2 items-start p-3 rounded-xl bg-[oklch(98%_0.004_90)] border border-[var(--color-of-line)]">
+              <div className="flex-1 space-y-2">
+                <TextInput value={acc.name} onChange={(e) => onUpdate(i, "name", e.target.value)} placeholder="Account name" />
+                <div className="flex items-center gap-2">
+                  {bank ? (
+                    <MerchantAvatar name={bank} domain={domain} bg="var(--accent)" ink="var(--accent-foreground)" size={34} fit="contain" />
+                  ) : (
+                    <span className="grid h-[34px] w-[34px] shrink-0 place-items-center rounded-lg bg-[var(--accent)]">
+                      <Landmark className="h-4 w-4 text-[var(--color-primary)]" strokeWidth={1.9} />
+                    </span>
+                  )}
+                  <TextInput value={acc.institution} onChange={(e) => onUpdate(i, "institution", e.target.value)} placeholder="Bank (optional), e.g. TD" />
+                </div>
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <SelectInput value={acc.type} onChange={(e) => onUpdate(i, "type", e.target.value)}>
+                      {ACCOUNT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                    </SelectInput>
+                  </div>
+                  <div className="flex-1">
+                    <TextInput type="number" value={acc.balance} onChange={(e) => onUpdate(i, "balance", e.target.value)} placeholder="Balance" />
+                  </div>
+                </div>
+              </div>
+              {accounts.length > 1 && (
+                <button onClick={() => onRemove(i)} className="mt-2.5 text-[var(--color-of-muted)] hover:text-[var(--color-of-clay)] transition-colors">
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <button onClick={onAdd} className="mt-3 flex items-center gap-1.5 text-sm text-[var(--color-primary)] font-semibold hover:underline">
+        <Plus className="w-3.5 h-3.5" /> Add another account
+      </button>
+    </>
+  );
+}
+
+// --- Goal rows (the goals phase) ---
+// Same fields as the in-app New Goal form — emoji, name, target, deadline — so a
+// goal set here is identical to one added later. All optional; skip is allowed.
+function GoalRows({
+  goals,
+  onUpdate,
+  onAdd,
+  onRemove,
+}: {
+  goals: GoalEntry[];
+  onUpdate: (i: number, field: keyof GoalEntry, value: string) => void;
+  onAdd: () => void;
+  onRemove: (i: number) => void;
+}) {
+  return (
+    <>
+      {/* No overflow container here — the EmojiPicker popover is absolutely
+          positioned and would be clipped (and force an ugly scroll) inside one. */}
+      <div className="space-y-3">
+        {goals.map((g, i) => (
+          <div key={i} className="flex gap-2.5 items-start p-3 rounded-xl bg-[oklch(98%_0.004_90)] border border-[var(--color-of-line)]">
+            <div className="w-14 shrink-0">
+              <EmojiPicker value={g.emoji} onChange={(v) => onUpdate(i, "emoji", v)} />
+            </div>
+            <div className="flex-1 space-y-2">
+              <TextInput value={g.name} onChange={(e) => onUpdate(i, "name", e.target.value)} placeholder="e.g. Emergency fund" />
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <TextInput type="number" value={g.target} onChange={(e) => onUpdate(i, "target", e.target.value)} placeholder="Target amount" />
+                </div>
+                <div className="flex-1">
+                  <DateInput value={g.deadline} onChange={(e) => onUpdate(i, "deadline", e.target.value)} />
+                </div>
+              </div>
+            </div>
+            {goals.length > 1 && (
+              <button onClick={() => onRemove(i)} className="mt-2.5 text-[var(--color-of-muted)] hover:text-[var(--color-of-clay)] transition-colors">
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+      <button onClick={onAdd} className="mt-3 flex items-center gap-1.5 text-sm text-[var(--color-primary)] font-semibold hover:underline">
+        <Plus className="w-3.5 h-3.5" /> Add another goal
+      </button>
+    </>
   );
 }
 

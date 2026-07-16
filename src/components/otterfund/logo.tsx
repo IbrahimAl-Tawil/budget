@@ -15,16 +15,18 @@ import otterMark from "./otter-mark.svg";
 const MARK_W = 1024;
 const MARK_H = 432;
 
-// The otter face icon, on lucide's 24×24 grid: head outline with two small
-// round ears in one stroke, a filled nose, and a whisker either side. No eyes,
-// same line quality as the mark.
+// A very minimal otter face on lucide's 24×24 grid: one thin, single-weight
+// stroke for the head + two small ears, and a whisker either side. No eyes, no
+// nose, no fill, no shadow — as skinny and stripped-back as it gets.
 const D_FACE =
   "M 3.3 13.7 C 3.3 10.5, 3.9 8.6, 5 7.2 C 4.2 4.3, 7.3 2.7, 9.2 4.7 C 10.1 4.2, 13.9 4.2, 14.8 4.7 C 16.7 2.7, 19.8 4.3, 19 7.2 C 20.1 8.6, 20.7 10.5, 20.7 13.7 C 20.7 18, 16.8 21.1, 12 21.1 C 7.2 21.1, 3.3 18, 3.3 13.7 Z";
-const D_WHISKERS = "M 8.5 13.8 L 5.9 14.1 M 15.5 13.8 L 18.1 14.1";
+const D_WHISKERS = "M 8.6 14 L 6.2 14.2 M 15.4 14 L 17.8 14.2";
 
 /** The otter face — otterfund's stand-in for generic "AI" iconography (sparkles,
-    chat bubbles). Lucide-compatible props so it drops into any icon slot. */
-export function OtterFace({ size = 24, strokeWidth = 2, className, style }: LucideProps) {
+    chat bubbles). A skinny single-weight line drawing, recolored via
+    `currentColor` to the active accent (evergreen by default). Lucide-compatible
+    props so it drops into any icon slot; `strokeWidth` tunes the line weight. */
+export function OtterFace({ size = 24, strokeWidth = 1.5, className, style }: LucideProps) {
   return (
     <svg
       width={size}
@@ -40,8 +42,7 @@ export function OtterFace({ size = 24, strokeWidth = 2, className, style }: Luci
       aria-hidden="true"
     >
       <path d={D_FACE} />
-      <path d={D_WHISKERS} strokeWidth={Number(strokeWidth) * 0.85} />
-      <circle cx="12" cy="13.1" r="1.3" fill="currentColor" stroke="none" />
+      <path d={D_WHISKERS} />
     </svg>
   );
 }

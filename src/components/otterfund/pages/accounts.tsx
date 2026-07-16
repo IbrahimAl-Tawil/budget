@@ -249,7 +249,7 @@ export function OtterfundAccounts({ accounts, netWorth, netWorthTrend = [], netW
         <EmptyState
           theme={theme}
           title="No accounts yet"
-          description="Connect a bank to sync balances automatically, or add an account by hand — either way your net worth builds here. Use the buttons above to start."
+          description="Connect a bank to sync balances automatically, or add an account by hand. Either way your net worth builds here. Use the buttons above to start."
         />
       )}
 

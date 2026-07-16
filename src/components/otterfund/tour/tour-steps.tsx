@@ -136,7 +136,7 @@ export function buildOtterfundTour({
     // button — the actual place to reach it — rather than a locationless card.
     isMobile
       ? {
-          icon: <OtterFace size={20} strokeWidth={1.9} />,
+          icon: <OtterFace size={20} />,
           title: "Meet your advisor",
           content: (
             <>
@@ -149,7 +149,7 @@ export function buildOtterfundTour({
           ...CONTROLS,
         }
       : {
-          icon: <OtterFace size={20} strokeWidth={1.9} />,
+          icon: <OtterFace size={20} />,
           title: "Meet your advisor",
           content: (
             <>
@@ -204,7 +204,7 @@ export function buildOtterfundTour({
     // 7 · Activation finish (page anchor / centered — same on both).
     hasAccounts
       ? {
-          icon: <OtterFace size={20} strokeWidth={1.9} />,
+          icon: <OtterFace size={20} />,
           title: "You're all set",
           content: <>That&rsquo;s the tour. Explore freely. Your advisor is here whenever you need it.</>,
           ...CONTROLS,

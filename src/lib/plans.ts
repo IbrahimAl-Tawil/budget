@@ -77,34 +77,82 @@ export const FEATURE_REQUIRED_TIER: Record<Feature, PlanTier> = {
   investments: "pro",
 };
 
-/** Short marketing copy for each gated feature, shown in the paywall modal. */
+/** Marketing copy for each gated feature, shown across the upsell surfaces.
+ *
+ * Two registers, used by the two-step paywall (see paywall-modal):
+ *  · `outcome` — the FUTURE the user gets ("never type a transaction again").
+ *    Sells the result, not the mechanism. Shown on the paywall's first page,
+ *    before any price, and on the full-page LockedFeature.
+ *  · `title`/`blurb`/`perks` — the concrete feature + what's included. Shown on
+ *    the paywall's offer page and in the Settings connections upsell. */
 export const FEATURE_COPY: Record<
   Feature,
-  { title: string; blurb: string; perks: string[] }
+  {
+    title: string;
+    blurb: string;
+    perks: string[];
+    outcome: { headline: string; sub: string; bullets: string[] };
+  }
 > = {
   bank_sync: {
     title: "Connect your bank",
-    blurb: "Sync transactions and balances automatically — no more manual entry.",
+    blurb: "Sync transactions and balances automatically. No more manual entry.",
     perks: [
       "Connect up to 3 bank accounts",
       "Automatic transaction categorization",
       "Always-current balances",
     ],
+    outcome: {
+      headline: "Never type a transaction again",
+      sub: "Link your bank once and your accounts keep themselves up to date. Spend your time deciding, not data-entering.",
+      bullets: [
+        "Every transaction sorted for you, automatically",
+        "Balances that always show today, not last week",
+        "Set it once and otterfund keeps up on its own",
+      ],
+    },
   },
   insights: {
     title: "AI insights",
     blurb: "Let otterfund surface where your money's going and how to save more.",
     perks: ["Access AI chats & insights", "Savings opportunities", "Refreshed daily"],
+    outcome: {
+      headline: "Know exactly where your money goes",
+      sub: "otterfund reads your own spending and hands you plain-language wins. No spreadsheets, no guessing.",
+      bullets: [
+        "Spot what's quietly eating your budget",
+        "Savings opportunities picked from your data",
+        "A fresh read whenever you want one",
+      ],
+    },
   },
   advisor: {
     title: "AI financial advisor",
     blurb: "Ask questions about your finances and get answers grounded in your data.",
     perks: ["Access AI chats & insights", "Grounded in your accounts", "Saved conversations"],
+    outcome: {
+      headline: "A money expert in your corner",
+      sub: "Ask anything about your finances and get straight answers grounded in your actual numbers.",
+      bullets: [
+        "Answers built from your real accounts",
+        "Judgment-free, whenever it suits you",
+        "Every conversation saved to pick back up",
+      ],
+    },
   },
   investments: {
     title: "Investments",
     blurb: "Track your holdings and see your full net worth in one place.",
     perks: ["Real-time investment tracking", "Full net worth in one place", "Priority support"],
+    outcome: {
+      headline: "Your whole net worth, one number",
+      sub: "Track every holding beside your cash and goals. The full picture, finally in one place.",
+      bullets: [
+        "Every holding tracked, live",
+        "True net worth at a single glance",
+        "Priority support when you need it",
+      ],
+    },
   },
 };
 

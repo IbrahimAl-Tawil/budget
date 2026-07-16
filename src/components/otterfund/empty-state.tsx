@@ -73,7 +73,7 @@ export function AddAccountEmptyState({
   onAdd,
   onConnect,
   title = "Add an account to get started",
-  description = "Connect a bank to sync balances and transactions automatically, or add an account by hand — your money shows up here either way.",
+  description = "Connect a bank to sync balances and transactions automatically, or add an account by hand. Your money shows up here either way.",
 }: {
   theme: OtterfundTheme;
   onAdd?: () => void;

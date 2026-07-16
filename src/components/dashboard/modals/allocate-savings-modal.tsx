@@ -169,7 +169,7 @@ export function AllocateSavingsModal({
               </Button>
             </div>
             <p className="mt-2 text-[12px] text-[var(--color-of-muted)]">
-              Add money that landed outside our forecast — a side gig, a gift, cash sitting in your account.
+              Add money that landed outside our forecast: a side gig, a gift, cash sitting in your account.
             </p>
           </div>
         ) : (
@@ -261,7 +261,7 @@ export function AllocateSavingsModal({
                                   // but leave partial/empty input ("", "1.") untouched so typing works.
                                   if (raw !== "" && Number.isFinite(n) && n > cap) {
                                     setAmount(String(cap));
-                                    setError(`Capped at ${fmt0(cap)} — the most this goal can take right now.`);
+                                    setError(`Capped at ${fmt0(cap)}: the most this goal can take right now.`);
                                   } else {
                                     setAmount(raw);
                                     if (error) setError("");

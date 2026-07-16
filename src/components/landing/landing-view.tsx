@@ -1248,7 +1248,7 @@ function GoalsGraphic({ theme }: { theme: OtterfundTheme }) {
         className="mt-3 flex items-start gap-2.5 rounded-xl border px-3.5 py-3"
         style={{ background: theme.accentTint, borderColor: theme.accentTintBorder }}
       >
-        <OtterFace className="mt-0.5 h-3.5 w-3.5 shrink-0" style={{ color: theme.accentDeep }} strokeWidth={2} />
+        <OtterFace className="mt-0.5 h-3.5 w-3.5 shrink-0" style={{ color: theme.accentDeep }} />
         <p className="text-[12.5px] leading-relaxed" style={{ color: theme.accentDeep }}>
           You&apos;re two months ahead on Vacation. A quiet win worth keeping.
         </p>

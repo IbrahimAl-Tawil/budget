@@ -12,7 +12,8 @@
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { TIERS, TierCard, type BillingPeriod, type Tier } from "@/components/otterfund/tier-card";
+import { TIERS, TierCard, tierOrderClass, type BillingPeriod, type Tier } from "@/components/otterfund/tier-card";
+import { StarRow } from "@/components/otterfund/social-proof";
 import { BRAND_THEME } from "@/components/otterfund/theme";
 import { type PlanTier } from "@/lib/plans";
 
@@ -45,18 +46,21 @@ export function PlanStep({
     <div className="of-enter">
       <h2 className={HEADING_CLASS}>Choose your plan</h2>
       <p className="mb-5 text-sm text-[var(--color-of-muted)]">
-        Start free, or unlock bank sync and AI. You can change plans anytime in Settings.
+        Start free, or unlock automatic bank sync and your AI advisor. You can change plans
+        anytime in Settings.
       </p>
 
       {canceled && (
         <div className="mb-5 rounded-xl border border-[var(--color-of-line)] bg-[oklch(98%_0.004_90)] px-4 py-3 text-[13px] text-[var(--color-of-muted)]">
-          No charge was made. Pick a plan to keep going — Free works too.
+          No charge was made. Pick a plan to keep going. Free works too.
         </div>
       )}
 
       {/* Monthly / Yearly toggle — an equal-width 2-column pill so the "Save"
-          badge on Yearly doesn't make that tab wider than Monthly. */}
-      <div className="mb-6 inline-grid grid-cols-2 items-center rounded-full border border-[var(--color-of-line)] bg-[var(--color-of-surface)] p-1">
+          badge on Yearly doesn't make that tab wider than Monthly. Centered above
+          the card grid it controls. */}
+      <div className="mb-6 flex justify-center">
+      <div className="inline-grid grid-cols-2 items-center rounded-full border border-[var(--color-of-line)] bg-[var(--color-of-surface)] p-1">
         {(["monthly", "yearly"] as const).map((p) => {
           const on = period === p;
           return (
@@ -81,9 +85,10 @@ export function PlanStep({
           );
         })}
       </div>
+      </div>
 
       {/* lg:mt-16 leaves headroom for the otter poking over the featured card. */}
-      <div className="grid gap-4 lg:mt-16 lg:grid-cols-3 lg:items-start">
+      <div className="grid gap-5 lg:mt-16 lg:grid-cols-3 lg:items-start">
         {TIERS.map((tier) => (
           <TierCard
             key={tier.id}
@@ -91,6 +96,13 @@ export function PlanStep({
             period={period}
             compact
             showOtter
+            anchor
+            // Onboarding is a quick pick, not the full marketing table — cap the
+            // feature list so the cards stay short instead of running off-screen.
+            featureLimit={4}
+            // On phones the cards stack — lead with Standard (Most popular) and
+            // drop Free to the bottom so the paid plans aren't buried.
+            className={tierOrderClass(tier.id, "lg")}
             // Only a real paid subscription reads as "current" — Free is the
             // default state during onboarding, not a chosen plan.
             current={tier.id === currentPlan && currentPlan !== "free"}
@@ -105,6 +117,12 @@ export function PlanStep({
             />
           </TierCard>
         ))}
+      </div>
+
+      {/* Reassurance at the decision point — the rating row. "Cancel anytime"
+          now lives directly under each paid plan's button. */}
+      <div className="mt-8">
+        <StarRow />
       </div>
     </div>
   );
@@ -144,16 +162,22 @@ function PlanCta({
       </Button>
     );
   }
-  // Paid → hand off to Stripe Checkout.
+  // Paid → hand off to Stripe Checkout, with the reassurance tucked right under
+  // the button (the playbook's "cancel anytime" CTA subtitle).
   return (
-    <Button
-      variant={featured ? "default" : "outline"}
-      size="sm"
-      disabled={busy}
-      onClick={() => onCheckout(tier.id, period === "yearly" ? "year" : "month")}
-      className={cls}
-    >
-      {busy ? "Starting…" : `Choose ${tier.name}`}
-    </Button>
+    <div className={cls}>
+      <Button
+        variant={featured ? "default" : "outline"}
+        size="sm"
+        disabled={busy}
+        onClick={() => onCheckout(tier.id, period === "yearly" ? "year" : "month")}
+        className="w-full font-semibold"
+      >
+        {busy ? "Starting…" : `Choose ${tier.name}`}
+      </Button>
+      <p className="mt-2 text-center text-[11px] font-medium text-[var(--color-of-faint)]">
+        Cancel anytime
+      </p>
+    </div>
   );
 }

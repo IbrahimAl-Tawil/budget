@@ -152,7 +152,7 @@ builder.mutationField("createBillingPortalSession", (t) =>
         select: { stripeCustomerId: true },
       });
       if (!u?.stripeCustomerId) {
-        badRequest("No billing account yet — choose a plan first.");
+        badRequest("No billing account yet. Choose a plan first.");
       }
 
       const session = await stripe.billingPortal.sessions.create({

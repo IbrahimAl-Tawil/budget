@@ -13,7 +13,7 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { gqlClient } from "@/lib/graphql/client";
-import { Home, List, CreditCard, Target, Sparkles, Bell, Settings, LogOut, PieChart, TrendingUp, Gauge, SlidersHorizontal, Compass, type LucideProps } from "lucide-react";
+import { Palette, Bell, Settings, LogOut, Gauge, SlidersHorizontal, Compass } from "lucide-react";
 import { AddTransactionModal } from "@/components/dashboard/modals/add-transaction-modal";
 import { ImportModal } from "@/components/dashboard/modals/import-modal";
 import { EditTransactionModal } from "@/components/dashboard/modals/edit-transaction-modal";
@@ -31,13 +31,15 @@ import { NotificationsPanel } from "@/components/dashboard/notifications-panel";
 import { SettingsModal } from "@/components/dashboard/modals/settings-modal";
 import type { TransactionView, GoalView, AccountView, SubscriptionView, InvestmentView, SpendCategory, BillView } from "@/lib/types";
 import { DEFAULT_ACCENT, deriveTheme, themeVars, type OtterfundTheme, type ThemeMode, type AppearanceMode } from "@/components/otterfund/theme";
-import { LogoMark, OtterFace } from "@/components/otterfund/logo";
+import { LogoMark } from "@/components/otterfund/logo";
 import { PlanBadgeIcon } from "@/components/otterfund/plan-badge-icon";
 import { Button } from "@/components/ui/button";
 import { Menu, MenuTrigger, MenuContent, MenuItem } from "@/components/ui/menu";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { MonthPicker } from "@/components/otterfund/month-picker";
 import { MobileNav } from "@/components/otterfund/mobile-nav";
+import { NAV_ITEMS, resolveNav, type NavItem, type SidebarLayout } from "@/components/otterfund/nav-items";
+import { SidebarCustomizer } from "@/components/otterfund/sidebar-customizer";
 import { OtterfundChromeProvider } from "@/components/otterfund/chrome-context";
 import { useOtterfundTour } from "@/components/otterfund/tour/otterfund-tour";
 import { MONTH_NAMES } from "@/lib/constants";
@@ -56,6 +58,12 @@ const UPDATE_APPEARANCE = /* GraphQL */ `
   }
 `;
 
+const UPDATE_SIDEBAR = /* GraphQL */ `
+  mutation UpdateSidebar($order: [String!]!, $hidden: [String!]!) {
+    updateSidebarLayout(order: $order, hidden: $hidden) { ok }
+  }
+`;
+
 // Cookie the pre-paint boot script (root layout) reads to set `.dark` before
 // first paint — so a reload lands in the right scheme with no flash. The DB is
 // the durable cross-device store; this cookie is the fast local mirror.
@@ -70,6 +78,12 @@ const CREATE_PORTAL = /* GraphQL */ `
   }
 `;
 
+const CREATE_CHECKOUT = /* GraphQL */ `
+  mutation CreateCheckout($tier: String!, $interval: String) {
+    createCheckoutSession(tier: $tier, interval: $interval)
+  }
+`;
+
 // Where the last-picked period is remembered so it survives navigating through
 // pages that DON'T carry it in the URL (Accounts, Goals, …). sessionStorage —
 // so it persists page-to-page within a visit but resets on a fresh tab/visit.
@@ -79,50 +93,16 @@ const PERIOD_KEY = "otterfund:period";
 // ?settings=<tab> URL param before opening the modal on it.
 const SETTINGS_TABS = ["profile", "plan", "money", "connections", "appearance", "data"];
 
-interface NavItem {
-  href: string;
-  label: string;
-  Icon: React.ComponentType<LucideProps>;
-}
-
-interface NavSection {
-  /** Section eyebrow (shown on mobile; a divider stands in for it on the rail). */
-  label: string;
-  items: NavItem[];
-}
-
-// Grouped by mental model: FLOW = money moving over the month (period-scoped),
-// HOLDINGS = what you have right now (balances), ADVISOR = the AI layer over it
-// all. Subscriptions live inside Spending now; Investments is its own rail tab.
-const NAV_SECTIONS: NavSection[] = [
-  {
-    label: "Flow",
-    items: [
-      { href: "/dashboard", label: "Overview", Icon: Home },
-      { href: "/dashboard/transactions", label: "Transactions", Icon: List },
-      { href: "/dashboard/spending", label: "Spending", Icon: PieChart },
-    ],
-  },
-  {
-    label: "Holdings",
-    items: [
-      { href: "/dashboard/accounts", label: "Accounts", Icon: CreditCard },
-      { href: "/dashboard/investments", label: "Investments", Icon: TrendingUp },
-      { href: "/dashboard/goals", label: "Goals", Icon: Target },
-    ],
-  },
-  {
-    label: "Advisor",
-    items: [{ href: "/dashboard/insights", label: "Insights", Icon: OtterFace }],
-  },
-];
+// The customizable primary nav (order + hidden set) lives in nav-items.ts and is
+// shared with the mobile sheet + the customize editor. Only the internal staff
+// tools stay local here — they're admin-only and not user-reorderable.
 
 // Internal staff tools — rendered only for isAdmin users (see the guard on each
 // /dev route). Non-admins never see these rail entries.
 const SECONDARY_NAV: NavItem[] = [
-  { href: "/dev/brand-kit", label: "Brand kit", Icon: Sparkles },
-  { href: "/dev/usage", label: "AI usage", Icon: Gauge },
-  { href: "/dev/customize", label: "Customize", Icon: SlidersHorizontal },
+  { key: "brand-kit", href: "/dev/brand-kit", label: "Brand kit", Icon: Palette },
+  { key: "usage", href: "/dev/usage", label: "AI usage", Icon: Gauge },
+  { key: "customize", href: "/dev/customize", label: "Customize", Icon: SlidersHorizontal },
 ];
 
 /**
@@ -200,6 +180,7 @@ export interface ChromeNotice {
 export function OtterfundChrome({
   initialAccent,
   initialAppearance,
+  initialSidebarLayout,
   user,
   notice,
   txThisMonth,
@@ -210,6 +191,8 @@ export function OtterfundChrome({
 }: {
   initialAccent: string | null;
   initialAppearance: string | null;
+  /** Saved sidebar order + hidden set (null = default order, nothing hidden). */
+  initialSidebarLayout: SidebarLayout | null;
   user: ChromeUser;
   notice: ChromeNotice;
   txThisMonth: number;
@@ -242,6 +225,14 @@ export function OtterfundChrome({
   );
   const [systemDark, setSystemDark] = useState<boolean>(false);
   const resolvedMode: ThemeMode = appearance === "system" ? (systemDark ? "dark" : "light") : appearance;
+
+  // Personalized sidebar (order + hidden keys). Seeded from the DB; edits apply
+  // live and persist (debounced) via updateSidebarLayout — same fire-and-forget
+  // pattern as the accent/appearance prefs.
+  const [navLayout, setNavLayout] = useState<SidebarLayout>({
+    order: initialSidebarLayout?.order ?? [],
+    hidden: initialSidebarLayout?.hidden ?? [],
+  });
   const [showAdd, setShowAdd] = useState(false);
   const [showImport, setShowImport] = useState(false);
   // Settings is a modal whose open state + active tab live in the URL (?settings=<tab>)
@@ -394,6 +385,28 @@ export function OtterfundChrome({
       .catch(() => router.push("/pricing"));
   }, [router]);
 
+  // Open the paywall's offer flow directly at a given feature (the full-page
+  // LockedFeature uses this instead of jumping straight to /pricing).
+  const openPaywall = useCallback((feature: Feature) => setPaywallFeature(feature), []);
+
+  // Start Stripe Checkout in place from the paywall's offer step — no `returnTo`,
+  // so Stripe returns to /dashboard?checkout=success (handled below). On failure
+  // fall back to the full pricing page.
+  const startCheckout = useCallback(
+    (tier: PlanTier, interval: "month" | "year") => {
+      gqlClient
+        .request<{ createCheckoutSession: string }>(CREATE_CHECKOUT, { tier, interval })
+        .then((r) => {
+          window.location.href = r.createCheckoutSession;
+        })
+        .catch(() => {
+          setPaywallFeature(null);
+          router.push(pricingHref());
+        });
+    },
+    [router, pricingHref],
+  );
+
   // After returning from Stripe Checkout (?checkout=success), the webhook has
   // (usually) already written the new plan — re-run the RSC tree to pick it up,
   // then strip the query param so a refresh doesn't re-trigger.
@@ -415,6 +428,48 @@ export function OtterfundChrome({
   // Memoized so the object identity is stable across renders that don't change
   // the accent/scheme — otherwise the paint effect below would re-run every render.
   const theme = useMemo(() => deriveTheme(accent, resolvedMode), [accent, resolvedMode]);
+
+  // Resolve the saved layout over the item registry → ordered list (for the
+  // editor), visible list (rail + mobile), and the hidden set. Robust to drift
+  // (unknown keys dropped, new items appended) so it never breaks on a nav change.
+  const navResolved = useMemo(() => resolveNav(navLayout, NAV_ITEMS), [navLayout]);
+
+  // Reorder writes the full key order the editor hands back. Toggling hide/show
+  // flips a key in the hidden set, but never lets the rail go fully empty.
+  const reorderNav = useCallback((order: string[]) => setNavLayout((l) => ({ ...l, order })), []);
+  const toggleNavItem = useCallback((key: string) => {
+    setNavLayout((l) => {
+      const hidden = new Set(l.hidden);
+      if (hidden.has(key)) hidden.delete(key);
+      else if (NAV_ITEMS.length - hidden.size > 1) hidden.add(key); // keep ≥1 visible
+      return { ...l, hidden: [...hidden] };
+    });
+  }, []);
+
+  // Persist (debounced) whenever the layout changes — skipping the initial seed
+  // so mounting never writes back. Store the fully-resolved order so a partial
+  // saved order (e.g. only-toggled, never-reordered) is normalized on the server.
+  const savedLayoutMount = useRef(true);
+  const saveLayoutTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (savedLayoutMount.current) {
+      savedLayoutMount.current = false;
+      return;
+    }
+    if (saveLayoutTimer.current) clearTimeout(saveLayoutTimer.current);
+    saveLayoutTimer.current = setTimeout(() => {
+      const resolved = resolveNav(navLayout, NAV_ITEMS);
+      gqlClient
+        .request(UPDATE_SIDEBAR, {
+          order: resolved.ordered.map((i) => i.key),
+          hidden: [...resolved.hidden],
+        })
+        .catch(() => {});
+    }, 500);
+    return () => {
+      if (saveLayoutTimer.current) clearTimeout(saveLayoutTimer.current);
+    };
+  }, [navLayout]);
 
   // Paint a resolved scheme onto <html>: the `.dark` class (retints every neutral
   // + shadcn token via the .dark block in globals.css), color-scheme (native
@@ -641,6 +696,7 @@ export function OtterfundChrome({
       hasAccounts,
       requireFeature,
       promptUpgrade,
+      openPaywall,
       openBillingPortal,
       addTransaction: () => setShowAdd(true),
       addGoal: () => setShowAddGoal(true),
@@ -669,7 +725,7 @@ export function OtterfundChrome({
       txCount,
       setTxCount,
     }),
-    [accent, theme, setAccent, appearance, resolvedMode, setAppearance, hrefFor, txCount, plan, hasAccounts, requireFeature, promptUpgrade, openBillingPortal, openSettings]
+    [accent, theme, setAccent, appearance, resolvedMode, setAppearance, hrefFor, txCount, plan, hasAccounts, requireFeature, promptUpgrade, openPaywall, openBillingPortal, openSettings]
   );
 
   return (
@@ -702,13 +758,13 @@ export function OtterfundChrome({
               <LogoMark size={38} />
             </div>
 
-            {/* Primary nav — the Flow · Holdings · Advisor groups render as one
-                continuous, evenly-spaced run of icons on the rail (no inter-group
-                dividers); the mobile sheet is where the section labels show. */}
+            {/* Primary nav — the user-ordered, visible items (reorder + hide via
+                the customizer below). Hidden items are filtered out here; the
+                editor still lists them so they can be brought back. */}
             <nav aria-label="Primary" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {NAV_SECTIONS.flatMap((section) => section.items).map((item) => (
+              {navResolved.visible.map((item) => (
                 <RailLink
-                  key={item.href}
+                  key={item.key}
                   item={item}
                   href={hrefFor(item.href)}
                   active={pathname === item.href}
@@ -731,6 +787,18 @@ export function OtterfundChrome({
             )}
 
             <div style={{ flex: 1 }} />
+
+            {/* customize sidebar — reorder / hide the primary nav. Sits just
+                above the profile as a quiet utility; opens the editor popover. */}
+            <div style={{ marginBottom: 8 }}>
+              <SidebarCustomizer
+                items={navResolved.ordered}
+                hidden={navResolved.hidden}
+                accent={accent}
+                onReorder={reorderNav}
+                onToggle={toggleNavItem}
+              />
+            </div>
 
             {/* profile avatar → menu. Opens to the right of the rail; the
                 positioner flips/shifts to stay on-screen. */}
@@ -797,7 +865,11 @@ export function OtterfundChrome({
           >
             <div className="of-topbar-lead" style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
               <MobileNav
-                sections={NAV_SECTIONS}
+                navItems={navResolved.visible}
+                orderedItems={navResolved.ordered}
+                hidden={navResolved.hidden}
+                onReorder={reorderNav}
+                onToggle={toggleNavItem}
                 secondary={user.isAdmin ? SECONDARY_NAV : []}
                 pathname={pathname}
                 hrefFor={hrefFor}
@@ -873,7 +945,8 @@ export function OtterfundChrome({
           feature={paywallFeature}
           theme={theme}
           onClose={() => setPaywallFeature(null)}
-          onUpgrade={() => { setPaywallFeature(null); promptUpgrade(); }}
+          onCheckout={startCheckout}
+          onViewAllPlans={() => { setPaywallFeature(null); promptUpgrade(); }}
         />
         <SettingsModal
           open={showSettings}
