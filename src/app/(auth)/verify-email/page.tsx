@@ -52,6 +52,20 @@ export default async function VerifyEmailPage({
         </Link>
         .
       </p>
+
+      {/* A user who already confirmed and came back to sign up again lands here
+          too (enumeration protection means we can't say "you already have an
+          account"), so they'd never get a fresh email. Give them the exit. */}
+      <p className="text-[13px] text-[var(--color-of-muted)]">
+        Already confirmed your email?{" "}
+        <Link
+          href="/login"
+          className="font-semibold text-[var(--color-primary)] hover:underline"
+        >
+          Sign in
+        </Link>
+        .
+      </p>
     </div>
   );
 }

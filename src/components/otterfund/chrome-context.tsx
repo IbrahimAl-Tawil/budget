@@ -39,6 +39,9 @@ export interface OtterfundChromeValue {
   openPaywall: (feature: Feature) => void;
   /** Open Stripe's hosted billing portal to manage/cancel a paid plan. */
   openBillingPortal: () => void;
+  /** True while the billing-portal session is being created — lets the trigger
+      button show a spinner across the hop to Stripe. */
+  portalBusy: boolean;
   /** Open the chrome-owned modals. */
   addTransaction: () => void;
   addGoal: () => void;

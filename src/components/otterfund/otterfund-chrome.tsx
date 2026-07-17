@@ -284,6 +284,12 @@ export function OtterfundChrome({
   // The gated feature the upgrade modal is upselling — null when it's closed. Set
   // by requireFeature when a locked action is triggered (Connect a bank on Free).
   const [paywallFeature, setPaywallFeature] = useState<Feature | null>(null);
+  // Billing hops go through Stripe (a Checkout Session / portal session is minted
+  // server-side, then we redirect). These flags keep the trigger buttons spinning
+  // across that delay; they stay true on success (the page is unloading) and only
+  // reset on error.
+  const [checkoutBusy, setCheckoutBusy] = useState(false);
+  const [portalBusy, setPortalBusy] = useState(false);
   const [editTx, setEditTx] = useState<TransactionView | null>(null);
   const [editGoal, setEditGoal] = useState<GoalView | null>(null);
   const [editAccount, setEditAccount] = useState<AccountView | null>(null);
@@ -377,12 +383,16 @@ export function OtterfundChrome({
 
   // Send the user to Stripe's hosted portal to manage/cancel their plan.
   const openBillingPortal = useCallback(() => {
+    setPortalBusy(true);
     gqlClient
       .request<{ createBillingPortalSession: string }>(CREATE_PORTAL)
       .then((r) => {
         window.location.href = r.createBillingPortalSession;
       })
-      .catch(() => router.push("/pricing"));
+      .catch(() => {
+        setPortalBusy(false);
+        router.push("/pricing");
+      });
   }, [router]);
 
   // Open the paywall's offer flow directly at a given feature (the full-page
@@ -394,12 +404,14 @@ export function OtterfundChrome({
   // fall back to the full pricing page.
   const startCheckout = useCallback(
     (tier: PlanTier, interval: "month" | "year") => {
+      setCheckoutBusy(true);
       gqlClient
         .request<{ createCheckoutSession: string }>(CREATE_CHECKOUT, { tier, interval })
         .then((r) => {
           window.location.href = r.createCheckoutSession;
         })
         .catch(() => {
+          setCheckoutBusy(false);
           setPaywallFeature(null);
           router.push(pricingHref());
         });
@@ -698,6 +710,7 @@ export function OtterfundChrome({
       promptUpgrade,
       openPaywall,
       openBillingPortal,
+      portalBusy,
       addTransaction: () => setShowAdd(true),
       addGoal: () => setShowAddGoal(true),
       addAccount: () => setShowAddAccount(true),
@@ -725,7 +738,7 @@ export function OtterfundChrome({
       txCount,
       setTxCount,
     }),
-    [accent, theme, setAccent, appearance, resolvedMode, setAppearance, hrefFor, txCount, plan, hasAccounts, requireFeature, promptUpgrade, openPaywall, openBillingPortal, openSettings]
+    [accent, theme, setAccent, appearance, resolvedMode, setAppearance, hrefFor, txCount, plan, hasAccounts, requireFeature, promptUpgrade, openPaywall, openBillingPortal, portalBusy, openSettings]
   );
 
   return (
@@ -944,6 +957,7 @@ export function OtterfundChrome({
           open={!!paywallFeature}
           feature={paywallFeature}
           theme={theme}
+          busy={checkoutBusy}
           onClose={() => setPaywallFeature(null)}
           onCheckout={startCheckout}
           onViewAllPlans={() => { setPaywallFeature(null); promptUpgrade(); }}

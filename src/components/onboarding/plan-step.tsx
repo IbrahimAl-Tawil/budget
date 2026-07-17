@@ -10,6 +10,7 @@
 // and layout differ here.
 
 import { useState } from "react";
+import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { TIERS, TierCard, tierOrderClass, type BillingPeriod, type Tier } from "@/components/otterfund/tier-card";
@@ -173,7 +174,13 @@ function PlanCta({
         onClick={() => onCheckout(tier.id, period === "yearly" ? "year" : "month")}
         className="w-full font-semibold"
       >
-        {busy ? "Starting…" : `Choose ${tier.name}`}
+        {busy ? (
+          <>
+            <Loader2 data-icon="inline-start" className="w-4 h-4 of-spin" /> Starting…
+          </>
+        ) : (
+          `Choose ${tier.name}`
+        )}
       </Button>
       <p className="mt-2 text-center text-[11px] font-medium text-[var(--color-of-faint)]">
         Cancel anytime

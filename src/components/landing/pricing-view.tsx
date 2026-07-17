@@ -10,7 +10,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { ArrowRight, Check } from "lucide-react";
+import { ArrowRight, Check, Loader2 } from "lucide-react";
 
 import { gqlClient, errMessage } from "@/lib/graphql/client";
 import { tierRank, type PlanTier } from "@/lib/plans";
@@ -105,7 +105,13 @@ function TierCta({
     }
     return (
       <button type="button" onClick={onPortal} disabled={busy} className={cls(featured ? "default" : "outline")}>
-        {busy ? "Opening…" : "Manage plan"}
+        {busy ? (
+          <>
+            <Loader2 data-icon="inline-start" className="h-4 w-4 of-spin" /> Opening…
+          </>
+        ) : (
+          "Manage plan"
+        )}
       </button>
     );
   }
@@ -114,7 +120,13 @@ function TierCta({
   if (tier.id === "free") {
     return (
       <button type="button" onClick={onPortal} disabled={busy} className={cls("outline")}>
-        {busy ? "Opening…" : "Downgrade"}
+        {busy ? (
+          <>
+            <Loader2 data-icon="inline-start" className="h-4 w-4 of-spin" /> Opening…
+          </>
+        ) : (
+          "Downgrade"
+        )}
       </button>
     );
   }
@@ -131,7 +143,13 @@ function TierCta({
       disabled={busy}
       className={cls(featured ? "default" : "outline")}
     >
-      {busy ? "Starting…" : label}
+      {busy ? (
+        <>
+          <Loader2 data-icon="inline-start" className="h-4 w-4 of-spin" /> Starting…
+        </>
+      ) : (
+        label
+      )}
       {featured && !busy && <ArrowRight className="h-4 w-4" />}
     </button>
   );

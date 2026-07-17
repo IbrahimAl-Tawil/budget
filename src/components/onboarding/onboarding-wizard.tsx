@@ -1152,6 +1152,7 @@ export function OnboardingWizard({
         open={paywall !== null}
         feature={paywall}
         theme={BRAND_THEME}
+        busy={checkoutTier !== null}
         onClose={() => setPaywall(null)}
         onCheckout={handleChooserCheckout}
         onViewAllPlans={handleChooserViewAllPlans}

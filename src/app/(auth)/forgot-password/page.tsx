@@ -5,6 +5,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { Field, TextInput } from "@/components/otterfund/form";
 import { Button } from "@/components/ui/button";
+import { useTurnstile } from "@/components/auth/use-turnstile";
 import { GuillocheSeal } from "@/components/otterfund/guilloche";
 import { BRAND_THEME } from "@/components/otterfund/theme";
 
@@ -16,6 +17,9 @@ export default function ForgotPasswordPage() {
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  // Turnstile bot check — its token rides along on the reset request (Supabase
+  // guards this endpoint too). Inert unless a site key is configured.
+  const captcha = useTurnstile();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -28,12 +32,14 @@ export default function ForgotPasswordPage() {
       // (recovery) session and forwards to /reset-password. `next` is validated
       // against open-redirects in the callback route.
       redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
+      captchaToken: captcha.captchaToken,
     });
 
     // Only surface transport/rate-limit failures. A missing account is NOT an
     // error here (Supabase returns success) — we never confirm existence.
     if (resetError) {
       setError("We couldn't send the reset email. Please try again in a moment.");
+      captcha.reset(); // the token is single-use — re-arm for another try
       setLoading(false);
       return;
     }
@@ -110,9 +116,11 @@ export default function ForgotPasswordPage() {
           <p className="text-sm font-medium text-[var(--color-of-clay)]">{error}</p>
         )}
 
+        {captcha.widget}
+
         <Button
           type="submit"
-          disabled={loading}
+          disabled={loading || captcha.pending}
           className="h-11 w-full rounded-full text-sm font-semibold"
         >
           {loading ? "Sending…" : "Send reset link"}

@@ -208,7 +208,7 @@ function ConnectionsUpsell({ theme, onUpgrade }: { theme: OtterfundTheme; onUpgr
 
 export function SettingsModal({ open, onClose, user, accent, onAccentChange, appearance, onAppearanceChange, onSaved, initialTab, onTabChange }: SettingsModalProps) {
   const router = useRouter();
-  const { connectBank, plan, promptUpgrade, openBillingPortal, theme, resolvedMode } = useOtterfundChrome();
+  const { connectBank, plan, promptUpgrade, openBillingPortal, portalBusy, theme, resolvedMode } = useOtterfundChrome();
   const [tab, setTab] = useState<SettingsTab>((initialTab as SettingsTab) ?? "profile");
   // Sync to the URL-driven tab whenever the modal opens (or the param changes),
   // so deep links + the "Back to Settings" return from pricing land on the right tab.
@@ -570,8 +570,19 @@ export function SettingsModal({ open, onClose, user, accent, onAccentChange, app
                       <ArrowLeftRight data-icon="inline-start" className="w-4 h-4" /> Change plan
                     </Button>
                     {plan !== "free" && (
-                      <Button variant="outline" size="sm" onClick={() => { onClose(); openBillingPortal(); }}>
-                        <CreditCard data-icon="inline-start" className="w-4 h-4" /> Manage billing
+                      // Keep the modal open while the portal session is minted — the
+                      // button's spinner is the user's feedback across the hop to Stripe
+                      // (the page unloads on success; an error routes to /pricing).
+                      <Button variant="outline" size="sm" disabled={portalBusy} onClick={openBillingPortal}>
+                        {portalBusy ? (
+                          <>
+                            <Loader2 data-icon="inline-start" className="w-4 h-4 of-spin" /> Opening…
+                          </>
+                        ) : (
+                          <>
+                            <CreditCard data-icon="inline-start" className="w-4 h-4" /> Manage billing
+                          </>
+                        )}
                       </Button>
                     )}
                   </div>

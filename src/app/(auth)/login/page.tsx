@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Field, TextInput, PasswordInput } from "@/components/otterfund/form";
 import { Button } from "@/components/ui/button";
 import { GoogleAuthButton } from "@/components/auth/google-button";
+import { useTurnstile } from "@/components/auth/use-turnstile";
 
 // useSearchParams() must sit under a Suspense boundary or `next build` errors on
 // this route. The form is otherwise self-contained, so wrap the whole thing.
@@ -28,6 +29,9 @@ function LoginForm() {
     hadRedirectError ? "Incorrect email or password. Please try again." : "",
   );
   const [loading, setLoading] = useState(false);
+  // Turnstile bot check — the token rides along on the sign-in call, which
+  // Supabase verifies server-side. Inert unless a site key is configured.
+  const captcha = useTurnstile();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -38,10 +42,12 @@ function LoginForm() {
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email,
       password,
+      options: { captchaToken: captcha.captchaToken },
     });
 
     if (signInError) {
       setError("Incorrect email or password. Please try again.");
+      captcha.reset(); // the token is single-use — re-arm for another try
       setLoading(false);
       return;
     }
@@ -99,9 +105,11 @@ function LoginForm() {
           <p className="text-sm font-medium text-[var(--color-of-clay)]">{error}</p>
         )}
 
+        {captcha.widget}
+
         <Button
           type="submit"
-          disabled={loading}
+          disabled={loading || captcha.pending}
           className="w-full font-semibold"
         >
           {loading ? "Signing in…" : "Sign in"}

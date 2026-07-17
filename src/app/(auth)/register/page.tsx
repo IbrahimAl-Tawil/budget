@@ -12,6 +12,7 @@ import {
 } from "@/components/otterfund/form";
 import { Button } from "@/components/ui/button";
 import { GoogleAuthButton } from "@/components/auth/google-button";
+import { useTurnstile } from "@/components/auth/use-turnstile";
 import { Wordmark } from "@/components/otterfund/wordmark";
 
 type FieldErrors = { name?: string; password?: string; confirm?: string };
@@ -26,6 +27,9 @@ export default function RegisterPage() {
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  // Turnstile bot check — its token rides along on signUp (Supabase verifies it).
+  // Inert unless a site key is configured.
+  const captcha = useTurnstile();
 
   // Terms + Privacy acceptance is required to create an account (email or
   // Google). Returns true when accepted; otherwise flags the checkbox.
@@ -74,6 +78,7 @@ export default function RegisterPage() {
         // public.User profile row (see supabase/migrations).
         data: { name: cleanName },
         emailRedirectTo: `${window.location.origin}/auth/callback`,
+        captchaToken: captcha.captchaToken,
       },
     });
 
@@ -81,6 +86,7 @@ export default function RegisterPage() {
       // Generic message — never echo Supabase's raw error, which can reveal
       // whether an email is already registered (account enumeration).
       setError("We couldn't complete sign-up. Check your details and try again.");
+      captcha.reset(); // the token is single-use — re-arm for another try
       setLoading(false);
       return;
     }
@@ -229,9 +235,11 @@ export default function RegisterPage() {
           <p className="text-sm font-medium text-[var(--color-of-clay)]">{error}</p>
         )}
 
+        {captcha.widget}
+
         <Button
           type="submit"
-          disabled={loading}
+          disabled={loading || captcha.pending}
           className="w-full font-semibold"
         >
           {loading ? "Creating account…" : "Create account"}

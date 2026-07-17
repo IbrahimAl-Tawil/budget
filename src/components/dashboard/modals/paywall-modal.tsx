@@ -15,7 +15,7 @@
 // /pricing. No free trials anywhere (by product decision).
 
 import { useEffect, useState } from "react";
-import { ArrowRight, Check, Lock, X } from "lucide-react";
+import { ArrowRight, Check, Loader2, Lock, X } from "lucide-react";
 
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -36,6 +36,7 @@ export function PaywallModal({
   open,
   feature,
   theme,
+  busy = false,
   onClose,
   onCheckout,
   onViewAllPlans,
@@ -44,6 +45,9 @@ export function PaywallModal({
   /** The gated feature to upsell — null when the modal is closed. */
   feature: Feature | null;
   theme: OtterfundTheme;
+  /** True once a Checkout Session is being created — the CTA shows a spinner and
+      locks so the user gets feedback across the hop to Stripe. */
+  busy?: boolean;
   onClose: () => void;
   /** Start Stripe Checkout for the given tier + interval (context wires this —
       the dashboard goes straight to Checkout; onboarding stashes resume state
@@ -106,6 +110,7 @@ export function PaywallModal({
             setInterval={setInterval}
             perMonth={perMonth}
             savings={savings}
+            busy={busy}
             onCheckout={onCheckout}
             onViewAllPlans={onViewAllPlans}
           />
@@ -116,6 +121,7 @@ export function PaywallModal({
             tierName={tierName}
             theme={theme}
             monthly={tierData.monthly}
+            busy={busy}
             onStartMonthly={() => onCheckout(tier, "month")}
             onClose={onClose}
           />
@@ -172,6 +178,7 @@ function OfferView({
   setInterval,
   perMonth,
   savings,
+  busy,
   onCheckout,
   onViewAllPlans,
 }: {
@@ -183,6 +190,7 @@ function OfferView({
   setInterval: (i: Interval) => void;
   perMonth: number;
   savings: number;
+  busy: boolean;
   onCheckout: (tier: PlanTier, interval: Interval) => void;
   onViewAllPlans: () => void;
 }) {
@@ -267,10 +275,19 @@ function OfferView({
         <Button
           size="lg"
           onClick={() => onCheckout(tier, interval)}
+          disabled={busy}
           className="mt-5 w-full font-semibold"
           style={{ background: theme.accent }}
         >
-          Get {tierName} <ArrowRight className="h-4 w-4" />
+          {busy ? (
+            <>
+              <Loader2 data-icon="inline-start" className="h-4 w-4 of-spin" /> Starting…
+            </>
+          ) : (
+            <>
+              Get {tierName} <ArrowRight className="h-4 w-4" />
+            </>
+          )}
         </Button>
         <p className="mt-3 text-center text-[11.5px] text-[var(--color-of-faint)]">No commitment · cancel anytime</p>
         <button
@@ -290,12 +307,14 @@ function ExitView({
   tierName,
   theme,
   monthly,
+  busy,
   onStartMonthly,
   onClose,
 }: {
   tierName: string;
   theme: OtterfundTheme;
   monthly: number;
+  busy: boolean;
   onStartMonthly: () => void;
   onClose: () => void;
 }) {
@@ -314,8 +333,16 @@ function ExitView({
       </PaywallHeader>
 
       <div className="px-8 pt-6 pb-8">
-        <Button size="lg" onClick={onStartMonthly} className="w-full font-semibold" style={{ background: theme.accent }}>
-          Start monthly · {money(monthly)}/mo <ArrowRight className="h-4 w-4" />
+        <Button size="lg" onClick={onStartMonthly} disabled={busy} className="w-full font-semibold" style={{ background: theme.accent }}>
+          {busy ? (
+            <>
+              <Loader2 data-icon="inline-start" className="h-4 w-4 of-spin" /> Starting…
+            </>
+          ) : (
+            <>
+              Start monthly · {money(monthly)}/mo <ArrowRight className="h-4 w-4" />
+            </>
+          )}
         </Button>
         <Button variant="link" size="sm" onClick={onClose} className="mx-auto mt-3 flex text-[12.5px]">
           No thanks
