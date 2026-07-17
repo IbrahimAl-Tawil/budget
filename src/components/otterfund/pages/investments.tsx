@@ -283,13 +283,14 @@ export function OtterfundInvestments({
                       }
                     : undefined
                 }
-                onMouseEnter={onEditPosition ? (e) => (e.currentTarget.style.background = "var(--color-of-hover)") : undefined}
+                onMouseEnter={onEditPosition ? (e) => (e.currentTarget.style.background = theme.accentTint) : undefined}
                 onMouseLeave={onEditPosition ? (e) => (e.currentTarget.style.background = "transparent") : undefined}
                 style={{
                   display: "flex",
                   alignItems: "center",
                   gap: 13,
                   padding: "12px 8px",
+                  borderRadius: 12,
                   cursor: onEditPosition ? "pointer" : "default",
                   transition: "background .15s",
                   borderTop: i === 0 ? "none" : "1px solid var(--color-of-line-soft)",
@@ -549,14 +550,14 @@ export function OtterfundInvestments({
                               }
                             : undefined
                         }
-                        onMouseEnter={clickable ? (e) => (e.currentTarget.style.background = "var(--color-of-hover)") : undefined}
+                        onMouseEnter={clickable ? (e) => (e.currentTarget.style.background = theme.accentTint) : undefined}
                         onMouseLeave={clickable ? (e) => (e.currentTarget.style.background = "transparent") : undefined}
                         style={{
                           display: "flex",
                           alignItems: "center",
                           gap: 11,
                           padding: "8px 6px",
-                          borderRadius: 10,
+                          borderRadius: 12,
                           cursor: clickable ? "pointer" : "default",
                           transition: "background .15s",
                         }}
@@ -627,13 +628,14 @@ export function OtterfundInvestments({
                               }
                             : undefined
                         }
-                        onMouseEnter={onEditAccount ? (e) => (e.currentTarget.style.background = "var(--color-of-hover)") : undefined}
+                        onMouseEnter={onEditAccount ? (e) => (e.currentTarget.style.background = theme.accentTint) : undefined}
                         onMouseLeave={onEditAccount ? (e) => (e.currentTarget.style.background = "transparent") : undefined}
                         style={{
                           display: "flex",
                           alignItems: "center",
                           gap: 13,
                           padding: "13px 8px",
+                          borderRadius: 12,
                           cursor: onEditAccount ? "pointer" : "default",
                           transition: "background .15s",
                           borderTop: i === 0 ? "none" : "1px solid var(--color-of-line-soft)",

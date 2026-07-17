@@ -1,17 +1,14 @@
 "use client";
 
-// The upgrade paywall — a small FLOW, not a screen (per the paywall playbook).
-// When a Free (or under-tier) user triggers a gated action — Connect a bank, Add
-// an investment — the chrome's `requireFeature` gate opens THIS modal, which
-// walks three views:
-//
-//   1. OUTCOME — sells the future they get (no price yet). "See plans →".
-//   2. OFFER   — the one tier that unlocks it, Annual (default) vs Monthly, the
-//                price broken into a weekly anchor, perks, social proof, and a
-//                CTA that starts Stripe Checkout in place. "View all plans"
-//                escapes to /pricing for the full comparison.
-//   3. EXIT    — a softer second chance shown only when the user tries to leave
-//                the offer: start monthly instead of committing to a year.
+// The upgrade paywall. When a Free (or under-tier) user triggers a gated action
+// — Connect a bank, Add an investment — the chrome's `requireFeature` gate opens
+// THIS modal. It's a single combined OFFER screen (no separate "sell" step that
+// made users click through a second, redundant popup): the outcome they get, the
+// one tier that unlocks it, Annual (default) vs Monthly, the price broken into a
+// weekly anchor, the benefit bullets, social proof, and a CTA that starts Stripe
+// Checkout in place. "View all plans" escapes to /pricing for the full
+// comparison. A softer EXIT second chance (start monthly) shows only when the
+// user tries to leave.
 //
 // Copy is the single source in lib/plans (FEATURE_COPY + FEATURE_REQUIRED_TIER);
 // pricing figures come from the shared TIERS model — so this never drifts from
@@ -33,7 +30,7 @@ import { FEATURE_COPY, FEATURE_REQUIRED_TIER, PLAN_META, type Feature, type Plan
 const SERIF: React.CSSProperties = { fontFamily: "var(--font-num), Georgia, serif" };
 
 type Interval = "month" | "year";
-type View = "outcome" | "offer" | "exit";
+type View = "offer" | "exit";
 
 export function PaywallModal({
   open,
@@ -55,13 +52,13 @@ export function PaywallModal({
   /** Escape to the full /pricing comparison. */
   onViewAllPlans: () => void;
 }) {
-  const [view, setView] = useState<View>("outcome");
+  const [view, setView] = useState<View>("offer");
   const [interval, setInterval] = useState<Interval>("year");
 
-  // Every fresh open (or feature change) starts at the outcome page on annual.
+  // Every fresh open (or feature change) starts on the combined offer, annual.
   useEffect(() => {
     if (open) {
-      setView("outcome");
+      setView("offer");
       setInterval("year");
     }
   }, [open, feature]);
@@ -98,16 +95,6 @@ export function PaywallModal({
         >
           <X className="h-4 w-4" />
         </button>
-
-        {view === "outcome" && (
-          <OutcomeView
-            copy={copy}
-            tierName={tierName}
-            theme={theme}
-            onSeePlans={() => setView("offer")}
-            onDismiss={handleDismiss}
-          />
-        )}
 
         {view === "offer" && (
           <OfferView
@@ -174,61 +161,8 @@ function PaywallHeader({
   );
 }
 
-// ── View 1: OUTCOME — sell the future, no price. ──
-function OutcomeView({
-  copy,
-  tierName,
-  theme,
-  onSeePlans,
-  onDismiss,
-}: {
-  copy: (typeof FEATURE_COPY)[Feature];
-  tierName: string;
-  theme: OtterfundTheme;
-  onSeePlans: () => void;
-  onDismiss: () => void;
-}) {
-  return (
-    <>
-      <PaywallHeader theme={theme} tierName={tierName}>
-        <DialogTitle
-          className="mt-3 text-[26px] leading-[1.1] tracking-[-0.02em] text-[var(--color-of-ink)]"
-          style={{ ...SERIF, fontWeight: 500 }}
-        >
-          {copy.outcome.headline}
-        </DialogTitle>
-        <DialogDescription className="mx-auto mt-2 max-w-[340px] text-[13.5px] leading-relaxed text-[var(--color-of-muted)]">
-          {copy.outcome.sub}
-        </DialogDescription>
-      </PaywallHeader>
-
-      <div className="px-8 pt-6 pb-8">
-        <ul className="mx-auto flex max-w-[320px] flex-col gap-3">
-          {copy.outcome.bullets.map((b) => (
-            <li key={b} className="flex items-start gap-2.5">
-              <span
-                className="mt-[1px] flex h-[19px] w-[19px] shrink-0 items-center justify-center rounded-full"
-                style={{ background: theme.accentTint, color: theme.accentDeep }}
-              >
-                <Check className="h-3 w-3" strokeWidth={2.6} />
-              </span>
-              <span className="text-[13.5px] leading-snug text-[var(--color-of-ink)]">{b}</span>
-            </li>
-          ))}
-        </ul>
-
-        <Button size="lg" onClick={onSeePlans} className="mt-7 w-full font-semibold" style={{ background: theme.accent }}>
-          See plans <ArrowRight className="h-4 w-4" />
-        </Button>
-        <Button variant="link" size="sm" onClick={onDismiss} className="mx-auto mt-3 flex text-[12.5px]">
-          Not now
-        </Button>
-      </div>
-    </>
-  );
-}
-
-// ── View 2: OFFER — one tier, Annual (default) vs Monthly, weekly anchor. ──
+// ── OFFER — the single combined screen: the outcome + one tier, Annual (default)
+//    vs Monthly, weekly anchor, benefit bullets, and a CTA straight to Checkout. ──
 function OfferView({
   copy,
   tier,
@@ -259,9 +193,11 @@ function OfferView({
           className="mt-3 text-[24px] leading-[1.1] tracking-[-0.02em] text-[var(--color-of-ink)]"
           style={{ ...SERIF, fontWeight: 500 }}
         >
-          Unlock {tierName}
+          {copy.outcome.headline}
         </DialogTitle>
-        <DialogDescription className="sr-only">Choose annual or monthly billing for the {tierName} plan.</DialogDescription>
+        <DialogDescription className="mx-auto mt-2 max-w-[340px] text-[13.5px] leading-relaxed text-[var(--color-of-muted)]">
+          {copy.outcome.sub}
+        </DialogDescription>
       </PaywallHeader>
 
       <div className="px-8 pt-6 pb-7">
@@ -309,17 +245,17 @@ function OfferView({
           )}
         </div>
 
-        {/* Perks. */}
+        {/* What you get. */}
         <ul className="mt-5 flex flex-col gap-2.5 border-t border-[var(--color-of-line-soft)] pt-5">
-          {copy.perks.map((perk) => (
-            <li key={perk} className="flex items-start gap-2.5">
+          {copy.outcome.bullets.map((b) => (
+            <li key={b} className="flex items-start gap-2.5">
               <span
                 className="mt-[1px] flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full"
                 style={{ background: theme.accentTint, color: theme.accentDeep }}
               >
                 <Check className="h-3 w-3" strokeWidth={2.6} />
               </span>
-              <span className="text-[13px] leading-snug text-[var(--color-of-ink)]">{perk}</span>
+              <span className="text-[13px] leading-snug text-[var(--color-of-ink)]">{b}</span>
             </li>
           ))}
         </ul>

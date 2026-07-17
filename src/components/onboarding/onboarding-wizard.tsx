@@ -640,6 +640,12 @@ export function OnboardingWizard({
                     this and add goals anytime later.
                   </p>
                 </div>
+                <div className="max-w-[200px]">
+                  <label className={LABEL_CLASS}>Currency</label>
+                  <SelectInput value={currency} onChange={(e) => setCurrency(e.target.value)}>
+                    {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                  </SelectInput>
+                </div>
                 <GoalRows goals={goals} onUpdate={updateGoal} onAdd={addGoal} onRemove={removeGoal} />
                 <div className="flex justify-end pt-1">
                   <Button size="sm" onClick={() => { setError(""); setStage("referral"); }} className="px-6">
@@ -769,12 +775,6 @@ export function OnboardingWizard({
                   <label className={LABEL_CLASS}>Monthly Income</label>
                   <TextInput type="number" value={monthlyIncome} onChange={(e) => setMonthlyIncome(e.target.value)} placeholder="5000" min="0" step="100" />
                 </div>
-                <div>
-                  <label className={LABEL_CLASS}>Currency</label>
-                  <SelectInput value={currency} onChange={(e) => setCurrency(e.target.value)}>
-                    {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                  </SelectInput>
-                </div>
               </div>
             )}
 
@@ -813,10 +813,25 @@ export function OnboardingWizard({
                   <p className="text-sm text-[var(--color-of-muted)]">Add known recurring expenses like rent, subscriptions, and insurance.</p>
                 </div>
                 <div className="space-y-3 max-h-[300px] overflow-y-auto of-scroll pr-1">
-                  {recurring.map((rec, i) => (
+                  {recurring.map((rec, i) => {
+                    // Best-effort live logo from the client dictionary (Netflix →
+                    // netflix.com …); the server resolves the rest (cache → Claude)
+                    // on submit, so the stored subscription shows a logo in-app too.
+                    const merchant = rec.name.trim();
+                    const domain = merchant ? dictionaryDomain(merchant) : null;
+                    return (
                     <div key={i} className="flex gap-2 items-start p-3 rounded-xl bg-[oklch(98%_0.004_90)] border border-[var(--color-of-line)]">
                       <div className="flex-1 space-y-2">
-                        <TextInput value={rec.name} onChange={(e) => updateRecurring(i, "name", e.target.value)} placeholder="e.g. Rent, Netflix" />
+                        <div className="flex items-center gap-2">
+                          {merchant ? (
+                            <MerchantAvatar name={merchant} domain={domain} bg="var(--accent)" ink="var(--accent-foreground)" size={34} fit="contain" />
+                          ) : (
+                            <span className="grid h-[34px] w-[34px] shrink-0 place-items-center rounded-lg bg-[var(--accent)]">
+                              <RefreshCw className="h-4 w-4 text-[var(--color-primary)]" strokeWidth={1.9} />
+                            </span>
+                          )}
+                          <TextInput value={rec.name} onChange={(e) => updateRecurring(i, "name", e.target.value)} placeholder="e.g. Rent, Netflix" />
+                        </div>
                         <div className="flex gap-2">
                           <div className="flex-1">
                             <TextInput type="number" value={rec.amount} onChange={(e) => updateRecurring(i, "amount", e.target.value)} placeholder="Amount" />
@@ -836,7 +851,8 @@ export function OnboardingWizard({
                         </button>
                       )}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
                 <button onClick={addRecurring} className="flex items-center gap-1.5 text-sm text-[var(--color-primary)] font-semibold hover:underline">
                   <Plus className="w-3.5 h-3.5" /> Add another expense
@@ -869,17 +885,11 @@ export function OnboardingWizard({
               <div className="space-y-6 sm:space-y-7" key="connect-setup">
                 <div>
                   <h2 className={HEADING_CLASS}>A few basics</h2>
-                  <p className="text-sm text-[var(--color-of-muted)]">Choose a budget plan and your currency. We&apos;ll read your income straight from your bank.</p>
+                  <p className="text-sm text-[var(--color-of-muted)]">Choose a budget plan. We&apos;ll read your income straight from your bank.</p>
                 </div>
                 <div>
                   <label className={LABEL_CLASS}>Budget plan</label>
                   <BudgetPlanPicker value={plan} onChange={setPlan} accent={BRAND_THEME.accent} />
-                </div>
-                <div>
-                  <label className={LABEL_CLASS}>Currency</label>
-                  <SelectInput value={currency} onChange={(e) => setCurrency(e.target.value)}>
-                    {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                  </SelectInput>
                 </div>
               </div>
             )}
@@ -950,13 +960,6 @@ export function OnboardingWizard({
                   <p className="text-sm text-[var(--color-of-muted)]">
                     Drop your bank statements (CSV or PDF). Upload as many as you like, and AI will extract accounts, recurring expenses, and categorize transactions.
                   </p>
-                </div>
-
-                <div>
-                  <label className={LABEL_CLASS}>Currency</label>
-                  <SelectInput value={currency} onChange={(e) => setCurrency(e.target.value)}>
-                    {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                  </SelectInput>
                 </div>
 
                 <div

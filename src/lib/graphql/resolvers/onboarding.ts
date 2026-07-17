@@ -120,6 +120,23 @@ builder.mutationField("completeOnboarding", (t) =>
         }),
       );
 
+      // Resolve each recurring expense's brand logo up front too (same
+      // dictionary → cache → Claude path), so a subscription created during
+      // onboarding shows its logo in-app exactly like one added from the
+      // dashboard. Outside the transaction; a slow/failed lookup → no logo.
+      const preparedRecurring = await Promise.all(
+        (input.recurringExpenses ?? []).map(async (e) => {
+          const domain = e.name?.trim() ? (await resolveMerchant(e.name)).domain ?? undefined : undefined;
+          return {
+            name: e.name,
+            amount: e.amount,
+            cycle: e.cycle || "Monthly",
+            dueDay: e.dueDay ?? undefined,
+            domain,
+          };
+        }),
+      );
+
       const now = new Date();
       const currentMonth = now.getMonth() + 1;
       const currentYear = now.getFullYear();
@@ -225,15 +242,16 @@ builder.mutationField("completeOnboarding", (t) =>
           );
         }
 
-        if (input.recurringExpenses?.length) {
+        if (preparedRecurring.length) {
           await Promise.all(
-            input.recurringExpenses.map((e) =>
+            preparedRecurring.map((e) =>
               tx.subscription.create({
                 data: {
                   userId,
                   name: e.name,
                   amount: e.amount,
-                  cycle: e.cycle || "Monthly",
+                  cycle: e.cycle,
+                  domain: e.domain,
                   confirmedByUser: true,
                 },
               }),
@@ -241,8 +259,8 @@ builder.mutationField("completeOnboarding", (t) =>
           );
 
           await Promise.all(
-            input.recurringExpenses
-              .filter((e) => e.cycle === "Monthly" || !e.cycle)
+            preparedRecurring
+              .filter((e) => e.cycle === "Monthly")
               .map((e) => {
                 const day = e.dueDay || 1;
                 let dueDate = new Date(currentYear, currentMonth - 1, day);

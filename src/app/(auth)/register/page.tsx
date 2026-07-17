@@ -85,6 +85,27 @@ export default function RegisterPage() {
       return;
     }
 
+    // When the email already has an account, Supabase returns a user with an
+    // EMPTY `identities` array (enumeration protection) and, crucially, does NOT
+    // re-send a confirmation link — it silently relies on the original one. So a
+    // user who signed up days ago, never confirmed, and comes back to sign up
+    // again would never get a fresh email. Explicitly resend the signup
+    // confirmation for that case. Supabase enforces its own per-email send rate
+    // limit, so this can't be abused to spam an address; a hit just no-ops. It's
+    // also harmless for an already-confirmed account (Supabase declines to send).
+    const alreadyRegistered = !!data.user && (data.user.identities?.length ?? 0) === 0;
+    if (alreadyRegistered) {
+      try {
+        await supabase.auth.resend({
+          type: "signup",
+          email,
+          options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+        });
+      } catch {
+        // Rate-limited or transient — the original link is still valid.
+      }
+    }
+
     // With email confirmation on, there's no session yet — send them to a calm
     // confirmation page (not an inline error). With it off (recommended for
     // local dev), a session is returned immediately and we go to onboarding.
