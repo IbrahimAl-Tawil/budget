@@ -932,6 +932,7 @@ export async function getInvestments(userId: string): Promise<InvestmentView[]> 
       name: i.name,
       symbol: i.symbol ?? "",
       assetClass: i.assetClass,
+      source: i.source,
       value,
       costBasis: i.costBasis ?? undefined,
       quantity: i.quantity ?? undefined,

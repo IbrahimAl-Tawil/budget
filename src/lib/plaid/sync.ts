@@ -22,9 +22,11 @@ import {
   isDebtOtterfundType,
   plaidCategoryToOtterfund,
   iconColorFor,
+  mapSecurityTypeToAssetClass,
 } from "./mappers";
 import { resolveMerchant, warmMerchantDomains } from "@/lib/merchant/resolve";
 import { detectRecurringHeuristic } from "@/lib/db/recurring";
+import { canUse } from "@/lib/plans";
 
 export interface SyncResult {
   added: number;
@@ -181,6 +183,21 @@ export async function syncItem(item: PlaidItem): Promise<SyncResult> {
   for (const acct of accountList) {
     const localId = localIdByPlaid.get(acct.account_id);
     if (localId) await reconcileAnchor(localId, acct);
+  }
+
+  // 4b) Itemize investment holdings (Pro-only feature). Best-effort and fully
+  // isolated: a brokerage with no holdings, an item without the Investments
+  // product, or any Plaid hiccup must never fail the transaction sync above.
+  const owner = await prisma.user.findUnique({
+    where: { id: item.userId },
+    select: { plan: true },
+  });
+  if (canUse(owner?.plan, "investments")) {
+    try {
+      await syncInvestmentHoldings(item, accessToken, localIdByPlaid);
+    } catch (err) {
+      console.error("investment holdings sync failed:", safePlaidErr(err));
+    }
   }
 
   // 5) Persist cursor + healthy status.
@@ -365,6 +382,103 @@ async function reconcileAnchor(localAccountId: string, acct: AccountBase) {
     where: { id: localAccountId },
     data: { balance: target },
   });
+}
+
+/**
+ * Itemize a brokerage Item's holdings into Investment rows (source "plaid").
+ *
+ * /investments/holdings/get returns a FULL snapshot (not cursor-based), so this
+ * is a reconcile: upsert every current holding by its stable externalId
+ * ("{account_id}:{security_id}" — a holding has no id of its own), then delete
+ * any plaid-sourced holdings on this Item's accounts that fell out of the
+ * snapshot (a sold position). Manual holdings (source "manual") are never
+ * touched. Each holding links to its local brokerage account via the same
+ * plaid→local id map the transaction sync built, so positions nest under their
+ * account in the portfolio view with no double-counting.
+ */
+async function syncInvestmentHoldings(
+  item: PlaidItem,
+  accessToken: string,
+  localIdByPlaid: Map<string, string>,
+) {
+  let holdings;
+  let securities;
+  try {
+    const { data } = await plaid.investmentsHoldingsGet({ access_token: accessToken });
+    holdings = data.holdings;
+    securities = data.securities;
+  } catch (err) {
+    const code = plaidErrorCode(err);
+    // These are the normal "this bank/account just doesn't do investments" cases
+    // — expected for most connections, not worth logging as an error.
+    const benign = new Set([
+      "NO_INVESTMENT_ACCOUNTS",
+      "PRODUCTS_NOT_SUPPORTED",
+      "PRODUCT_NOT_READY",
+      "NO_ACCOUNTS",
+    ]);
+    if (!code || !benign.has(code)) {
+      console.error("investmentsHoldingsGet failed:", safePlaidErr(err));
+    }
+    return;
+  }
+
+  const securityById = new Map(securities.map((s) => [s.security_id, s]));
+  const seenExternalIds: string[] = [];
+
+  for (const h of holdings) {
+    const security = securityById.get(h.security_id);
+    if (!security) continue;
+    const localAccountId = localIdByPlaid.get(h.account_id);
+    if (!localAccountId) continue; // holding on an account we didn't upsert
+
+    const externalId = `${h.account_id}:${h.security_id}`;
+    seenExternalIds.push(externalId);
+
+    const name = security.name?.trim() || security.ticker_symbol?.trim() || "Holding";
+    const symbol = security.ticker_symbol?.trim() || null;
+    const assetClass = mapSecurityTypeToAssetClass(security.type, security.is_cash_equivalent);
+    // institution_value is quantity × institution_price in the holding's currency.
+    const value = Math.abs(h.institution_value);
+    const costBasis = h.cost_basis != null ? Math.abs(h.cost_basis) : null;
+    // Resolve the logo once per holding (dictionary → Merchant cache → Claude),
+    // same path manual holdings and subscriptions use. Never throws.
+    const domain = (await resolveMerchant(name)).domain;
+
+    const data = {
+      userId: item.userId,
+      accountId: localAccountId,
+      name,
+      symbol,
+      assetClass,
+      value,
+      costBasis,
+      quantity: h.quantity,
+      domain,
+      source: "plaid",
+    };
+    await prisma.investment.upsert({
+      where: { externalId },
+      create: { ...data, externalId },
+      update: data,
+    });
+  }
+
+  // Stale cleanup — drop plaid holdings on this Item's accounts that vanished
+  // from the snapshot (sold). Scoped to source "plaid" so manual holdings are
+  // safe. A sentinel keeps `notIn []` from becoming a no-op when the item now
+  // holds nothing (everything sold → delete all its synced holdings).
+  const itemAccountIds = [...localIdByPlaid.values()];
+  if (itemAccountIds.length) {
+    await prisma.investment.deleteMany({
+      where: {
+        userId: item.userId,
+        source: "plaid",
+        accountId: { in: itemAccountIds },
+        externalId: { notIn: seenExternalIds.length ? seenExternalIds : ["__none__"] },
+      },
+    });
+  }
 }
 
 /** Sync every active Item (used by the daily cron). Never throws. */

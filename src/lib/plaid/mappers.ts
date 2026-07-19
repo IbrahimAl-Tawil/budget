@@ -53,6 +53,36 @@ export function isDebtOtterfundType(type: string): boolean {
   return type === "credit-card" || type === "loan" || type === "mortgage";
 }
 
+/**
+ * Map a Plaid security `type` onto one of otterfund's ASSET_CLASSES. Plaid's set
+ * is equity / etf / mutual fund / fixed income / cryptocurrency / cash /
+ * derivative / loan / other. otterfund has no "Mutual funds" bucket, so funds
+ * (etf + mutual fund) group under "ETFs". A cash-equivalent security (money
+ * market, sweep) maps to "Cash" regardless of its declared type.
+ */
+export function mapSecurityTypeToAssetClass(
+  type: string | null | undefined,
+  isCashEquivalent?: boolean | null
+): string {
+  if (isCashEquivalent) return "Cash";
+  switch ((type || "").toLowerCase()) {
+    case "equity":
+      return "Stocks";
+    case "etf":
+    case "mutual fund":
+      return "ETFs";
+    case "cryptocurrency":
+      return "Crypto";
+    case "fixed income":
+      return "Bonds";
+    case "cash":
+      return "Cash";
+    default:
+      // derivative, loan, other, or anything unrecognized.
+      return "Other";
+  }
+}
+
 // Plaid personal_finance_category.primary → otterfund category name.
 const PFC_TO_otterfund: Record<string, string> = {
   INCOME: "Income",

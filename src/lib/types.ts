@@ -186,6 +186,8 @@ export interface InvestmentView {
   symbol: string;
   /** One of ASSET_CLASSES: Stocks | ETFs | Crypto | Bonds | Real Estate | Cash | Other. */
   assetClass: string;
+  /** "manual" (user-entered) or "plaid" (synced from a linked brokerage, read-only). */
+  source: string;
   /** Current market value the user maintains (the "how much money"). */
   value: number;
   /** Total invested — optional; when set (and > 0), enables gain/loss. */

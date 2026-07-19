@@ -74,7 +74,13 @@ export async function POST(request: Request) {
   if (!item) return Response.json({ received: true });
 
   try {
-    if (webhook_type === "TRANSACTIONS") {
+    if (
+      webhook_type === "TRANSACTIONS" ||
+      // Holdings / investment-transaction updates also drive a full sync —
+      // syncItem itemizes holdings alongside transactions in one pass.
+      webhook_type === "HOLDINGS" ||
+      webhook_type === "INVESTMENTS_TRANSACTIONS"
+    ) {
       // SYNC_UPDATES_AVAILABLE / DEFAULT_UPDATE / INITIAL_UPDATE / HISTORICAL_UPDATE.
       // Debounce per Item so a burst of webhooks can't hammer the Plaid API; a
       // skipped sync is harmless (the cursor catches up on the next one).

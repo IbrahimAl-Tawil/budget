@@ -209,7 +209,8 @@ export function OtterfundInvestments({
     const s = allocSlices[i];
     if (!s) return;
     if (s.drillId) drillInto(s.drillId);
-    else if (s.holding && onEditPosition) onEditPosition(s.holding);
+    // Synced holdings are brokerage-managed, so only manual positions are editable.
+    else if (s.holding && s.holding.source !== "plaid" && onEditPosition) onEditPosition(s.holding);
   };
 
   // ── Return (all-time vs cost basis) across positions that carry a cost basis.
@@ -260,6 +261,10 @@ export function OtterfundInvestments({
           {sortedHoldings.map((h, i) => {
             const [tileBg, tileInk] = accentFamilyTint(i, accent);
             const up = (h.gain ?? 0) >= 0;
+            // Synced holdings are brokerage-managed (re-derived every sync), so
+            // they aren't editable here — only manual positions open the editor.
+            const synced = h.source === "plaid";
+            const editable = !synced && !!onEditPosition;
             const sub = [
               h.quantity != null ? `${h.quantity} shares` : null,
               h.accountName || null,
@@ -270,28 +275,28 @@ export function OtterfundInvestments({
             return (
               <div
                 key={h.id}
-                role={onEditPosition ? "button" : undefined}
-                tabIndex={onEditPosition ? 0 : undefined}
-                onClick={onEditPosition ? () => onEditPosition(h) : undefined}
+                role={editable ? "button" : undefined}
+                tabIndex={editable ? 0 : undefined}
+                onClick={editable ? () => onEditPosition!(h) : undefined}
                 onKeyDown={
-                  onEditPosition
+                  editable
                     ? (e) => {
                         if (e.key === "Enter" || e.key === " ") {
                           e.preventDefault();
-                          onEditPosition(h);
+                          onEditPosition!(h);
                         }
                       }
                     : undefined
                 }
-                onMouseEnter={onEditPosition ? (e) => (e.currentTarget.style.background = theme.accentTint) : undefined}
-                onMouseLeave={onEditPosition ? (e) => (e.currentTarget.style.background = "transparent") : undefined}
+                onMouseEnter={editable ? (e) => (e.currentTarget.style.background = theme.accentTint) : undefined}
+                onMouseLeave={editable ? (e) => (e.currentTarget.style.background = "transparent") : undefined}
                 style={{
                   display: "flex",
                   alignItems: "center",
                   gap: 13,
                   padding: "12px 8px",
                   borderRadius: 12,
-                  cursor: onEditPosition ? "pointer" : "default",
+                  cursor: editable ? "pointer" : "default",
                   transition: "background .15s",
                   borderTop: i === 0 ? "none" : "1px solid var(--color-of-line-soft)",
                 }}
@@ -315,6 +320,23 @@ export function OtterfundInvestments({
                         }}
                       >
                         {h.symbol}
+                      </span>
+                    )}
+                    {synced && (
+                      <span
+                        title="Synced from your brokerage"
+                        style={{
+                          flexShrink: 0,
+                          padding: "1px 7px",
+                          borderRadius: 9999,
+                          background: "var(--accent)",
+                          color: "var(--accent-foreground)",
+                          fontSize: 10,
+                          fontWeight: 600,
+                          letterSpacing: "0.02em",
+                        }}
+                      >
+                        Synced
                       </span>
                     )}
                   </div>
@@ -533,7 +555,7 @@ export function OtterfundInvestments({
                   style={{ flex: "0 1 460px", minWidth: 260, maxHeight: 236, overflowY: "auto", paddingRight: 4 }}
                 >
                   {allocSlices.map((s, i) => {
-                    const clickable = !!(s.drillId || (s.holding && onEditPosition));
+                    const clickable = !!(s.drillId || (s.holding && s.holding.source !== "plaid" && onEditPosition));
                     return (
                       <div
                         key={s.key}

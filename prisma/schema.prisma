@@ -256,6 +256,14 @@ model Investment {
   costBasis  Float?
   quantity   Float?
   domain     String?
+  // "manual" (user-entered) | "plaid" (synced from a linked brokerage). Synced
+  // holdings are read-only in the UI and re-derived on every sync, so a manual
+  // edit/delete is refused (it would just reappear on the next sync).
+  source     String   @default("manual")
+  // Plaid holding identity: "{account_id}:{security_id}" (a holding has no id of
+  // its own — it's unique per account+security). Null for manual holdings.
+  // Mirrors Transaction.externalId; drives idempotent upsert + stale cleanup.
+  externalId String?  @unique
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 

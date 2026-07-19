@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db/prisma";
 import {
   plaid,
   PLAID_PRODUCTS,
+  PLAID_OPTIONAL_PRODUCTS,
   plaidCountryCodes,
   plaidWebhookUrl,
 } from "@/lib/plaid/client";
@@ -78,6 +79,11 @@ builder.mutationField("createPlaidLinkToken", (t) =>
         language: "en",
         country_codes: plaidCountryCodes(),
         products: PLAID_PRODUCTS,
+        // Best-effort holdings import for brokerage connections — only for users
+        // whose plan includes investments, so we never incur Plaid's Investments
+        // billing for a plan that can't see them. Shown for all institutions;
+        // fetched + billed only when the selected account actually supports it.
+        optional_products: entitlements.investments ? PLAID_OPTIONAL_PRODUCTS : undefined,
         webhook: plaidWebhookUrl(),
       });
       return res.data.link_token;

@@ -106,6 +106,7 @@ export const InvestmentRef = builder
       name: t.exposeString("name"),
       symbol: t.exposeString("symbol"),
       assetClass: t.exposeString("assetClass"),
+      source: t.exposeString("source"),
       value: t.exposeFloat("value"),
       costBasis: t.exposeFloat("costBasis", { nullable: true }),
       quantity: t.exposeFloat("quantity", { nullable: true }),

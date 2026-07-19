@@ -218,6 +218,11 @@ builder.mutationField("updateInvestment", (t) =>
 
       const existing = await prisma.investment.findFirst({ where: { id, userId } });
       if (!existing) notFound();
+      // Synced holdings are re-derived from the brokerage on every sync, so a
+      // manual edit would be silently overwritten — refuse it with a clear reason.
+      if (existing.source === "plaid") {
+        badRequest("This holding is synced from your brokerage and can't be edited here.");
+      }
 
       if (input.accountId) {
         const acct = await prisma.account.findFirst({ where: { id: input.accountId, userId } });
@@ -269,9 +274,18 @@ builder.mutationField("deleteInvestment", (t) =>
     args: { id: t.arg.id({ required: true }) },
     resolve: async (_root, { id }, ctx) => {
       const userId = requireUser(ctx);
-      // Scope the delete to the caller so it can't remove another user's row.
-      const { count } = await prisma.investment.deleteMany({ where: { id, userId } });
-      if (count === 0) notFound();
+      // Scope to the caller so it can't remove another user's row.
+      const existing = await prisma.investment.findFirst({
+        where: { id, userId },
+        select: { id: true, source: true },
+      });
+      if (!existing) notFound();
+      // A synced holding can't be deleted by hand — it would return on the next
+      // sync. Unlink the brokerage (or exclude the account) to remove it.
+      if (existing.source === "plaid") {
+        badRequest("This holding is synced from your brokerage and can't be removed here.");
+      }
+      await prisma.investment.delete({ where: { id } });
       return { ok: true, id };
     },
   }),

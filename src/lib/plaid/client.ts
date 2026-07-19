@@ -35,8 +35,19 @@ export const plaid = globalForPlaid.plaid || createPlaidClient();
 
 if (process.env.NODE_ENV !== "production") globalForPlaid.plaid = plaid;
 
-/** The only Plaid product we enable (cheapest: balances ride along for free). */
+/** Required product (cheapest: balances ride along for free). Kept minimal so
+ * Link never blocks a bank that lacks another product. */
 export const PLAID_PRODUCTS: Products[] = [Products.Transactions];
+
+/**
+ * Products requested best-effort: fetched + billed ONLY when the institution and
+ * the account the user selects actually support them, and never a barrier to
+ * linking (see `optional_products` in linkTokenCreate). Investments lets a
+ * brokerage connection (e.g. Wealthsimple) itemize its real holdings. Gated to
+ * entitled users at the call site so we don't incur Plaid's Investments billing
+ * for plans that can't see the feature.
+ */
+export const PLAID_OPTIONAL_PRODUCTS: Products[] = [Products.Investments];
 
 const COUNTRY_CODE_MAP: Record<string, CountryCode> = {
   US: CountryCode.Us,
