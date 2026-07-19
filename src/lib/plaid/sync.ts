@@ -23,7 +23,7 @@ import {
   plaidCategoryToOtterfund,
   iconColorFor,
 } from "./mappers";
-import { resolveMerchant } from "@/lib/merchant/resolve";
+import { resolveMerchant, warmMerchantDomains } from "@/lib/merchant/resolve";
 
 export interface SyncResult {
   added: number;
@@ -187,6 +187,16 @@ export async function syncItem(item: PlaidItem): Promise<SyncResult> {
     where: { id: item.id },
     data: { cursor, lastSyncedAt: new Date(), status: "active", error: null },
   });
+
+  // 6) Warm the shared merchant-logo cache for any new/updated merchants so the
+  // transactions UI shows their real logos. Bounded + best-effort — steady state
+  // has ~no misses, and this must never fail or noticeably slow a sync.
+  try {
+    const names = [...added, ...modified].map((t) => t.merchant_name || t.name);
+    await warmMerchantDomains(names, { max: 20 });
+  } catch (err) {
+    console.error("merchant cache warm failed:", safePlaidErr(err));
+  }
 
   return { added: added.length, modified: modified.length, removed: removed.length };
 }

@@ -170,6 +170,63 @@ export async function resolveDomainsCached(
   return out;
 }
 
+/**
+ * Warm the shared Merchant cache for a batch of merchant names: resolve any that
+ * aren't already known (dictionary) or cached, via the canonical resolveMerchant
+ * (which persists the result). This is how transaction merchants enter the same
+ * cross-user cache that accounts and subscriptions populate, so the read path
+ * (resolveDomainsCached) finds them next time. Bounded + best-effort: Claude runs
+ * at most once per NEW distinct merchant, ever, across all users.
+ *
+ * @param rawNames - merchant names from freshly written rows (duplicates fine).
+ * @param opts.max - cap on cache-miss merchants resolved this call (default 25),
+ *                   so a large import can't fan out an unbounded number of AI
+ *                   calls in one go; leftovers are picked up on the next pass.
+ * @returns { resolved, remaining } — logos found, and misses left over the cap.
+ */
+export async function warmMerchantDomains(
+  rawNames: string[],
+  opts: { max?: number } = {},
+): Promise<{ resolved: number; remaining: number }> {
+  const max = opts.max ?? 25;
+
+  // Distinct normalized keys, dropping empties + dictionary hits (already known).
+  const byKey = new Map<string, string>(); // key -> a representative raw name
+  for (const raw of rawNames) {
+    const key = normalizeKey(raw);
+    if (!key || MERCHANT_DICTIONARY[key] || byKey.has(key)) continue;
+    byKey.set(key, raw);
+  }
+  if (byKey.size === 0) return { resolved: 0, remaining: 0 };
+
+  // Drop the ones already cached — one query.
+  const cached = await prisma.merchant.findMany({
+    where: { normalizedKey: { in: [...byKey.keys()] } },
+    select: { normalizedKey: true },
+  });
+  for (const c of cached) byKey.delete(c.normalizedKey);
+
+  const todo = [...byKey.values()];
+  const batch = todo.slice(0, max);
+  const remaining = todo.length - batch.length;
+
+  // Small concurrency so a big batch doesn't hammer the AI endpoint at once.
+  const CONCURRENCY = 4;
+  let resolved = 0;
+  for (let i = 0; i < batch.length; i += CONCURRENCY) {
+    const chunk = batch.slice(i, i + CONCURRENCY);
+    const results = await Promise.all(
+      chunk.map((raw) =>
+        resolveMerchant(raw)
+          .then((r) => Boolean(r.domain))
+          .catch(() => false),
+      ),
+    );
+    resolved += results.filter(Boolean).length;
+  }
+  return { resolved, remaining };
+}
+
 async function cacheMerchant(
   key: string,
   m: ResolvedMerchant,

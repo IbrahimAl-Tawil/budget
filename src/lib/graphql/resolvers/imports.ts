@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db/prisma";
 import { parsePdfStatement } from "@/lib/ai/parse-pdf";
 import { categorizeTransactions } from "@/lib/ai/categorize";
 import { detectAndStoreRecurring } from "@/lib/db/recurring";
+import { warmMerchantDomains } from "@/lib/merchant/resolve";
 import { rateLimit, MINUTE, HOUR } from "@/lib/rate-limit";
 import { LIMITS, okString, okMoney } from "@/lib/validate";
 
@@ -181,6 +182,14 @@ builder.mutationField("confirmImport", (t) =>
         recurring = await detectAndStoreRecurring(userId);
       } catch (err) {
         console.error("recurring detection after import failed:", err);
+      }
+
+      // Warm the shared merchant-logo cache for the imported merchants so their
+      // rows show real logos. Best-effort + bounded (misses-only).
+      try {
+        await warmMerchantDomains(input.transactions.map((tx) => tx.name), { max: 30 });
+      } catch (err) {
+        console.error("merchant cache warm after import failed:", err);
       }
 
       return {
