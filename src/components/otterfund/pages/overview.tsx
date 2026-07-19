@@ -220,7 +220,7 @@ export function OtterfundOverview({ overview, name, theme, hasAccounts = true, o
             ]}
           />
         }
-        figure={money(showingCash ? cashTween : nwTween)}
+        figure={((showingCash ? cashTween : nwTween) < 0 ? "−" : "") + money(showingCash ? cashTween : nwTween)}
         meta={
           showingCash ? (
             <div style={{ fontSize: 13, color: "var(--color-of-muted)" }}>
@@ -349,7 +349,7 @@ export function OtterfundOverview({ overview, name, theme, hasAccounts = true, o
                 const isIncome = t.amount > 0;
                 return (
                   <Row key={t.id} columns="40px 1fr auto" gap={15} padding="15px 12px">
-                    <MerchantAvatar name={t.name} bg={tileBg} ink={tileInk} size={36} />
+                    <MerchantAvatar name={t.name} domain={t.domain} bg={tileBg} ink={tileInk} size={36} />
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontSize: 14, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                         {t.name}

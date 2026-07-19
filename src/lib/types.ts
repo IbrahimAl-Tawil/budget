@@ -11,6 +11,10 @@ export interface TransactionView {
   amount: number;
   icon: string;
   color: string;
+  /** Resolved merchant domain (dictionary/cache) for the row's logo — undefined
+   *  when the merchant is unknown, in which case the avatar shows the first
+   *  letter. */
+  domain?: string;
   /** Owning account — null for transactions with no account (rare/manual). */
   accountId: string | null;
   accountName: string | null;
@@ -18,6 +22,9 @@ export interface TransactionView {
    *  user, "csv" = extracted from an uploaded statement. Drives the Transactions
    *  page source filter + the "not from your bank" marker. */
   source?: "manual" | "plaid" | "csv";
+  /** Whether this transaction is marked as a recurring subscription — drives the
+   *  toggle state in the edit modal. */
+  isRecurring?: boolean;
 }
 
 export interface SpendCategory {

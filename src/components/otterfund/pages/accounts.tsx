@@ -166,7 +166,7 @@ export function OtterfundAccounts({ accounts, netWorth, netWorthTrend = [], netW
             Net worth · {accounts.length} {accounts.length === 1 ? "account" : "accounts"}
           </div>
         }
-        figure={fmt(netWorth, currency)}
+        figure={(netWorth < 0 ? "−" : "") + fmt(netWorth, currency)}
         meta={
           hasTrend ? (
             <StatPill

@@ -522,7 +522,7 @@ export function OtterfundTransactions({ transactions, accounts, theme, currency 
                         stopPropagation
                       />
                       <div style={{ display: "flex", alignItems: "center", gap: 13, minWidth: 0 }}>
-                        <MerchantAvatar name={t.name} bg={tint} ink={ink} size={36} />
+                        <MerchantAvatar name={t.name} domain={t.domain} bg={tint} ink={ink} size={36} />
                         <div style={{ minWidth: 0 }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
                             <span style={{ fontSize: 13.5, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>

@@ -29,7 +29,7 @@ export async function detectPriceChanges(
   const subs = await prisma.subscription.findMany({
     where: {
       userId,
-      isActive: true,
+      status: "active",
       previousAmount: { not: null },
     },
   });
@@ -55,7 +55,7 @@ export async function detectUnusedSubscriptions(
   userId: string
 ): Promise<UnusedSubscription[]> {
   const subs = await prisma.subscription.findMany({
-    where: { userId, isActive: true },
+    where: { userId, status: "active" },
   });
   if (subs.length === 0) return [];
 
@@ -117,7 +117,7 @@ export const computeSubscriptionBudgetImpact = cache(async (
   const subs = await prisma.subscription.findMany({
     where: {
       userId,
-      isActive: true,
+      status: "active",
       categoryId: { not: null },
     },
   });

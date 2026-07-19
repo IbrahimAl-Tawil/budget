@@ -46,6 +46,8 @@ interface OtterfundSpendingProps {
   period: { month: number; year: number };
   /** Recurring charges, rendered as the "Recurring" section (formerly a tab). */
   subscriptions: SubscriptionView[];
+  /** Auto-detected subscriptions awaiting review, shown as a queue above the list. */
+  suggestions?: SubscriptionView[];
   currency: string;
   /** False when the user has no accounts at all — with no income or spend, the
       page shows an "add an account" cold start instead of empty donuts/buckets. */
@@ -56,6 +58,8 @@ interface OtterfundSpendingProps {
   onEditSubscription?: (s: SubscriptionView) => void;
   /** Open the shared edit-transaction modal (chrome-owned) from a drill-in row. */
   onEditTransaction?: (tx: TransactionView) => void;
+  /** Re-fetch the page after a review-queue accept/decline. */
+  onReviewed?: () => void;
   /** Open settings on the Money tab, where the budget plan (50/30/20 etc.) is chosen. */
   onEditPlan?: () => void;
   /** Link to Goals (where the savings pool is allocated to goals). */
@@ -84,7 +88,7 @@ function glyphInk(name: string, theme: OtterfundTheme): string {
   return CATEGORY_TINTS[name]?.[1] ?? theme.accentDeep;
 }
 
-export function OtterfundSpending({ plan, accent, theme, period, subscriptions, currency: currencyProp, hasAccounts = true, onAddAccount, onConnect, onAddSubscription, onEditSubscription, onEditTransaction, onEditPlan, goalsHref }: OtterfundSpendingProps) {
+export function OtterfundSpending({ plan, accent, theme, period, subscriptions, suggestions = [], currency: currencyProp, hasAccounts = true, onAddAccount, onConnect, onAddSubscription, onEditSubscription, onEditTransaction, onReviewed, onEditPlan, goalsHref }: OtterfundSpendingProps) {
   const currency = plan.currency || currencyProp;
   const money = (n: number) => fmt(n, currency);
 
@@ -387,11 +391,13 @@ export function OtterfundSpending({ plan, accent, theme, period, subscriptions, 
       <OtterfundSubscriptions
         embedded
         subscriptions={subscriptions}
+        suggestions={suggestions}
         accent={accent}
         theme={theme}
         currency={currency}
         onAdd={onAddSubscription}
         onEdit={onEditSubscription}
+        onReviewed={onReviewed}
       />
     </Statement>
 

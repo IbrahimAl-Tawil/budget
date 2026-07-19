@@ -121,6 +121,55 @@ export async function resolveMerchant(rawName: string): Promise<ResolvedMerchant
   }
 }
 
+/**
+ * Batch-resolve merchant domains WITHOUT ever calling Claude — the seed
+ * dictionary + the cross-user Merchant cache only. Built for read paths like
+ * the transactions list, where a logo for a known merchant and a plain letter
+ * for an unknown one is exactly the desired behaviour, and per-row AI latency
+ * is not acceptable. One DB query for all cache misses.
+ *
+ * @param rawNames - merchant names as stored on the rows (duplicates fine).
+ * @returns Map keyed by the ORIGINAL raw name → domain, or null when unknown.
+ */
+export async function resolveDomainsCached(
+  rawNames: string[],
+): Promise<Map<string, string | null>> {
+  const out = new Map<string, string | null>();
+  const keyByName = new Map<string, string>();
+  const missKeys = new Set<string>();
+
+  for (const raw of rawNames) {
+    if (out.has(raw) || keyByName.has(raw)) continue;
+    const key = normalizeKey(raw);
+    if (!key) {
+      out.set(raw, null);
+      continue;
+    }
+    const dict = MERCHANT_DICTIONARY[key];
+    if (dict) {
+      out.set(raw, dict.domain);
+      continue;
+    }
+    keyByName.set(raw, key);
+    missKeys.add(key);
+  }
+
+  if (missKeys.size > 0) {
+    const rows = await prisma.merchant.findMany({
+      where: { normalizedKey: { in: [...missKeys] } },
+      select: { normalizedKey: true, domain: true, isCompany: true },
+    });
+    const byKey = new Map(rows.map((r) => [r.normalizedKey, r]));
+    for (const [raw, key] of keyByName) {
+      const row = byKey.get(key);
+      // Only a recognized company yields a logo; unknowns stay null → letter.
+      out.set(raw, row && row.isCompany ? row.domain : null);
+    }
+  }
+
+  return out;
+}
+
 async function cacheMerchant(
   key: string,
   m: ResolvedMerchant,

@@ -10,8 +10,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { DateInput } from "@/components/otterfund/form";
 import { ConfirmButton } from "@/components/otterfund/confirm-button";
-import { Trash2, ChevronDown } from "lucide-react";
+import { Trash2, ChevronDown, Check, RefreshCw } from "lucide-react";
 import type { TransactionView } from "@/lib/types";
+import { SUBSCRIPTION_CYCLES } from "@/lib/constants";
 import { gqlClient, errMessage } from "@/lib/graphql/client";
 
 const CATEGORIES = /* GraphQL */ `query Categories { categories { name } }`;
@@ -47,6 +48,12 @@ export function EditTransactionModal({
   const [category, setCategory] = useState("");
   const [date, setDate] = useState("");
   const [categories, setCategories] = useState<string[]>([]);
+  // "Recurring subscription" toggle. `initialRecurring` lets us send the change
+  // only when the user actually flips it, so an unrelated edit doesn't churn the
+  // subscription list.
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [initialRecurring, setInitialRecurring] = useState(false);
+  const [cycle, setCycle] = useState<string>("Monthly");
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState("");
 
@@ -56,6 +63,9 @@ export function EditTransactionModal({
       setAmount(String(Math.abs(transaction.amount)));
       setType(transaction.amount >= 0 ? "credit" : "debit");
       setCategory(transaction.category);
+      setIsRecurring(Boolean(transaction.isRecurring));
+      setInitialRecurring(Boolean(transaction.isRecurring));
+      setCycle("Monthly");
       // Parse the display date back — we need the ISO date from the API
       setDate("");
       setError("");
@@ -81,6 +91,11 @@ export function EditTransactionModal({
           category,
         };
         if (date) input.date = date;
+        // Only send the recurring change when the user actually toggled it.
+        if (isRecurring !== initialRecurring) {
+          input.isRecurring = isRecurring;
+          if (isRecurring) input.cycle = cycle;
+        }
 
         await gqlClient.request(UPDATE_TRANSACTION, { id: transaction.id, input });
 
@@ -185,6 +200,59 @@ export function EditTransactionModal({
               Date (leave blank to keep current)
             </label>
             <DateInput value={date} onChange={(e) => setDate(e.target.value)} />
+          </div>
+
+          {/* Recurring subscription — checking this tracks the merchant in the
+              Recurring subscriptions section; the cadence picker appears once on. */}
+          <div>
+            <button
+              type="button"
+              onClick={() => setIsRecurring((v) => !v)}
+              aria-pressed={isRecurring}
+              className="flex w-full items-start gap-3 rounded-xl border border-[var(--color-of-line)] px-3.5 py-3 text-left transition-colors hover:bg-[var(--color-of-hover)]"
+            >
+              <span
+                className="mt-px flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-colors"
+                style={{
+                  borderColor: isRecurring ? "var(--primary)" : "var(--color-of-line)",
+                  background: isRecurring ? "var(--primary)" : "transparent",
+                }}
+              >
+                {isRecurring && (
+                  <Check size={13} strokeWidth={3} className="text-[var(--primary-foreground)]" />
+                )}
+              </span>
+              <span className="min-w-0">
+                <span className="flex items-center gap-1.5 text-sm font-semibold text-[var(--color-of-ink)]">
+                  <RefreshCw size={13} strokeWidth={2.2} className="text-[var(--color-of-muted)]" />
+                  Recurring subscription
+                </span>
+                <span className="block text-[12.5px] text-[var(--color-of-muted)] mt-0.5">
+                  Track this merchant in your Recurring subscriptions.
+                </span>
+              </span>
+            </button>
+            {isRecurring && (
+              <div className="mt-3 pl-8">
+                <label className="block text-[11px] font-semibold tracking-[0.09em] uppercase text-[var(--color-of-faint)] mb-1.5">
+                  Billing cycle
+                </label>
+                <div className="relative">
+                  <select
+                    value={cycle}
+                    onChange={(e) => setCycle(e.target.value)}
+                    className="of-field-select"
+                  >
+                    {SUBSCRIPTION_CYCLES.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-[var(--color-of-muted)]" />
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

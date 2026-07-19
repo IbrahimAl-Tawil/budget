@@ -2,7 +2,7 @@ import { builder } from "../builder";
 import { requireUser, notFound, badRequest } from "../errors";
 import { SubscriptionRef } from "../types/views";
 import { MutationResultRef } from "../types/results";
-import { getSubscriptions } from "@/lib/db/queries";
+import { getSubscriptions, getSubscriptionSuggestions } from "@/lib/db/queries";
 import { prisma } from "@/lib/db/prisma";
 import { okMoney, okString, okEnum, LIMITS } from "@/lib/validate";
 import { SUBSCRIPTION_CYCLES } from "@/lib/constants";
@@ -12,6 +12,45 @@ builder.queryField("subscriptions", (t) =>
   t.field({
     type: [SubscriptionRef],
     resolve: (_root, _args, ctx) => getSubscriptions(requireUser(ctx)),
+  }),
+);
+
+// Auto-detected subscriptions the user hasn't yet accepted or declined.
+builder.queryField("subscriptionSuggestions", (t) =>
+  t.field({
+    type: [SubscriptionRef],
+    resolve: (_root, _args, ctx) => getSubscriptionSuggestions(requireUser(ctx)),
+  }),
+);
+
+// Resolve one review-queue suggestion: "accept" promotes it to an active,
+// user-confirmed subscription; "dismiss" retires it (kept as "dismissed" so
+// detection won't surface it again).
+builder.mutationField("reviewSubscription", (t) =>
+  t.field({
+    type: MutationResultRef,
+    args: {
+      id: t.arg.id({ required: true }),
+      action: t.arg.string({ required: true }), // "accept" | "dismiss"
+    },
+    resolve: async (_root, { id, action }, ctx) => {
+      const userId = requireUser(ctx);
+      if (!okEnum(action, ["accept", "dismiss"])) badRequest("Invalid action.");
+      // Scope to the caller AND to suggestions only, so this can't mutate an
+      // already-active subscription or another user's row.
+      const existing = await prisma.subscription.findFirst({
+        where: { id, userId, status: "suggested" },
+      });
+      if (!existing) notFound();
+      await prisma.subscription.update({
+        where: { id },
+        data:
+          action === "accept"
+            ? { status: "active", isActive: true, confirmedByUser: true, lastTransactionDate: new Date() }
+            : { status: "dismissed", isActive: false },
+      });
+      return { ok: true, id };
+    },
   }),
 );
 

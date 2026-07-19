@@ -28,7 +28,9 @@ export const TransactionRef = builder
       amount: t.exposeFloat("amount"),
       icon: t.exposeString("icon"),
       color: t.exposeString("color"),
+      domain: t.exposeString("domain", { nullable: true }),
       source: t.exposeString("source", { nullable: true }),
+      isRecurring: t.exposeBoolean("isRecurring", { nullable: true }),
     }),
   });
 

@@ -222,6 +222,14 @@ model Subscription {
   color               String?
   domain              String?
   isActive            Boolean   @default(true)
+  // Review lifecycle for auto-detected subscriptions:
+  //  "active"    — shown in the Recurring list (manual, user-accepted, or a
+  //                high-confidence auto-detection).
+  //  "suggested" — detected but below the auto-add confidence bar; waiting in
+  //                the review queue for the user to accept or decline.
+  //  "dismissed" — the user declined the suggestion; kept (not deleted) so a
+  //                later re-detection doesn't nag them with it again.
+  status              String    @default("active")
   detectedAt          DateTime?
   lastTransactionDate DateTime?
   confirmedByUser     Boolean   @default(false)

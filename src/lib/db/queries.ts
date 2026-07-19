@@ -15,6 +15,7 @@ import {
 import { fmt, round2 } from "@/lib/format";
 import { getBudgetPlan, bucketOf, accountGroupOf } from "@/lib/constants";
 import { allocatePool } from "./goal-allocation";
+import { resolveDomainsCached } from "@/lib/merchant/resolve";
 import { getQuotes, type Quote } from "@/lib/market/prices";
 import type {
   DashboardOverview,
@@ -287,6 +288,7 @@ export async function getDashboardOverview(
     urgent: b.isUrgent || (b.dueDate.getTime() - Date.now() < 3 * 86400000),
   }));
 
+  const recentDomains = await resolveDomainsCached(recentTx.map((t) => t.name));
   const txViews: TransactionView[] = recentTx.map((t) => ({
     id: t.id,
     name: t.name,
@@ -296,6 +298,7 @@ export async function getDashboardOverview(
     amount: t.amount,
     icon: t.icon || "circle",
     color: t.color || "#f0f0f0",
+    domain: recentDomains.get(t.name) ?? undefined,
     accountId: t.accountId,
     accountName: t.account?.name ?? null,
     source: t.source as TransactionView["source"],
@@ -732,6 +735,11 @@ export async function getTransactions(
     prisma.transaction.count({ where }),
   ]);
 
+  // Resolve merchant logos for this page from the dictionary + cache only (no
+  // AI at read time): a known retailer shows its logo, an unknown one falls
+  // back to the first letter in MerchantAvatar.
+  const domainByName = await resolveDomainsCached(transactions.map((t) => t.name));
+
   const txViews: TransactionView[] = transactions.map((t) => ({
     id: t.id,
     name: t.name,
@@ -741,9 +749,11 @@ export async function getTransactions(
     amount: t.amount,
     icon: t.icon || "circle",
     color: t.color || "#f0f0f0",
+    domain: domainByName.get(t.name) ?? undefined,
     accountId: t.accountId,
     accountName: t.account?.name ?? null,
     source: t.source as TransactionView["source"],
+    isRecurring: t.isRecurring,
   }));
 
   return { transactions: txViews, total, totalPages: Math.ceil(total / limit) };
@@ -752,7 +762,7 @@ export async function getTransactions(
 export async function getSubscriptions(userId: string): Promise<SubscriptionView[]> {
   const [subs, priceChanges, unused] = await Promise.all([
     prisma.subscription.findMany({
-      where: { userId, isActive: true },
+      where: { userId, status: "active" },
       include: { category: true },
       orderBy: { amount: "desc" },
     }),
@@ -788,6 +798,32 @@ export async function getSubscriptions(userId: string): Promise<SubscriptionView
       flags,
     };
   });
+}
+
+/** Auto-detected subscriptions awaiting the user's review (status "suggested").
+    Same shape as getSubscriptions but with no flags — these aren't tracked yet,
+    so the price-change / unused signals don't apply. Ordered newest first so the
+    freshest detections lead the review queue. */
+export async function getSubscriptionSuggestions(userId: string): Promise<SubscriptionView[]> {
+  const subs = await prisma.subscription.findMany({
+    where: { userId, status: "suggested" },
+    include: { category: true },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return subs.map((s) => ({
+    id: s.id,
+    name: s.name,
+    cycle: s.cycle,
+    amount: s.amount,
+    icon: s.icon || "tv",
+    color: s.color || "#fde8e8",
+    domain: s.domain ?? undefined,
+    confirmedByUser: s.confirmedByUser,
+    categoryId: s.categoryId ?? undefined,
+    categoryName: s.category?.name ?? undefined,
+    flags: [],
+  }));
 }
 
 /** How many accounts the user has (linked or manual). Drives the app-wide

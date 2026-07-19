@@ -4,7 +4,9 @@ import { TransactionPageRef } from "../types/views";
 import { MutationResultRef } from "../types/results";
 import { getTransactions, getSpendingCategoryDetail } from "@/lib/db/queries";
 import { prisma } from "@/lib/db/prisma";
-import { okString, okMoney, LIMITS } from "@/lib/validate";
+import { setSubscriptionForTransaction } from "@/lib/db/recurring";
+import { okString, okMoney, okEnum, LIMITS } from "@/lib/validate";
+import { SUBSCRIPTION_CYCLES } from "@/lib/constants";
 
 builder.queryField("transactions", (t) =>
   t.field({
@@ -62,6 +64,11 @@ const TransactionUpdateInput = builder.inputType("TransactionUpdateInput", {
     category: t.string(),
     type: t.string(),
     date: t.string(),
+    // Toggling this on marks the transaction recurring AND tracks it as a
+    // subscription in the Recurring section; `cycle` is the billing cadence for
+    // that subscription (defaults Monthly).
+    isRecurring: t.boolean(),
+    cycle: t.string(),
   }),
 });
 
@@ -125,6 +132,9 @@ builder.mutationField("updateTransaction", (t) =>
       const userId = requireUser(ctx);
       if (!okString(input.name, LIMITS.NAME)) badRequest("Name is too long.");
       if (!okMoney(input.amount)) badRequest("Amount is out of range.");
+      if (input.cycle != null && input.cycle && !okEnum(input.cycle, SUBSCRIPTION_CYCLES)) {
+        badRequest("Pick a billing cycle.");
+      }
       const existing = await prisma.transaction.findFirst({
         where: { id, userId },
       });
@@ -153,8 +163,35 @@ builder.mutationField("updateTransaction", (t) =>
           ...(input.amount != null && { amount: finalAmount }),
           categoryId,
           ...(input.date != null && { date: new Date(input.date) }),
+          // The "recurring subscription" toggle: confirmed / rejected mirrors the
+          // review-queue vocabulary so both paths read the same downstream.
+          ...(input.isRecurring != null && {
+            isRecurring: input.isRecurring,
+            recurringFlag: input.isRecurring ? "confirmed" : "rejected",
+          }),
         },
       });
+
+      // Reflect the toggle into the Recurring section: checking creates/keeps an
+      // active subscription for this merchant, unchecking retires it. Uses the
+      // final (possibly just-edited) name/amount/category. Best-effort so a
+      // subscription hiccup never fails the transaction edit itself.
+      if (input.isRecurring != null) {
+        try {
+          await setSubscriptionForTransaction(
+            userId,
+            {
+              name: input.name ?? existing.name,
+              amount: finalAmount,
+              cycle: input.cycle || "Monthly",
+              categoryId,
+            },
+            input.isRecurring,
+          );
+        } catch (err) {
+          console.error("subscription sync from transaction toggle failed:", err);
+        }
+      }
       return { ok: true, id };
     },
   }),

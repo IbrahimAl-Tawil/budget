@@ -11,6 +11,7 @@ import {
 } from "@/lib/plaid/client";
 import { encryptToken, decryptToken } from "@/lib/crypto";
 import { syncItem, syncAllActiveItems, safePlaidErr } from "@/lib/plaid/sync";
+import { detectAndStoreRecurring } from "@/lib/db/recurring";
 import { checkLinkQuota, recordLinkEvent } from "@/lib/plaid/guards";
 import { rateLimit, MINUTE, HOUR, SECOND } from "@/lib/rate-limit";
 
@@ -142,6 +143,10 @@ builder.mutationField("exchangePlaidToken", (t) =>
       // Best-effort initial sync — a failure is recovered by the webhook/cron.
       try {
         await syncItem(item);
+        // With the freshly-synced history in place, surface recurring charges as
+        // subscriptions (high-confidence auto-added, the rest queued for review).
+        // Best-effort: detection failing must never fail the bank link.
+        await detectAndStoreRecurring(userId);
       } catch (err) {
         console.error("initial plaid sync failed:", safePlaidErr(err));
       }

@@ -3,6 +3,7 @@ import { requireUser, badRequest, notFound, rateLimited } from "../errors";
 import { prisma } from "@/lib/db/prisma";
 import { parsePdfStatement } from "@/lib/ai/parse-pdf";
 import { categorizeTransactions } from "@/lib/ai/categorize";
+import { detectAndStoreRecurring } from "@/lib/db/recurring";
 import { rateLimit, MINUTE, HOUR } from "@/lib/rate-limit";
 import { LIMITS, okString, okMoney } from "@/lib/validate";
 
@@ -172,8 +173,20 @@ builder.mutationField("confirmImport", (t) =>
         });
       }
 
+      // With the imported history written, detect recurring charges and file
+      // them as subscriptions (high-confidence auto-added, the rest queued for
+      // review). Best-effort — a detection failure must not fail the import.
+      let recurring = { added: 0, suggested: 0 };
+      try {
+        recurring = await detectAndStoreRecurring(userId);
+      } catch (err) {
+        console.error("recurring detection after import failed:", err);
+      }
+
       return {
         imported: created.length,
+        subscriptionsAdded: recurring.added,
+        subscriptionsSuggested: recurring.suggested,
         categorized: categorized.map((tx) => ({
           name: tx.name,
           amount: tx.amount,

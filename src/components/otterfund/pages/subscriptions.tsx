@@ -10,6 +10,7 @@
 // than a per-service colour, so the page stays on one hue and re-tints with the
 // brand-kit scheme.
 
+import { useState } from "react";
 import type { SubscriptionView } from "@/lib/types";
 import { type OtterfundTheme, accentFamilyTint } from "@/components/otterfund/theme";
 import { fmt } from "@/lib/format";
@@ -21,15 +22,26 @@ import { SectionHead, Ledger, Row } from "@/components/otterfund/ledger";
 import { Panel } from "@/components/otterfund/panel";
 import { CardLabel } from "@/components/otterfund/card";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, Check, X, Sparkles } from "lucide-react";
+import { gqlClient } from "@/lib/graphql/client";
+
+const REVIEW_SUBSCRIPTION = /* GraphQL */ `
+  mutation ReviewSubscription($id: ID!, $action: String!) {
+    reviewSubscription(id: $id, action: $action) { ok }
+  }
+`;
 
 interface OtterfundSubscriptionsProps {
   subscriptions: SubscriptionView[];
+  /** Auto-detected subscriptions awaiting the user's accept/decline. */
+  suggestions?: SubscriptionView[];
   accent: string;
   theme: OtterfundTheme;
   currency?: string;
   onAdd?: () => void;
   onEdit?: (subscription: SubscriptionView) => void;
+  /** Re-fetch the page after a review-queue accept/decline. */
+  onReviewed?: () => void;
   /**
    * Rendered as a "Recurring" section inside the Spending page rather than a
    * standalone tab: drops the full-bleed hero + page wrapper for a compact
@@ -54,8 +66,20 @@ function flagBadge(flag: string, theme: OtterfundTheme): { bg: string; color: st
     : { bg: "var(--color-of-warn)", color: "var(--color-of-warn-ink)", label: "No recent charge" };
 }
 
-export function OtterfundSubscriptions({ subscriptions, theme, currency = "CAD", onAdd, onEdit, embedded = false }: OtterfundSubscriptionsProps) {
+export function OtterfundSubscriptions({ subscriptions, suggestions = [], theme, currency = "CAD", onAdd, onEdit, onReviewed, embedded = false }: OtterfundSubscriptionsProps) {
   const money = (n: number) => fmt(n, currency);
+
+  // Review queue — id currently being accepted/declined (disables its buttons).
+  const [reviewing, setReviewing] = useState<string | null>(null);
+  const review = (id: string, action: "accept" | "dismiss") => {
+    if (reviewing) return;
+    setReviewing(id);
+    gqlClient
+      .request(REVIEW_SUBSCRIPTION, { id, action })
+      .then(() => onReviewed?.())
+      .catch(() => {})
+      .finally(() => setReviewing(null));
+  };
 
   const monthlyTotal = subscriptions
     .filter((s) => s.cycle === "Monthly")
@@ -89,6 +113,111 @@ export function OtterfundSubscriptions({ subscriptions, theme, currency = "CAD",
       <Plus data-icon="inline-start" size={16} strokeWidth={2.2} />
       New subscription
     </Button>
+  );
+
+  // Review queue — auto-detected recurring charges the user hasn't accepted or
+  // declined yet. Sits above the tracked list so it reads as "new, needs a
+  // decision". Each row commits immediately via reviewSubscription + refresh.
+  const reviewQueue = suggestions.length > 0 && (
+    <Panel theme={theme} style={{ marginBottom: 18 }}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 11, marginBottom: 14 }}>
+        <div
+          aria-hidden="true"
+          style={{
+            display: "flex",
+            height: 30,
+            width: 30,
+            flexShrink: 0,
+            alignItems: "center",
+            justifyContent: "center",
+            borderRadius: 9,
+            background: theme.accentTint,
+            color: theme.accentDeep,
+          }}
+        >
+          <Sparkles size={16} strokeWidth={2.2} />
+        </div>
+        <div style={{ minWidth: 0 }}>
+          <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>
+            {suggestions.length} possible subscription{suggestions.length === 1 ? "" : "s"}
+          </h3>
+          <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "var(--color-of-muted)" }}>
+            We spotted these recurring charges in your transactions. Add the ones you want to track.
+          </p>
+        </div>
+      </div>
+      <Ledger>
+        {suggestions.map((s, i) => {
+          const [tileBg, tileInk] = accentFamilyTint(i, theme.accent);
+          const busy = reviewing === s.id;
+          return (
+            <Row key={s.id} columns="40px 1fr auto" gap={13}>
+              <MerchantAvatar name={s.name} domain={s.domain} bg={tileBg} ink={tileInk} size={36} />
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {s.name}
+                </div>
+                <div style={{ fontSize: 12, color: "var(--color-of-faint)", marginTop: 2 }}>
+                  <span className="of-num">{money(s.amount)}</span> · {s.cycle}
+                </div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                <button
+                  type="button"
+                  onClick={() => review(s.id, "dismiss")}
+                  disabled={busy}
+                  aria-label={`Decline ${s.name}`}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 5,
+                    height: 32,
+                    padding: "0 12px",
+                    borderRadius: 9999,
+                    border: "1px solid var(--color-of-line)",
+                    background: "transparent",
+                    color: "var(--color-of-muted)",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    fontFamily: "inherit",
+                    cursor: busy ? "default" : "pointer",
+                    opacity: busy ? 0.5 : 1,
+                  }}
+                >
+                  <X size={14} strokeWidth={2.4} aria-hidden="true" />
+                  Decline
+                </button>
+                <button
+                  type="button"
+                  onClick={() => review(s.id, "accept")}
+                  disabled={busy}
+                  aria-label={`Add ${s.name}`}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 5,
+                    height: 32,
+                    padding: "0 14px",
+                    borderRadius: 9999,
+                    border: "none",
+                    background: theme.accent,
+                    color: "#fff",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    fontFamily: "inherit",
+                    cursor: busy ? "default" : "pointer",
+                    opacity: busy ? 0.6 : 1,
+                  }}
+                >
+                  <Check size={14} strokeWidth={2.6} aria-hidden="true" />
+                  Add
+                </button>
+              </div>
+            </Row>
+          );
+        })}
+      </Ledger>
+    </Panel>
   );
 
   const twoUp = (
@@ -273,6 +402,8 @@ export function OtterfundSubscriptions({ subscriptions, theme, currency = "CAD",
           </div>
           {addButton}
         </div>
+
+        {reviewQueue}
 
         {subscriptions.length > 0 ? (
           <div className="of-grid-2up" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
