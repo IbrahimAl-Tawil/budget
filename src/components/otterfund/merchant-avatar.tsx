@@ -7,6 +7,13 @@
 import { useEffect, useState } from "react";
 import { logoCandidates } from "@/lib/merchant/logo";
 
+// Favicon services return the site's own icon, which is often just 16–32px.
+// Upscaled into the tile that reads as a blurry logo — and a crisp letter looks
+// better than a pixelated mark. So when an image loads we check its intrinsic
+// size and, if it's below this, skip to the next source (ultimately the letter).
+// Real brand logos (logo.dev, large favicons) clear this comfortably.
+const MIN_LOGO_PX = 48;
+
 interface MerchantAvatarProps {
   name: string;
   domain?: string | null;
@@ -64,6 +71,12 @@ export function MerchantAvatar({ name, domain, bg, ink, size = 38, fit = "cover"
           alt=""
           loading="lazy"
           onError={() => setIdx((i) => i + 1)}
+          onLoad={(e) => {
+            // A favicon that loaded fine but is too small to render crisply —
+            // treat it like a miss and fall through (next source, then letter).
+            const nw = e.currentTarget.naturalWidth;
+            if (nw && nw < MIN_LOGO_PX) setIdx((i) => i + 1);
+          }}
           style={{
             width: "100%",
             height: "100%",
