@@ -11,12 +11,15 @@ import { SUBSCRIPTION_CYCLES } from "@/lib/constants";
 import { gqlClient } from "@/lib/graphql/client";
 
 const CATEGORIES = /* GraphQL */ `query Categories { categories { id name } }`;
+const ACCOUNTS = /* GraphQL */ `query SubAccounts { accounts { id name } }`;
 
 export interface SubscriptionFormValues {
   name: string;
   amount: string;
   cycle: string;
   categoryId: string;
+  /** The account/card this subscription is charged to. "" = not linked. */
+  accountId: string;
 }
 
 export type SubscriptionFormErrors = Partial<Record<"name" | "amount" | "cycle", string>>;
@@ -26,6 +29,7 @@ export const EMPTY_SUBSCRIPTION: SubscriptionFormValues = {
   amount: "",
   cycle: "Monthly",
   categoryId: "",
+  accountId: "",
 };
 
 /** Validate values; returns field→message map (empty = valid). */
@@ -54,6 +58,7 @@ interface SubscriptionFormProps {
 
 export function SubscriptionForm({ values, errors, onChange, open, idPrefix }: SubscriptionFormProps) {
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+  const [accounts, setAccounts] = useState<{ id: string; name: string }[]>([]);
 
   useEffect(() => {
     if (!open) return;
@@ -61,6 +66,10 @@ export function SubscriptionForm({ values, errors, onChange, open, idPrefix }: S
       .request<{ categories: { id: string; name: string }[] }>(CATEGORIES)
       .then(({ categories }) => setCategories(categories))
       .catch(() => setCategories([]));
+    gqlClient
+      .request<{ accounts: { id: string; name: string }[] }>(ACCOUNTS)
+      .then(({ accounts }) => setAccounts(accounts))
+      .catch(() => setAccounts([]));
   }, [open]);
 
   return (
@@ -112,6 +121,25 @@ export function SubscriptionForm({ values, errors, onChange, open, idPrefix }: S
           {categories.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
+            </option>
+          ))}
+        </SelectInput>
+      </Field>
+      <Field
+        label="Charged from"
+        optional
+        htmlFor={`${idPrefix}-account`}
+        hint="Which card or account this comes out of."
+      >
+        <SelectInput
+          id={`${idPrefix}-account`}
+          value={values.accountId}
+          onChange={(e) => onChange({ accountId: e.target.value })}
+        >
+          <option value="">Not linked to an account</option>
+          {accounts.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.name}
             </option>
           ))}
         </SelectInput>

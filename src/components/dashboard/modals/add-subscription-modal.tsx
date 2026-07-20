@@ -86,6 +86,7 @@ export function AddSubscriptionModal({
             amount: Number(values.amount),
             cycle: values.cycle,
             categoryId: values.categoryId || undefined,
+            accountId: values.accountId || undefined,
           },
         });
         reset();

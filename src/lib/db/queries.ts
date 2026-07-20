@@ -779,7 +779,14 @@ export async function getTransactions(
 }
 
 export async function getSubscriptions(userId: string): Promise<SubscriptionView[]> {
-  const [subs, priceChanges, unused] = await Promise.all([
+  // Subscriptions store their charging account (set at detection / by the user).
+  // Legacy rows predate that column, so for those we fall back to deriving it
+  // from the most recent transaction whose name matches (a year's window covers
+  // monthly and annual cadences). Editing such a sub persists the derived id.
+  const oneYearAgo = new Date();
+  oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+
+  const [subs, priceChanges, unused, matchTxs] = await Promise.all([
     prisma.subscription.findMany({
       where: { userId, status: "active" },
       include: { category: true },
@@ -787,12 +794,22 @@ export async function getSubscriptions(userId: string): Promise<SubscriptionView
     }),
     detectPriceChanges(userId),
     detectUnusedSubscriptions(userId),
+    prisma.transaction.findMany({
+      where: { userId, accountId: { not: null }, date: { gte: oneYearAgo } },
+      select: { name: true, accountId: true },
+      orderBy: { date: "desc" },
+    }),
   ]);
 
   const priceChangeMap = new Map(priceChanges.map((p) => [p.subscriptionId, p]));
   const unusedMap = new Map(unused.map((u) => [u.subscriptionId, u]));
 
   return subs.map((s) => {
+    // Prefer the stored account; else the most recent name-matching charge's
+    // account (matchTxs is date-desc).
+    const needle = s.name.toLowerCase();
+    const accountId =
+      s.accountId ?? matchTxs.find((t) => t.name.toLowerCase().includes(needle))?.accountId ?? null;
     const flags: string[] = [];
     const pc = priceChangeMap.get(s.id);
     if (pc) {
@@ -815,6 +832,7 @@ export async function getSubscriptions(userId: string): Promise<SubscriptionView
       categoryId: s.categoryId ?? undefined,
       categoryName: s.category?.name ?? undefined,
       flags,
+      accountId,
     };
   });
 }

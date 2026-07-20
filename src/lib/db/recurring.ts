@@ -73,6 +73,7 @@ export async function detectAndStoreRecurring(
       name: true,
       amount: true,
       date: true,
+      accountId: true,
       categoryId: true,
       category: { select: { name: true } },
     },
@@ -102,6 +103,9 @@ export async function detectAndStoreRecurring(
   // it (drives the per-category "committed" figure).
   const categoryByTx = new Map(transactions.map((t) => [t.id, t.categoryId]));
   const categoryNameByTx = new Map(transactions.map((t) => [t.id, t.category?.name ?? ""]));
+  // Account behind each transaction, so a detected sub inherits the card its
+  // charges actually hit (the most recent one when they span several).
+  const accountByTx = new Map(transactions.map((t) => [t.id, { accountId: t.accountId, date: t.date }]));
 
   let headroom = MAX_SUBSCRIPTIONS - existing.length;
   let added = 0;
@@ -133,6 +137,13 @@ export async function detectAndStoreRecurring(
       (s.transactionIds ?? [])
         .map((id) => categoryByTx.get(id))
         .find((c): c is string => Boolean(c)) ?? undefined;
+    // The card this sub is charged to: account of the most recent transaction
+    // behind it (they usually share one; most-recent wins if not).
+    const accountId =
+      (s.transactionIds ?? [])
+        .map((id) => accountByTx.get(id))
+        .filter((x): x is { accountId: string | null; date: Date } => Boolean(x))
+        .sort((a, b) => b.date.getTime() - a.date.getTime())[0]?.accountId ?? undefined;
 
     // A failed logo lookup must not abort the whole pass — degrade to no logo.
     const merchant = await resolveMerchant(name).catch(() => ({ domain: null }));
@@ -144,6 +155,7 @@ export async function detectAndStoreRecurring(
         amount,
         cycle: toCycle(s.frequency),
         categoryId,
+        accountId,
         domain: merchant.domain,
         status: isAuto ? "active" : "suggested",
         isActive: isAuto,
@@ -180,7 +192,7 @@ export async function detectRecurringHeuristic(userId: string): Promise<{ sugges
   const txns = await prisma.transaction.findMany({
     where: { userId, date: { gte: sixMonthsAgo }, amount: { lt: 0 } },
     orderBy: { date: "asc" },
-    select: { name: true, amount: true, date: true, categoryId: true, category: { select: { name: true } } },
+    select: { name: true, amount: true, date: true, accountId: true, categoryId: true, category: { select: { name: true } } },
   });
   if (txns.length < HEURISTIC.minOccurrences) return { suggested: 0 };
 
@@ -200,7 +212,7 @@ export async function detectRecurringHeuristic(userId: string): Promise<{ sugges
   let headroom = MAX_SUBSCRIPTIONS - existing.length;
 
   const now = Date.now();
-  const picks: { name: string; amount: number; categoryId: string | null }[] = [];
+  const picks: { name: string; amount: number; categoryId: string | null; accountId: string | null }[] = [];
 
   for (const [key, g] of groups) {
     if (headroom <= 0) break;
@@ -236,7 +248,13 @@ export async function detectRecurringHeuristic(userId: string): Promise<{ sugges
 
     seen.add(key);
     headroom--;
-    picks.push({ name: g.name.trim(), amount: med, categoryId: items.find((t) => t.categoryId)?.categoryId ?? null });
+    // Most recent charge (items are date-asc) carries the card this hits.
+    picks.push({
+      name: g.name.trim(),
+      amount: med,
+      categoryId: items.find((t) => t.categoryId)?.categoryId ?? null,
+      accountId: items[items.length - 1].accountId ?? null,
+    });
   }
 
   if (picks.length === 0) return { suggested: 0 };
@@ -254,6 +272,7 @@ export async function detectRecurringHeuristic(userId: string): Promise<{ sugges
         amount: p.amount,
         cycle: "Monthly",
         categoryId: p.categoryId ?? undefined,
+        accountId: p.accountId ?? undefined,
         domain: m?.domain ?? null,
         status: "suggested",
         isActive: false,
@@ -276,7 +295,7 @@ export async function detectRecurringHeuristic(userId: string): Promise<{ sugges
  */
 export async function setSubscriptionForTransaction(
   userId: string,
-  fields: { name: string; amount: number; cycle: string; categoryId?: string | null },
+  fields: { name: string; amount: number; cycle: string; categoryId?: string | null; accountId?: string | null },
   active: boolean,
 ): Promise<void> {
   const name = fields.name.trim();
@@ -299,6 +318,7 @@ export async function setSubscriptionForTransaction(
           amount: amount > 0 ? amount : existing.amount,
           cycle,
           categoryId: fields.categoryId ?? existing.categoryId,
+          accountId: fields.accountId ?? existing.accountId,
           lastTransactionDate: new Date(),
         },
       });
@@ -313,6 +333,7 @@ export async function setSubscriptionForTransaction(
         amount,
         cycle,
         categoryId: fields.categoryId ?? undefined,
+        accountId: fields.accountId ?? undefined,
         domain: merchant.domain,
         status: "active",
         isActive: true,

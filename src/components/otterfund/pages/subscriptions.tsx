@@ -25,7 +25,7 @@ import { Panel } from "@/components/otterfund/panel";
 import { EmptyState } from "@/components/otterfund/empty-state";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
-import { Plus, Check, X, RefreshCw } from "lucide-react";
+import { Plus, Check, X, RefreshCw, Info } from "lucide-react";
 import { gqlClient, errMessage } from "@/lib/graphql/client";
 import type { ToastInput } from "@/components/otterfund/toast";
 
@@ -273,9 +273,10 @@ export function OtterfundSubscriptions({ subscriptions, suggestions = [], theme,
                     const { bg, color, label } = flagBadge(flag, theme);
                     const badgeStyle = { fontSize: 10, fontWeight: 600, letterSpacing: "0.04em", padding: "2px 7px", borderRadius: 999, background: bg, color };
                     // Price flags are self-evident. "No recent charge" reads as an
-                    // error, so make it a tappable chip that explains itself and
-                    // reassures when the charge simply lives on an account we can't
-                    // see. stopPropagation keeps the tap off the row's edit action.
+                    // error, so keep the label but add a small info icon that opens
+                    // a tooltip explaining it (and reassuring when the charge simply
+                    // lives on an account we can't see). stopPropagation keeps the
+                    // tap off the row's edit action.
                     if (flag.toLowerCase().startsWith("price")) {
                       return (
                         <span key={flag} title={flag} style={badgeStyle}>
@@ -287,9 +288,11 @@ export function OtterfundSubscriptions({ subscriptions, suggestions = [], theme,
                       <Popover key={flag}>
                         <PopoverTrigger
                           onClick={(e) => e.stopPropagation()}
-                          style={{ ...badgeStyle, border: "none", cursor: "pointer" }}
+                          aria-label={`What does "${label}" mean?`}
+                          style={{ ...badgeStyle, display: "inline-flex", alignItems: "center", gap: 4, border: "none", cursor: "pointer" }}
                         >
                           {label}
+                          <Info size={11} strokeWidth={2.5} style={{ opacity: 0.8 }} />
                         </PopoverTrigger>
                         <PopoverContent side="top" align="start" className="w-[250px] p-3.5">
                           <p className="text-[12.5px] leading-relaxed text-[var(--color-of-muted)]">

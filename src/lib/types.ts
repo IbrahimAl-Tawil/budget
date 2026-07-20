@@ -177,6 +177,11 @@ export interface SubscriptionView {
   categoryId?: string;
   categoryName?: string;
   flags: string[];
+  /** The account this subscription is charged to — the stored `accountId`, or,
+   *  for legacy rows that predate the column, the account of the most recent
+   *  name-matching transaction (so the edit modal's card picker can prefill it).
+   *  Null when nothing matched, e.g. it's paid from an account not connected. */
+  accountId?: string | null;
 }
 
 export interface InvestmentView {

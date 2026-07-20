@@ -185,6 +185,7 @@ builder.mutationField("updateTransaction", (t) =>
               amount: finalAmount,
               cycle: input.cycle || "Monthly",
               categoryId,
+              accountId: existing.accountId,
             },
             input.isRecurring,
           );

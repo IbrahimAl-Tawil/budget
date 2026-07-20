@@ -60,6 +60,7 @@ const SubscriptionCreateInput = builder.inputType("SubscriptionCreateInput", {
     amount: t.float({ required: true }),
     cycle: t.string({ required: true }),
     categoryId: t.id(),
+    accountId: t.id(),
   }),
 });
 
@@ -86,6 +87,13 @@ builder.mutationField("createSubscription", (t) =>
         });
         if (!cat) notFound("Category not found.");
       }
+      // Likewise the chosen card must be the caller's own account.
+      if (input.accountId) {
+        const acct = await prisma.account.findFirst({
+          where: { id: input.accountId, userId },
+        });
+        if (!acct) notFound("Account not found.");
+      }
       if ((await prisma.subscription.count({ where: { userId } })) >= 200) {
         badRequest("Subscription limit reached.");
       }
@@ -103,6 +111,7 @@ builder.mutationField("createSubscription", (t) =>
           amount: Math.abs(input.amount),
           cycle: input.cycle,
           categoryId: input.categoryId || undefined,
+          accountId: input.accountId || undefined,
           domain: merchant.domain,
           // Manually added → the user has confirmed it exists. Anchor the
           // last-seen date to now so the "no recent charge" detector doesn't
@@ -124,9 +133,10 @@ builder.mutationField("updateSubscription", (t) =>
       name: t.arg.string(),
       cycle: t.arg.string(),
       categoryId: t.arg.id(),
+      accountId: t.arg.id(),
       amount: t.arg.float(),
     },
-    resolve: async (_root, { id, name, cycle, categoryId, amount }, ctx) => {
+    resolve: async (_root, { id, name, cycle, categoryId, accountId, amount }, ctx) => {
       const userId = requireUser(ctx);
       if (name != null && (!okString(name, LIMITS.NAME) || !name.trim())) {
         badRequest("Give the subscription a name.");
@@ -153,11 +163,19 @@ builder.mutationField("updateSubscription", (t) =>
         });
         if (!cat) notFound("Category not found.");
       }
+      // Same ownership guard for the chosen card.
+      if (accountId) {
+        const acct = await prisma.account.findFirst({
+          where: { id: accountId, userId },
+        });
+        if (!acct) notFound("Account not found.");
+      }
 
       const data: {
         name?: string;
         cycle?: string;
         categoryId?: string | null;
+        accountId?: string | null;
         amount?: number;
         previousAmount?: number;
         domain?: string | null;
@@ -175,6 +193,8 @@ builder.mutationField("updateSubscription", (t) =>
       }
       if (cycle != null) data.cycle = cycle;
       if (categoryId !== undefined) data.categoryId = categoryId || null;
+      // Empty string clears the card; an id sets it (null arg leaves it untouched).
+      if (accountId !== undefined) data.accountId = accountId || null;
       if (amount != null && Number.isFinite(amount)) {
         const abs = Math.abs(amount);
         if (abs !== existing.amount) {

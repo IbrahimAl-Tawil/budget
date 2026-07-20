@@ -26,8 +26,8 @@ import type { SubscriptionView } from "@/lib/types";
 import { gqlClient, errMessage } from "@/lib/graphql/client";
 
 const UPDATE_SUBSCRIPTION = /* GraphQL */ `
-  mutation UpdateSubscription($id: ID!, $name: String, $cycle: String, $amount: Float, $categoryId: ID) {
-    updateSubscription(id: $id, name: $name, cycle: $cycle, amount: $amount, categoryId: $categoryId) { ok }
+  mutation UpdateSubscription($id: ID!, $name: String, $cycle: String, $amount: Float, $categoryId: ID, $accountId: ID) {
+    updateSubscription(id: $id, name: $name, cycle: $cycle, amount: $amount, categoryId: $categoryId, accountId: $accountId) { ok }
   }
 `;
 
@@ -60,6 +60,7 @@ export function EditSubscriptionModal({
         amount: String(subscription.amount),
         cycle: subscription.cycle,
         categoryId: subscription.categoryId ?? "",
+        accountId: subscription.accountId ?? "",
       });
       setErrors({});
       setFormError("");
@@ -91,6 +92,7 @@ export function EditSubscriptionModal({
           cycle: values.cycle,
           amount: Number(values.amount),
           categoryId: values.categoryId || null,
+          accountId: values.accountId || "",
         });
         onUpdated();
       } catch (e) {

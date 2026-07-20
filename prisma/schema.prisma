@@ -94,10 +94,11 @@ model Account {
   mask           String?
   syncedAt       DateTime?
 
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  transactions Transaction[]
-  plaidItem    PlaidItem?    @relation(fields: [plaidItemId], references: [id], onDelete: Cascade)
-  investments  Investment[]
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions  Transaction[]
+  plaidItem     PlaidItem?     @relation(fields: [plaidItemId], references: [id], onDelete: Cascade)
+  investments   Investment[]
+  subscriptions Subscription[]
 }
 
 // One connected bank login (Plaid "Item"). Holds the encrypted access token
@@ -214,6 +215,10 @@ model Subscription {
   id                  String    @id @default(cuid())
   userId              String
   categoryId          String?
+  // The account this subscription is charged to. Set from the source
+  // transaction at detection time, or chosen by the user for a manual entry.
+  // Null when we can't attribute it (e.g. paid from an account not connected).
+  accountId           String?
   name                String
   amount              Float
   previousAmount      Float?
@@ -237,6 +242,9 @@ model Subscription {
 
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   category Category? @relation(fields: [categoryId], references: [id])
+  account  Account?  @relation(fields: [accountId], references: [id])
+
+  @@index([accountId])
 }
 
 // A single investment holding — a position the user holds (stock, ETF, crypto,
