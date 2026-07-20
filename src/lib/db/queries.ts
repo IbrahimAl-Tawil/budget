@@ -5,6 +5,7 @@ import {
   computeAccountBalances,
   computeAllBudgetSpent,
   computeMonthlySurplus,
+  computeGoalCashHeadroom,
   NOT_EXCLUDED_ACCOUNT,
 } from "./calculations";
 import {
@@ -604,7 +605,7 @@ export async function getGoalsPlan(
   month: number,
   year: number,
 ): Promise<GoalsPlanView> {
-  const [user, goals, summary, assignedAgg] = await Promise.all([
+  const [user, goals, summary, assignedAgg, cashHeadroom] = await Promise.all([
     getUserRow(userId),
     prisma.goal.findMany({ where: { userId }, orderBy: { createdAt: "desc" } }),
     computeMonthlySurplus(userId, month, year),
@@ -614,6 +615,8 @@ export async function getGoalsPlan(
       where: { userId, month, year, status: "applied" },
       _sum: { amount: true },
     }),
+    // Liquid cash still free to earmark — the hard ceiling below.
+    computeGoalCashHeadroom(userId),
   ]);
 
   const plan = getBudgetPlan(user?.budgetPlan);
@@ -623,7 +626,11 @@ export async function getGoalsPlan(
   const monthlySpent = Math.round(summary.spending * 100) / 100;
   const surplus = Math.max(0, Math.round(summary.surplus * 100) / 100);
   const assignedThisMonth = assignedAgg._sum.amount ?? 0;
-  const assignable = Math.max(0, Math.round((surplus - assignedThisMonth) * 100) / 100);
+  // Free to allocate = this month's remaining surplus, but never more than the
+  // cash actually on hand (surplus is a monthly flow; you can only set aside
+  // money you physically hold). Whichever is smaller wins.
+  const surplusFree = Math.max(0, Math.round((surplus - assignedThisMonth) * 100) / 100);
+  const assignable = Math.min(surplusFree, cashHeadroom);
 
   const alloc = allocatePool(
     goals.map((g) => ({ id: g.id, priority: g.priority, saved: g.saved, target: g.target })),

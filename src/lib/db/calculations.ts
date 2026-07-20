@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { prisma } from "./prisma";
 import type { MonthlySummary } from "@/lib/types";
+import { accountGroupOf, type AccountGroup } from "@/lib/constants";
 
 // The grouped aggregations below are cache()-wrapped: several view-models call
 // the same one within a single render (e.g. the overview and the accounts page
@@ -128,15 +129,46 @@ export const computeAllBudgetSpent = cache(async (
   return map;
 });
 
+// Names banks use for a credit-card / line-of-credit payment drawn from a cash
+// account (the outgoing leg of a card paydown, e.g. Scotiabank's "Customer
+// Transfer Dr. MB-CREDIT CARD/LOC PAY."). The incoming leg needs no pattern —
+// it is caught structurally (any deposit onto a credit/loan account).
+const CARD_PAYMENT_FROM_CASH =
+  /credit card\s*\/?\s*loc|card\/loc pay|credit card payment|line of credit payment|\bc\.?c\.? payment\b|(?:master|visa|amex|mastercard) ?payment/i;
+
+/**
+ * True when a transaction is an internal transfer (money moving between the
+ * user's own accounts) rather than real income or consumption, so the monthly
+ * surplus isn't inflated by it. Two clear-cut cases, both legs of a credit-card
+ * paydown:
+ *   1. Any deposit landing ON a credit-card or loan account — a payment received
+ *      or a refund, never income.
+ *   2. Its funding leg — a credit-card / LOC payment drawn FROM a cash account.
+ * Interac e-transfers are deliberately NOT treated as transfers: they can be
+ * genuine income (a side gig, a client), and the goal-allocation cash cap
+ * (see computeGoalCashHeadroom) guards against over-allocating regardless.
+ */
+function isInternalTransfer(name: string, group: AccountGroup | null, amount: number): boolean {
+  if ((group === "credit" || group === "loans") && amount > 0) return true;
+  if (group === "cash" && amount < 0 && CARD_PAYMENT_FROM_CASH.test(name)) return true;
+  return false;
+}
+
 /**
  * Computes income, spending, and surplus (income - spending) for a month —
  * all from actual transactions, so the three figures always reconcile.
  *
  * Income is the sum of positive-amount transactions in the month; spending is
- * the absolute sum of negative ones. The user's configured `monthlyIncome`
- * setting is deliberately NOT used here — it is a budget-plan input (drives
- * budget targets), not money that actually arrived. Mixing it in produced
- * "left over" amounts that never existed in any account.
+ * the absolute sum of negative ones. Internal transfers are excluded from both
+ * sides (see isInternalTransfer): a credit-card paydown is not income when it
+ * lands on the card, nor spending when it leaves the chequing account — counting
+ * it made the surplus (and the "available to allocate" figure) balloon with
+ * money the user never actually gained.
+ *
+ * The user's configured `monthlyIncome` setting is deliberately NOT used here —
+ * it is a budget-plan input (drives budget targets), not money that actually
+ * arrived. Mixing it in produced "left over" amounts that never existed in any
+ * account.
  *
  * @param userId - Owner of the transactions.
  * @param month - 1-indexed month.
@@ -151,30 +183,70 @@ export const computeMonthlySurplus = cache(async (
   const startDate = new Date(year, month - 1, 1);
   const endDate = new Date(year, month, 1);
 
-  const [incomeAgg, spendAgg] = await Promise.all([
-    prisma.transaction.aggregate({
-      where: {
-        userId,
-        amount: { gt: 0 },
-        date: { gte: startDate, lt: endDate },
-        ...NOT_EXCLUDED_ACCOUNT,
-      },
-      _sum: { amount: true },
-    }),
-    prisma.transaction.aggregate({
-      where: {
-        userId,
-        amount: { lt: 0 },
-        date: { gte: startDate, lt: endDate },
-        ...NOT_EXCLUDED_ACCOUNT,
-      },
-      _sum: { amount: true },
-    }),
-  ]);
+  const txs = await prisma.transaction.findMany({
+    where: {
+      userId,
+      date: { gte: startDate, lt: endDate },
+      ...NOT_EXCLUDED_ACCOUNT,
+    },
+    select: { amount: true, name: true, account: { select: { type: true } } },
+  });
 
-  const income = incomeAgg._sum.amount ?? 0;
-  const spending = Math.abs(spendAgg._sum.amount ?? 0);
+  let income = 0;
+  let spending = 0;
+  for (const t of txs) {
+    const group = t.account ? accountGroupOf(t.account.type) : null;
+    if (isInternalTransfer(t.name, group, t.amount)) continue;
+    if (t.amount > 0) income += t.amount;
+    else spending += -t.amount;
+  }
   return { income, spending, surplus: income - spending };
+});
+
+/**
+ * Liquid cash on hand — the total balance of a user's non-excluded cash &
+ * savings accounts (the accounts-page "cash" group: chequing, savings, other),
+ * floored at 0. This is money physically available to move, so it caps how much
+ * can be earmarked to savings goals. Uses the same balance rule as net worth:
+ * synced accounts trust Plaid's stored balance; manual accounts are their
+ * starting balance plus their transaction net.
+ *
+ * @param userId - Owner of the accounts.
+ * @returns Total cash & savings balance, never below 0.
+ */
+export const computeLiquidCash = cache(async (userId: string): Promise<number> => {
+  const [accounts, balances] = await Promise.all([
+    prisma.account.findMany({
+      where: { userId, excluded: false },
+      select: { id: true, type: true, balance: true, plaidItemId: true },
+    }),
+    computeAccountBalances(userId),
+  ]);
+  const total = accounts
+    .filter((a) => accountGroupOf(a.type) === "cash")
+    .reduce(
+      (sum, a) => sum + (a.plaidItemId ? a.balance : a.balance + (balances.get(a.id) ?? 0)),
+      0,
+    );
+  return Math.max(0, Math.round(total * 100) / 100);
+});
+
+/**
+ * The hard ceiling on new goal allocations: liquid cash on hand minus everything
+ * already earmarked across the user's goals (sum of `goal.saved`), floored at 0.
+ * You can't set aside cash you don't hold, and cash already promised to one goal
+ * can't be promised again — so this bounds both the "available to allocate"
+ * figure and every server-side allocation, independent of the monthly surplus.
+ *
+ * @param userId - Owner of the goals and accounts.
+ * @returns Cash still free to earmark, never below 0.
+ */
+export const computeGoalCashHeadroom = cache(async (userId: string): Promise<number> => {
+  const [liquid, earmarked] = await Promise.all([
+    computeLiquidCash(userId),
+    prisma.goal.aggregate({ where: { userId }, _sum: { saved: true } }),
+  ]);
+  return Math.max(0, Math.round((liquid - (earmarked._sum.saved ?? 0)) * 100) / 100);
 });
 
 /**

@@ -1,5 +1,5 @@
 import { prisma } from "./prisma";
-import { computeMonthlySurplus } from "./calculations";
+import { computeMonthlySurplus, computeGoalCashHeadroom } from "./calculations";
 import { allocatePool } from "@/lib/goal-split";
 
 // Re-exported so existing server callers keep importing the allocator from here;
@@ -31,18 +31,22 @@ export async function assignAvailableSurplus(
   month: number,
   year: number
 ): Promise<{ assigned: number; goalsFunded: number }> {
-  const [summary, goals, assignedAgg] = await Promise.all([
+  const [summary, goals, assignedAgg, cashHeadroom] = await Promise.all([
     computeMonthlySurplus(userId, month, year),
     prisma.goal.findMany({ where: { userId } }),
     prisma.goalAllocation.aggregate({
       where: { userId, month, year, status: "applied" },
       _sum: { amount: true },
     }),
+    computeGoalCashHeadroom(userId),
   ]);
 
   const surplus = Math.max(0, summary.surplus);
   const already = assignedAgg._sum.amount ?? 0;
-  const available = Math.max(0, Math.round((surplus - already) * 100) / 100);
+  // Bounded by both this month's remaining surplus and the cash actually on hand
+  // — you can't set aside money you don't physically have.
+  const surplusFree = Math.max(0, Math.round((surplus - already) * 100) / 100);
+  const available = Math.min(surplusFree, cashHeadroom);
   if (available <= 0) return { assigned: 0, goalsFunded: 0 };
 
   const split = allocatePool(goals, available);
@@ -65,21 +69,26 @@ export async function assignAvailableSurplus(
 }
 
 /**
- * Assigns a *specific* amount of this month's remaining surplus to a *single*
- * goal — the manual counterpart to `assignAvailableSurplus`. The requested
- * amount is clamped server-side to what's actually available (surplus − already
- * assigned this month) and to the goal's remaining need (target − saved), so a
- * client can neither overspend the surplus nor overfund a goal. Increments the
- * goal's `saved` and bumps its month's applied allocation by the same amount in
- * one transaction. Server-authoritative: the ceiling is derived here.
+ * Assigns a *specific* amount to a *single* goal — the manual counterpart to
+ * `assignAvailableSurplus`. Deliberately NOT capped by the month's surplus or
+ * cash on hand: the user is the authority on their own money (some of it may sit
+ * in accounts otterfund can't see), so the UI warns when an amount runs past the
+ * detected surplus but still lets it through. The only hard ceiling is the goal's
+ * remaining need (target − saved) — you can't fund a goal past its target.
+ * Contrast `assignAvailableSurplus`, the automatic split, which stays capped so
+ * the app never allocates money on its own that isn't there.
+ *
+ * Increments the goal's `saved` and bumps its month's applied allocation by the
+ * same amount in one transaction. Server-authoritative: the ceiling is derived
+ * here (the client's amount is trusted only up to the goal's remaining need).
  *
  * @param userId - Owner of the goal.
  * @param goalId - The goal to fund (must belong to `userId`).
  * @param requested - The amount the client asked to assign.
- * @param month - 1-indexed month.
- * @param year - 4-digit year.
- * @returns The amount actually assigned (0 when nothing is available, the goal
- *          is already funded, or the goal doesn't belong to the user).
+ * @param month - 1-indexed month (for the allocation record).
+ * @param year - 4-digit year (for the allocation record).
+ * @returns The amount actually assigned (0 when the goal is already funded or
+ *          doesn't belong to the user).
  */
 export async function assignSurplusToGoal(
   userId: string,
@@ -88,21 +97,13 @@ export async function assignSurplusToGoal(
   month: number,
   year: number
 ): Promise<{ assigned: number }> {
-  const [summary, goal, assignedAgg] = await Promise.all([
-    computeMonthlySurplus(userId, month, year),
-    prisma.goal.findFirst({ where: { id: goalId, userId } }),
-    prisma.goalAllocation.aggregate({
-      where: { userId, month, year, status: "applied" },
-      _sum: { amount: true },
-    }),
-  ]);
+  const goal = await prisma.goal.findFirst({ where: { id: goalId, userId } });
   if (!goal) return { assigned: 0 };
 
-  const surplus = Math.max(0, summary.surplus);
-  const already = assignedAgg._sum.amount ?? 0;
-  const available = Math.max(0, Math.round((surplus - already) * 100) / 100);
+  // Bounded only by what the goal still needs — surplus/cash are a guide the UI
+  // warns against, not a wall.
   const remaining = Math.max(0, Math.round((goal.target - goal.saved) * 100) / 100);
-  const amt = Math.round(Math.max(0, Math.min(requested, available, remaining)) * 100) / 100;
+  const amt = Math.round(Math.max(0, Math.min(requested, remaining)) * 100) / 100;
   if (amt <= 0) return { assigned: 0 };
 
   await prisma.$transaction(async (tx) => {

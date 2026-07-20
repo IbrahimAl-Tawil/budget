@@ -126,9 +126,11 @@ builder.mutationField("assignSavingsToGoals", (t) =>
   }),
 );
 
-// Assigns a specific amount of this month's remaining surplus to ONE goal — the
-// manual allocation flow. The amount is clamped server-side to the available
-// surplus and the goal's remaining need, so the client can't overspend.
+// Assigns a specific amount to ONE goal — the manual allocation flow. Capped
+// server-side only to the goal's remaining need; it is intentionally NOT limited
+// to the month's surplus, since the user may be setting aside cash from an
+// account otterfund can't see. The UI warns when the amount runs past the
+// detected surplus.
 builder.mutationField("assignSurplusToGoal", (t) =>
   t.field({
     type: MutationResultRef,

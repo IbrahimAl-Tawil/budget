@@ -2,12 +2,14 @@
 
 // otterfund — ALLOCATE SAVINGS modal.
 //
-// The manual counterpart to the old one-tap auto-split. It lists every goal
-// (emoji · name · priority); tapping one expands it to show how much surplus is
-// still available this month and a field to hand-place a slice of it onto that
-// goal. The server clamps each amount to what's actually available and to the
-// goal's remaining need, so the figures here are a guide — the truth is
-// re-fetched after each allocation (the parent refreshes and passes fresh props).
+// The manual counterpart to the one-tap auto-split. It lists every goal
+// (emoji · name · priority); tapping one expands it to a field for placing money
+// onto that goal. Unlike the auto-split, the manual flow is NOT capped by your
+// surplus or cash on hand (you might be setting aside money from an account we
+// can't see). It shows what we detect you can spare and simply warns when an
+// amount runs past that, leaving the call to you. Each amount is still capped to
+// the goal's remaining need. The truth is re-fetched after each allocation (the
+// parent refreshes and passes fresh props).
 
 import { useState, useTransition } from "react";
 import {
@@ -48,7 +50,8 @@ export function AllocateSavingsModal({
   /** Fires after a successful allocation so the parent can re-fetch. */
   onAllocated: () => void;
   goals: GoalPlanItem[];
-  /** Real cash still free to place this month. */
+  /** What we detect is free to place this month (min of surplus and cash). A
+   *  guide, not a hard limit: the user may allocate past it (with a warning). */
   assignable: number;
   currency: string;
   theme: OtterfundTheme;
@@ -57,14 +60,6 @@ export function AllocateSavingsModal({
   const [amount, setAmount] = useState("");
   const [error, setError] = useState("");
   const [isPending, startTransition] = useTransition();
-
-  // Extra cash on hand that our prediction didn't see (a side gig, a gift, cash
-  // in the account we don't track). The user can top up what's allocatable so
-  // they can put it to work now; the server still clamps each allocation.
-  const [extraOpen, setExtraOpen] = useState(false);
-  const [extraInput, setExtraInput] = useState("");
-  const extra = Math.max(0, Number(extraInput) || 0);
-  const effectiveAssignable = assignable + extra;
 
   const fmt0 = (n: number) =>
     new Intl.NumberFormat(currency === "USD" ? "en-US" : "en-CA", {
@@ -85,10 +80,6 @@ export function AllocateSavingsModal({
       setError("Enter an amount to allocate.");
       return;
     }
-    if (value > effectiveAssignable) {
-      setError(`Only ${fmt0(effectiveAssignable)} is available to allocate.`);
-      return;
-    }
     setError("");
     startTransition(async () => {
       try {
@@ -101,6 +92,11 @@ export function AllocateSavingsModal({
     });
   };
 
+  // How much the user has typed, and whether it runs past what we detected. Used
+  // for a non-blocking heads-up (not an error) so they can proceed with eyes open.
+  const typed = Number(amount) || 0;
+  const overSurplus = typed > assignable + 0.005;
+
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="sm:max-w-[520px] p-6 sm:p-8">
@@ -109,7 +105,7 @@ export function AllocateSavingsModal({
             Allocate savings
           </DialogTitle>
           <DialogDescription className="text-[13px] text-[var(--color-of-muted)]">
-            Choose a goal and place some of this month’s surplus onto it.
+            Choose a goal and set aside money toward it.
           </DialogDescription>
         </DialogHeader>
 
@@ -123,192 +119,143 @@ export function AllocateSavingsModal({
               Available to allocate
             </span>
             <span className="of-num text-[20px] font-medium" style={{ color: theme.accentDeep }}>
-              {fmt0(effectiveAssignable)}
+              {fmt0(assignable)}
             </span>
           </div>
-          {extra > 0 && (
-            <p className="mt-1 text-[11.5px]" style={{ color: theme.accentDeep, opacity: 0.75 }}>
-              Includes {fmt0(extra)} you added on top of this month’s surplus.
-            </p>
-          )}
+          <p className="mt-1 text-[11.5px]" style={{ color: theme.accentDeep, opacity: 0.75 }}>
+            What we detect you can spare this month. You can add more if you have cash we don&rsquo;t track.
+          </p>
         </div>
 
-        {/* top-up note: more came in than we predicted */}
-        {extraOpen ? (
-          <div
-            className="mt-2 rounded-2xl border px-4 py-3"
-            style={{ borderColor: "var(--color-of-line)", background: "var(--color-of-surface)" }}
-          >
-            <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.09em] text-[var(--color-of-faint)]">
-              Extra cash to allocate
-            </label>
-            <div className="flex items-end gap-2">
-              <input
-                type="number"
-                inputMode="decimal"
-                value={extraInput}
-                autoFocus
-                onChange={(e) => {
-                  setExtraInput(e.target.value);
-                  if (error) setError("");
-                }}
-                placeholder="0"
-                className="of-field flex-1"
-              />
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                className="h-[44px]"
-                onClick={() => {
-                  setExtraInput("");
-                  setExtraOpen(false);
+        <div className="of-scroll mt-4 flex max-h-[52vh] flex-col gap-2 overflow-y-auto pr-1">
+          {goals.map((g) => {
+            const expanded = expandedId === g.id;
+            const room = g.remaining <= 0;
+            return (
+              <div
+                key={g.id}
+                className="rounded-2xl border transition-colors"
+                style={{
+                  borderColor: expanded ? theme.accentBorder : "var(--color-of-line)",
+                  background: expanded ? theme.accentTint : "var(--color-of-surface)",
                 }}
               >
-                {extra > 0 ? "Done" : "Cancel"}
-              </Button>
-            </div>
-            <p className="mt-2 text-[12px] text-[var(--color-of-muted)]">
-              Add money that landed outside our forecast: a side gig, a gift, cash sitting in your account.
-            </p>
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setExtraOpen(true)}
-            className="mt-2 text-left text-[12px] font-medium text-[var(--color-of-muted)] underline decoration-[var(--color-of-line)] underline-offset-2 transition-colors hover:text-[var(--color-of-ink)]"
-          >
-            Got more than we predicted? Add extra cash to allocate.
-          </button>
-        )}
-
-        {effectiveAssignable <= 0 ? (
-          <p className="mt-4 text-[13px] text-[var(--color-of-muted)]">
-            You’ve allocated all of this month’s surplus. More becomes available as income comes in.
-          </p>
-        ) : (
-          <div className="of-scroll mt-4 flex max-h-[52vh] flex-col gap-2 overflow-y-auto pr-1">
-            {goals.map((g) => {
-              const expanded = expandedId === g.id;
-              const room = g.remaining <= 0;
-              return (
-                <div
-                  key={g.id}
-                  className="rounded-2xl border transition-colors"
-                  style={{
-                    borderColor: expanded ? theme.accentBorder : "var(--color-of-line)",
-                    background: expanded ? theme.accentTint : "var(--color-of-surface)",
-                  }}
+                <button
+                  type="button"
+                  onClick={() => toggle(g.id)}
+                  className="flex w-full items-center gap-3 px-4 py-3 text-left outline-none"
                 >
-                  <button
-                    type="button"
-                    onClick={() => toggle(g.id)}
-                    className="flex w-full items-center gap-3 px-4 py-3 text-left outline-none"
+                  <span
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+                    style={{ background: "var(--color-of-canvas)", border: "1px solid var(--color-of-line-soft)" }}
                   >
-                    <span
-                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
-                      style={{ background: "var(--color-of-canvas)", border: "1px solid var(--color-of-line-soft)" }}
-                    >
-                      <Twemoji emoji={g.emoji || "🎯"} size={20} />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="flex items-center gap-2">
-                        <span className="truncate text-[15px] font-semibold text-[var(--color-of-ink)]">{g.name}</span>
-                        {room && (
-                          <span
-                            className="shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-semibold"
-                            style={{ background: theme.accentTint, color: theme.accentDeep }}
-                          >
-                            Funded
-                          </span>
-                        )}
-                      </span>
-                      <span className="mt-0.5 block text-[12px] text-[var(--color-of-muted)]">
-                        {priorityName(g.priority)} priority
-                        {!room && <> · {fmt0(g.remaining)} to go</>}
-                      </span>
-                    </span>
-                    <span className="of-num shrink-0 text-[14px]" style={{ color: theme.accentDeep }}>
-                      {g.pct}%
-                    </span>
-                  </button>
-
-                  {expanded && (
-                    <div className="px-4 pb-4">
-                      {room ? (
-                        <p className="rounded-xl bg-[var(--color-of-canvas)] px-3 py-2.5 text-[13px] text-[var(--color-of-muted)]">
-                          This goal is fully funded. Nothing more to allocate here.
-                        </p>
-                      ) : (
-                        (() => {
-                          const cap = Math.min(effectiveAssignable, g.remaining);
-                          return (
-                        <>
-                          <div className="flex items-end gap-2">
-                            <div className="flex-1">
-                              <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.09em] text-[var(--color-of-faint)]">
-                                Amount
-                              </label>
-                              <input
-                                type="number"
-                                inputMode="decimal"
-                                value={amount}
-                                autoFocus
-                                onChange={(e) => {
-                                  const raw = e.target.value;
-                                  const n = Number(raw);
-                                  // Clamp over-the-cap entries down to the max and flag it,
-                                  // but leave partial/empty input ("", "1.") untouched so typing works.
-                                  if (raw !== "" && Number.isFinite(n) && n > cap) {
-                                    setAmount(String(cap));
-                                    setError(`Capped at ${fmt0(cap)}: the most this goal can take right now.`);
-                                  } else {
-                                    setAmount(raw);
-                                    if (error) setError("");
-                                  }
-                                }}
-                                placeholder="0"
-                                className="of-field"
-                              />
-                            </div>
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              size="sm"
-                              className="h-[44px]"
-                              onClick={() => {
-                                setAmount(String(cap));
-                                if (error) setError("");
-                              }}
-                            >
-                              Max
-                            </Button>
-                          </div>
-                          <p className="mt-2 text-[12px] text-[var(--color-of-muted)]">
-                            Up to {fmt0(cap)}, capped by your surplus and what this goal still needs.
-                          </p>
-                          {error && (
-                            <p className="mt-2 text-[13px] font-medium text-[var(--color-of-clay)]">{error}</p>
-                          )}
-                          <Button
-                            size="sm"
-                            className="mt-3 w-full"
-                            disabled={isPending}
-                            onClick={() => handleAllocate(g)}
-                          >
-                            {isPending ? "Allocating…" : `Allocate to ${g.name}`}
-                          </Button>
-                        </>
-                          );
-                        })()
+                    <Twemoji emoji={g.emoji || "🎯"} size={20} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-2">
+                      <span className="truncate text-[15px] font-semibold text-[var(--color-of-ink)]">{g.name}</span>
+                      {room && (
+                        <span
+                          className="shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-semibold"
+                          style={{ background: theme.accentTint, color: theme.accentDeep }}
+                        >
+                          Funded
+                        </span>
                       )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
+                    </span>
+                    <span className="mt-0.5 block text-[12px] text-[var(--color-of-muted)]">
+                      {priorityName(g.priority)} priority
+                      {!room && <> · {fmt0(g.remaining)} to go</>}
+                    </span>
+                  </span>
+                  <span className="of-num shrink-0 text-[14px]" style={{ color: theme.accentDeep }}>
+                    {g.pct}%
+                  </span>
+                </button>
+
+                {expanded && (
+                  <div className="px-4 pb-4">
+                    {room ? (
+                      <p className="rounded-xl bg-[var(--color-of-canvas)] px-3 py-2.5 text-[13px] text-[var(--color-of-muted)]">
+                        This goal is fully funded. Nothing more to allocate here.
+                      </p>
+                    ) : (
+                      <>
+                        <div className="flex items-end gap-2">
+                          <div className="flex-1">
+                            <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.09em] text-[var(--color-of-faint)]">
+                              Amount
+                            </label>
+                            <input
+                              type="number"
+                              inputMode="decimal"
+                              value={amount}
+                              autoFocus
+                              onChange={(e) => {
+                                const raw = e.target.value;
+                                const n = Number(raw);
+                                // The only hard limit is what this goal still needs (you can't
+                                // fund it past its target). Surplus is NOT a limit here: going
+                                // over just shows the heads-up below. Leave partial input
+                                // ("", "1.") untouched so typing works.
+                                if (raw !== "" && Number.isFinite(n) && n > g.remaining) {
+                                  setAmount(String(g.remaining));
+                                  setError(`That's all ${g.name} needs. Capped at ${fmt0(g.remaining)}.`);
+                                } else {
+                                  setAmount(raw);
+                                  if (error) setError("");
+                                }
+                              }}
+                              placeholder="0"
+                              className="of-field"
+                            />
+                          </div>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            className="h-[44px]"
+                            onClick={() => {
+                              setAmount(String(g.remaining));
+                              if (error) setError("");
+                            }}
+                          >
+                            Max
+                          </Button>
+                        </div>
+                        <p className="mt-2 text-[12px] text-[var(--color-of-muted)]">
+                          Up to {fmt0(g.remaining)}, which is what {g.name} still needs.
+                        </p>
+                        {overSurplus && (
+                          <div
+                            className="mt-2 rounded-xl px-3 py-2.5"
+                            style={{ background: "var(--color-of-clay-tint)" }}
+                          >
+                            <p className="text-[12.5px] font-medium text-[var(--color-of-clay)]">
+                              Heads up: that&rsquo;s {fmt0(typed - assignable)} over the {fmt0(assignable)} we
+                              detected you can spare this month. Only add it if you have the cash on hand to cover it.
+                            </p>
+                          </div>
+                        )}
+                        {error && (
+                          <p className="mt-2 text-[13px] font-medium text-[var(--color-of-clay)]">{error}</p>
+                        )}
+                        <Button
+                          size="sm"
+                          className="mt-3 w-full"
+                          disabled={isPending}
+                          onClick={() => handleAllocate(g)}
+                        >
+                          {isPending ? "Allocating…" : `Allocate to ${g.name}`}
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
 
         <div className="mt-6 flex">
           <Button variant="secondary" size="sm" onClick={onClose} className="flex-1">
