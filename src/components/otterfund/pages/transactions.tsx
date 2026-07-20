@@ -502,9 +502,10 @@ export function OtterfundTransactions({ transactions, accounts, theme, currency 
                   const income = t.amount > 0;
                   const amountLabel = (income ? "+" : "−") + fmt(Math.abs(t.amount), currency);
                   const isSelected = selected.has(t.id);
-                  const meta = [t.category, t.accountName && acctFilter.size !== 1 ? t.accountName : null]
-                    .filter((p) => p && String(p).trim())
-                    .join(" · ");
+                  // Show the originating account (with its bank logo) only when the
+                  // ledger isn't already filtered to a single account — otherwise
+                  // it's the same name on every row.
+                  const showAccount = !!(t.accountName && acctFilter.size !== 1);
                   return (
                     <Row
                       key={t.id}
@@ -548,9 +549,23 @@ export function OtterfundTransactions({ transactions, accounts, theme, currency 
                               </span>
                             )}
                           </div>
-                          {meta && (
-                            <div style={{ fontSize: 12, color: "var(--color-of-faint)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginTop: 1 }}>
-                              {meta}
+                          {(t.category || showAccount) && (
+                            <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: "var(--color-of-faint)", overflow: "hidden", marginTop: 1 }}>
+                              {t.category && <span style={{ whiteSpace: "nowrap" }}>{t.category}</span>}
+                              {t.category && showAccount && <span aria-hidden>·</span>}
+                              {showAccount && (
+                                <span style={{ display: "inline-flex", alignItems: "center", gap: 4, minWidth: 0 }}>
+                                  <MerchantAvatar
+                                    name={t.accountInstitution || t.accountName!}
+                                    domain={t.accountDomain}
+                                    bg="var(--color-of-line-soft)"
+                                    ink="var(--color-of-muted)"
+                                    size={16}
+                                    fit="contain"
+                                  />
+                                  <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t.accountName}</span>
+                                </span>
+                              )}
                             </div>
                           )}
                         </div>

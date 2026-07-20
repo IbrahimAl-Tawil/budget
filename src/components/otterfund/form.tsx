@@ -190,15 +190,26 @@ export function PasswordStrength({ value }: { value: string }) {
   );
 }
 
-type SelectInputProps = React.ComponentProps<"select"> & { invalid?: boolean };
+type SelectInputProps = React.ComponentProps<"select"> & {
+  invalid?: boolean;
+  /** Optional element pinned inside the field on the left (e.g. a bank avatar
+   *  for an account picker). When set, the control gains left padding to clear
+   *  it. */
+  leading?: React.ReactNode;
+};
 
 /** Select sharing the system control styling, with the brand chevron. */
-export function SelectInput({ invalid, className, children, ...props }: SelectInputProps) {
+export function SelectInput({ invalid, className, children, leading, ...props }: SelectInputProps) {
   return (
     <div className="relative">
+      {leading && (
+        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none flex items-center">
+          {leading}
+        </span>
+      )}
       <select
         aria-invalid={invalid || undefined}
-        className={cn("of-field-select pr-10 cursor-pointer", invalid && invalidBorder, className)}
+        className={cn("of-field-select pr-10 cursor-pointer", leading && "pl-11", invalid && invalidBorder, className)}
         {...props}
       >
         {children}

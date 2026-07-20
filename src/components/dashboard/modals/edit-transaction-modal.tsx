@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { DateInput } from "@/components/otterfund/form";
+import { MerchantAvatar } from "@/components/otterfund/merchant-avatar";
 import { ConfirmButton } from "@/components/otterfund/confirm-button";
 import { Trash2, ChevronDown, Check, RefreshCw } from "lucide-react";
 import type { TransactionView } from "@/lib/types";
@@ -165,8 +166,20 @@ export function EditTransactionModal({
               Account
             </label>
             <div className="flex items-center justify-between gap-2 rounded-xl border border-[var(--color-of-line)] bg-[var(--color-of-canvas)] px-3.5 py-2.5">
-              <span className="min-w-0 truncate text-sm font-medium text-[var(--color-of-ink)]">
-                {transaction?.accountName || "No linked account"}
+              <span className="flex min-w-0 items-center gap-2.5">
+                {transaction?.accountName && (
+                  <MerchantAvatar
+                    name={transaction.accountInstitution || transaction.accountName}
+                    domain={transaction.accountDomain}
+                    bg="var(--color-of-line-soft)"
+                    ink="var(--color-of-muted)"
+                    size={26}
+                    fit="contain"
+                  />
+                )}
+                <span className="min-w-0 truncate text-sm font-medium text-[var(--color-of-ink)]">
+                  {transaction?.accountName || "No linked account"}
+                </span>
               </span>
               <span
                 className="shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-semibold tracking-[0.02em]"

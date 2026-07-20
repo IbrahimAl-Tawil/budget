@@ -7,11 +7,19 @@
 
 import { useEffect, useState } from "react";
 import { Field, TextInput, SelectInput } from "@/components/otterfund/form";
+import { MerchantAvatar } from "@/components/otterfund/merchant-avatar";
 import { SUBSCRIPTION_CYCLES } from "@/lib/constants";
 import { gqlClient } from "@/lib/graphql/client";
 
 const CATEGORIES = /* GraphQL */ `query Categories { categories { id name } }`;
-const ACCOUNTS = /* GraphQL */ `query SubAccounts { accounts { id name } }`;
+const ACCOUNTS = /* GraphQL */ `query SubAccounts { accounts { id name domain institution } }`;
+
+interface AccountOption {
+  id: string;
+  name: string;
+  domain?: string | null;
+  institution?: string | null;
+}
 
 export interface SubscriptionFormValues {
   name: string;
@@ -58,7 +66,7 @@ interface SubscriptionFormProps {
 
 export function SubscriptionForm({ values, errors, onChange, open, idPrefix }: SubscriptionFormProps) {
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
-  const [accounts, setAccounts] = useState<{ id: string; name: string }[]>([]);
+  const [accounts, setAccounts] = useState<AccountOption[]>([]);
 
   useEffect(() => {
     if (!open) return;
@@ -67,10 +75,14 @@ export function SubscriptionForm({ values, errors, onChange, open, idPrefix }: S
       .then(({ categories }) => setCategories(categories))
       .catch(() => setCategories([]));
     gqlClient
-      .request<{ accounts: { id: string; name: string }[] }>(ACCOUNTS)
+      .request<{ accounts: AccountOption[] }>(ACCOUNTS)
       .then(({ accounts }) => setAccounts(accounts))
       .catch(() => setAccounts([]));
   }, [open]);
+
+  // Bank avatar for the currently-linked account (logo → letter fallback, same
+  // as the Accounts page). Null when nothing's linked, so the picker reads clean.
+  const selectedAccount = accounts.find((a) => a.id === values.accountId);
 
   return (
     <div className="space-y-4">
@@ -135,6 +147,18 @@ export function SubscriptionForm({ values, errors, onChange, open, idPrefix }: S
           id={`${idPrefix}-account`}
           value={values.accountId}
           onChange={(e) => onChange({ accountId: e.target.value })}
+          leading={
+            selectedAccount ? (
+              <MerchantAvatar
+                name={selectedAccount.institution || selectedAccount.name}
+                domain={selectedAccount.domain}
+                bg="var(--color-of-line-soft)"
+                ink="var(--color-of-muted)"
+                size={22}
+                fit="contain"
+              />
+            ) : undefined
+          }
         >
           <option value="">Not linked to an account</option>
           {accounts.map((a) => (

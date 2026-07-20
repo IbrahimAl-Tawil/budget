@@ -314,6 +314,8 @@ export async function getDashboardOverview(
     domain: recentDomains.get(t.name) ?? undefined,
     accountId: t.accountId,
     accountName: t.account?.name ?? null,
+    accountDomain: t.account?.domain ?? null,
+    accountInstitution: t.account?.institution ?? null,
     source: t.source as TransactionView["source"],
   }));
 
@@ -771,6 +773,8 @@ export async function getTransactions(
     domain: domainByName.get(t.name) ?? undefined,
     accountId: t.accountId,
     accountName: t.account?.name ?? null,
+    accountDomain: t.account?.domain ?? null,
+    accountInstitution: t.account?.institution ?? null,
     source: t.source as TransactionView["source"],
     isRecurring: t.isRecurring,
   }));

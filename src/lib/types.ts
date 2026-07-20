@@ -18,6 +18,11 @@ export interface TransactionView {
   /** Owning account — null for transactions with no account (rare/manual). */
   accountId: string | null;
   accountName: string | null;
+  /** Bank logo domain + institution name of the owning account (mirrors
+   *  AccountView.domain/institution). Drive the little bank avatar shown beside
+   *  the account origin; null when there's no account or no recognised bank. */
+  accountDomain?: string | null;
+  accountInstitution?: string | null;
   /** Where the row came from: "plaid" = live bank sync, "manual" = typed by the
    *  user, "csv" = extracted from an uploaded statement. Drives the Transactions
    *  page source filter + the "not from your bank" marker. */

@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { DateInput } from "@/components/otterfund/form";
+import { MerchantAvatar } from "@/components/otterfund/merchant-avatar";
 import { ChevronDown } from "lucide-react";
 import { gqlClient, errMessage } from "@/lib/graphql/client";
 
@@ -16,7 +17,8 @@ const CATEGORIES = /* GraphQL */ `query Categories { categories { name } }`;
 
 // Only manual accounts can host a hand-entered transaction — synced accounts are
 // bank-truth (balance from Plaid), so we pull the `synced` flag and filter.
-const TX_ACCOUNTS = /* GraphQL */ `query TxAccounts { accounts { id name synced } }`;
+// `domain`/`institution` drive the bank avatar shown beside the picker.
+const TX_ACCOUNTS = /* GraphQL */ `query TxAccounts { accounts { id name synced domain institution } }`;
 
 const CREATE_TRANSACTION = /* GraphQL */ `
   mutation CreateTransaction($input: TransactionCreateInput!) {
@@ -28,6 +30,8 @@ interface AccountOption {
   id: string;
   name: string;
   synced?: boolean | null;
+  domain?: string | null;
+  institution?: string | null;
 }
 
 interface AddTransactionModalProps {
@@ -157,6 +161,9 @@ export function AddTransactionModal({
   // come out of a manual account, so guide the user to make one first.
   const noManualAccounts = manualAccounts !== null && manualAccounts.length === 0;
 
+  // Bank avatar for the chosen account (logo → letter fallback, as on Accounts).
+  const selectedAccount = manualAccounts?.find((a) => a.id === form.accountId);
+
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="sm:max-w-[480px] p-6 sm:p-9">
@@ -221,10 +228,22 @@ export function AddTransactionModal({
                   Account
                 </label>
                 <div className="relative">
+                  {selectedAccount && (
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none flex items-center">
+                      <MerchantAvatar
+                        name={selectedAccount.institution || selectedAccount.name}
+                        domain={selectedAccount.domain}
+                        bg="var(--color-of-line-soft)"
+                        ink="var(--color-of-muted)"
+                        size={22}
+                        fit="contain"
+                      />
+                    </span>
+                  )}
                   <select
                     value={form.accountId}
                     onChange={set("accountId")}
-                    className="of-field-select"
+                    className={`of-field-select${selectedAccount ? " pl-11" : ""}`}
                     disabled={manualAccounts === null}
                   >
                     {manualAccounts === null ? (
