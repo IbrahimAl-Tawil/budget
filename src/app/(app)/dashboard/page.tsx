@@ -1,4 +1,5 @@
 import { requireUser, currentPeriod, resolvePeriod, dashboardOverview } from "@/lib/dashboard-context";
+import { isCurrentPeriod } from "@/lib/period";
 import { OverviewView } from "@/components/otterfund/pages/overview-view";
 
 const EMPTY_OVERVIEW = {
@@ -15,7 +16,15 @@ export default async function OverviewPage({
   searchParams: Promise<{ month?: string; year?: string }>;
 }) {
   const user = await requireUser();
-  const { month, year } = resolvePeriod(await searchParams, currentPeriod());
+  const today = currentPeriod();
+  const { month, year } = resolvePeriod(await searchParams, today);
   const overview = await dashboardOverview(user.id, month, year).catch(() => null);
-  return <OverviewView overview={overview ?? EMPTY_OVERVIEW} name={user.name ?? null} />;
+  return (
+    <OverviewView
+      overview={overview ?? EMPTY_OVERVIEW}
+      name={user.name ?? null}
+      period={{ month, year }}
+      isCurrentMonth={isCurrentPeriod({ month, year }, today)}
+    />
+  );
 }

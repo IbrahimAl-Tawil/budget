@@ -13,7 +13,17 @@ const ROUTE_FOR: Record<string, string> = {
   accounts: "/dashboard/accounts",
 };
 
-export function OverviewView({ overview, name }: { overview: DashboardOverview; name: string | null }) {
+export function OverviewView({
+  overview,
+  name,
+  period,
+  isCurrentMonth,
+}: {
+  overview: DashboardOverview;
+  name: string | null;
+  period: { month: number; year: number };
+  isCurrentMonth: boolean;
+}) {
   const router = useRouter();
   const { accent, theme, hrefFor, hasAccounts, addAccount, connectBank } = useOtterfundChrome();
   return (
@@ -22,6 +32,8 @@ export function OverviewView({ overview, name }: { overview: DashboardOverview; 
       name={name}
       accent={accent}
       theme={theme}
+      period={period}
+      isCurrentMonth={isCurrentMonth}
       hasAccounts={hasAccounts}
       onAddAccount={addAccount}
       onConnectBank={connectBank}

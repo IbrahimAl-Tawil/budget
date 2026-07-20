@@ -139,6 +139,12 @@ const SIDEBAR_MIN = 220;
 const SIDEBAR_MAX = 460;
 const SIDEBAR_DEFAULT = 288; // matches the page's SIDEBAR_W — double-click the handle resets here
 
+// Which chat is open is remembered per browser SESSION (sessionStorage clears
+// when the tab/session closes). So leaving Insights and coming back resumes the
+// same chat, but a new session/day lands on the blank composer — the way ChatGPT
+// and Claude behave.
+const ACTIVE_KEY = "otterfund.insights.activeConversationId";
+
 export function AdvisorChat({
   theme,
   showChats,
@@ -175,16 +181,23 @@ export function AdvisorChat({
     }
   };
 
-  // Load the sidebar on mount, then open the most recent chat so returning to
-  // Insights resumes where you left off (rather than the blank composer). The
-  // list is ordered most-recent-first, so [0] is newest. Guarded to the first
-  // load only — a later refetch (after sending) must not yank you off the thread.
+  // Load the sidebar on mount, then resume the chat from THIS browser session if
+  // there is one and it still exists. A fresh session (new tab / next day) has no
+  // saved id, so it stays on the blank composer instead of reopening an old chat.
+  // Guarded to the first load only — a later refetch (after sending) must not
+  // yank you off the thread.
   const didAutoOpen = useRef(false);
   useEffect(() => {
+    let saved: string | null = null;
+    try {
+      saved = sessionStorage.getItem(ACTIVE_KEY);
+    } catch {
+      /* storage unavailable (private mode) — just start fresh */
+    }
     fetchConversations().then((list) => {
       if (didAutoOpen.current) return;
       didAutoOpen.current = true;
-      if (list.length > 0) openConversation(list[0].id);
+      if (saved && list.some((c) => c.id === saved)) openConversation(saved);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -201,6 +214,24 @@ export function AdvisorChat({
     setInput("");
     inputRef.current?.focus();
   }, [newChatSignal]);
+
+  // Remember the open chat for this browser session so a return resumes it; drop
+  // it when there's no active chat (New chat, or the thread was deleted) so the
+  // next visit starts fresh. Skip the mount run — activeId is still null then,
+  // and clearing here would erase the id the restore effect above needs to read.
+  const persistedActive = useRef(false);
+  useEffect(() => {
+    if (!persistedActive.current) {
+      persistedActive.current = true;
+      return;
+    }
+    try {
+      if (activeId) sessionStorage.setItem(ACTIVE_KEY, activeId);
+      else sessionStorage.removeItem(ACTIVE_KEY);
+    } catch {
+      /* storage unavailable (private mode) — resume just won't persist */
+    }
+  }, [activeId]);
 
   // Keep the latest turn in view.
   useEffect(() => {

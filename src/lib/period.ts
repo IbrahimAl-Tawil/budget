@@ -30,3 +30,9 @@ export function resolvePeriod(
     Number.isInteger(year) && year >= PERIOD_MIN_YEAR && year <= today.year + PERIOD_MAX_YEAR_AHEAD;
   return validMonth && validYear ? { month, year } : today;
 }
+
+/** True when a period is the live (current) month. Lets "this month" copy stay
+ *  honest: pages fall back to naming the month when a past/future one is browsed. */
+export function isCurrentPeriod(p: Period, today: Period): boolean {
+  return p.month === today.month && p.year === today.year;
+}

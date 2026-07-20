@@ -33,6 +33,7 @@ import { Statement, HeroBand, SectionHead, ViewAllLink, Ledger, Row } from "@/co
 import { AddAccountEmptyState } from "@/components/otterfund/empty-state";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { MONTH_NAMES } from "@/lib/constants";
 
 interface OtterfundOverviewProps {
   overview: DashboardOverview;
@@ -40,6 +41,10 @@ interface OtterfundOverviewProps {
   name: string | null;
   accent: string;
   theme: OtterfundTheme;
+  /** The month being viewed. */
+  period: { month: number; year: number };
+  /** Whether `period` is the live month; when false, "this month" copy names it. */
+  isCurrentMonth?: boolean;
   /** False when the user has no accounts at all — pivots the page to a cold-start
       "add an account" surface instead of a wall of $0 figures. */
   hasAccounts?: boolean;
@@ -78,7 +83,7 @@ function useTween(target: number, run: boolean, duration = 1200) {
   return value;
 }
 
-export function OtterfundOverview({ overview, name, theme, hasAccounts = true, onAddAccount, onConnectBank, onNavigate }: OtterfundOverviewProps) {
+export function OtterfundOverview({ overview, name, theme, period, isCurrentMonth = true, hasAccounts = true, onAddAccount, onConnectBank, onNavigate }: OtterfundOverviewProps) {
   const cur = overview.currency;
   const money = (n: number) => fmt(n, cur);
   const signed = (n: number) => `${n < 0 ? "−" : "+"}${money(n)}`;
@@ -100,13 +105,17 @@ export function OtterfundOverview({ overview, name, theme, hasAccounts = true, o
   // client don't disagree on the hour across time zones.
   const firstName = name?.trim().split(/\s+/)[0] ?? null;
   const [timeWord, setTimeWord] = useState("Welcome back");
-  const [monthLabel, setMonthLabel] = useState("");
   useEffect(() => {
-    const now = new Date();
-    const h = now.getHours();
+    const h = new Date().getHours();
     setTimeWord(h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening");
-    setMonthLabel(now.toLocaleDateString(undefined, { month: "long" }));
   }, []);
+
+  // Name the month being viewed. "this month" copy stays honest only for the live
+  // month; a browsed past/future month is named instead. `scope` slots after a
+  // verb ("spent … in May"), `scopePoss` is possessive ("May's spending").
+  const monthLabel = MONTH_NAMES[period.month - 1];
+  const scope = isCurrentMonth ? "this month" : `in ${monthLabel}`;
+  const scopePoss = isCurrentMonth ? "this month's" : `${monthLabel}'s`;
 
   // Hero can show two figures: net worth (default, with trend) or the cash &
   // savings total (matching the accounts page group). Toggled via the eyebrow.
@@ -127,10 +136,10 @@ export function OtterfundOverview({ overview, name, theme, hasAccounts = true, o
   const topCat = [...overview.spendingByCategory].sort((a, b) => b.amount - a.amount)[0];
   const insight =
     savingsRate > 0
-      ? `You're saving ${savingsRate}% of your income this month: ${money(overview.monthlySurplus)} set aside toward what matters.`
+      ? `You're saving ${savingsRate}% of your income ${scope}: ${money(overview.monthlySurplus)} set aside toward what matters.`
       : topCat
-        ? `${topCat.name} is your largest category at ${money(topCat.amount)}, about ${Math.round(topCat.pct)}% of this month's spending.`
-        : `You've spent ${money(overview.monthlySpend)} so far this month against ${money(overview.monthlyIncome)} of income.`;
+        ? `${topCat.name} is your largest category at ${money(topCat.amount)}, about ${Math.round(topCat.pct)}% of ${scopePoss} spending.`
+        : `You've spent ${money(overview.monthlySpend)} ${isCurrentMonth ? "so far this month" : `in ${monthLabel}`} against ${money(overview.monthlyIncome)} of income.`;
 
   // The insight band — the page's one bold moment, in the active accent's hue
   // (a deep evergreen by default) rather than a separate note colour.
@@ -232,7 +241,7 @@ export function OtterfundOverview({ overview, name, theme, hasAccounts = true, o
               tone={nwDown ? "clay" : "accent"}
               bare
               figure={signed(nwChangeTween)}
-              label="this month"
+              label={scope}
               icon={
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
                   <path d={nwDown ? "M7 7 17 17M9 17h8V9" : "M7 17 17 7M9 7h8v8"} />
@@ -244,11 +253,11 @@ export function OtterfundOverview({ overview, name, theme, hasAccounts = true, o
       />
       </div>
 
-      {/* ── this month — one honest line, hairline-split ── */}
+      {/* ── the month — one honest line, hairline-split ── */}
       <CardLabel style={{ margin: "40px 0 18px" }}>
-        This month{monthLabel && ` · ${monthLabel}`}
+        {isCurrentMonth ? `This month · ${monthLabel}` : `${monthLabel} ${period.year}`}
       </CardLabel>
-      <section className="of-trio" aria-label="This month">
+      <section className="of-trio" aria-label={isCurrentMonth ? "This month" : `${monthLabel} ${period.year}`}>
         <Panel theme={theme} padding="18px 16px" style={{ textAlign: "center" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 9, fontSize: 12.5, color: "var(--color-of-muted)", fontWeight: 500 }}>
             <ArrowUpRight size={16} strokeWidth={2.6} color={theme.accentDeep} aria-hidden="true" />
@@ -298,7 +307,7 @@ export function OtterfundOverview({ overview, name, theme, hasAccounts = true, o
               {surplusDown
                 ? "more went out than came in"
                 : overview.monthlyIncome <= 0
-                  ? "no money in yet this month"
+                  ? (isCurrentMonth ? "no money in yet this month" : `no income in ${monthLabel}`)
                   : `${savingsRate}% savings rate`}
             </div>
           </div>
@@ -336,7 +345,7 @@ export function OtterfundOverview({ overview, name, theme, hasAccounts = true, o
               })}
             </Ledger>
           ) : (
-            <EmptyBlock theme={theme} text="No spending yet this month." />
+            <EmptyBlock theme={theme} text={isCurrentMonth ? "No spending yet this month." : `No spending in ${monthLabel}.`} />
           )}
         </Panel>
 
@@ -364,7 +373,7 @@ export function OtterfundOverview({ overview, name, theme, hasAccounts = true, o
               })}
             </Ledger>
           ) : (
-            <EmptyBlock theme={theme} text="No transactions yet this month." />
+            <EmptyBlock theme={theme} text={isCurrentMonth ? "No transactions yet this month." : `No transactions in ${monthLabel}.`} />
           )}
         </Panel>
       </section>

@@ -451,10 +451,10 @@ export function OtterfundTransactions({ transactions, accounts, theme, currency 
               description="Connect a bank to pull your transactions in automatically, or add an account and record them by hand."
             />
           ) : (
-            // Has accounts, but this month is empty — nudge toward adding/importing.
+            // Has accounts, but this period is empty — nudge toward adding/importing.
             <EmptyState
               theme={theme}
-              title="No transactions this month"
+              title="No transactions this period"
               description="Nothing recorded for this period yet. Add one by hand or import a statement to fill it in."
               actions={
                 <>

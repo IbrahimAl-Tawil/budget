@@ -17,7 +17,7 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowRight, House, ShoppingBag, PiggyBank, X, Loader2 } from "lucide-react";
 import type { SpendingPlanView, SpendingBucket, SpendingCategorySlice, SpendingCategoryDetail, SubscriptionView, TransactionView, InsightDetailTx } from "@/lib/types";
 import { type OtterfundTheme, hueOf, CATEGORY_TINTS } from "@/components/otterfund/theme";
-import { getBudgetPlan } from "@/lib/constants";
+import { getBudgetPlan, MONTH_NAMES } from "@/lib/constants";
 import { fmt } from "@/lib/format";
 import { gqlClient } from "@/lib/graphql/client";
 import { ProgressBar } from "@/components/otterfund/progress";
@@ -44,6 +44,9 @@ interface OtterfundSpendingProps {
   theme: OtterfundTheme;
   /** The month being viewed — the category drill-in queries the same window. */
   period: { month: number; year: number };
+  /** Whether `period` is the live month; when false, "this month" copy names the
+   *  month being viewed instead (e.g. "in May"). */
+  isCurrentMonth?: boolean;
   /** Recurring charges, rendered as the "Recurring" section (formerly a tab). */
   subscriptions: SubscriptionView[];
   /** Auto-detected subscriptions awaiting review, shown as a queue above the list. */
@@ -88,9 +91,15 @@ function glyphInk(name: string, theme: OtterfundTheme): string {
   return CATEGORY_TINTS[name]?.[1] ?? theme.accentDeep;
 }
 
-export function OtterfundSpending({ plan, accent, theme, period, subscriptions, suggestions = [], currency: currencyProp, hasAccounts = true, onAddAccount, onConnect, onAddSubscription, onEditSubscription, onEditTransaction, onReviewed, onEditPlan, goalsHref }: OtterfundSpendingProps) {
+export function OtterfundSpending({ plan, accent, theme, period, isCurrentMonth = true, subscriptions, suggestions = [], currency: currencyProp, hasAccounts = true, onAddAccount, onConnect, onAddSubscription, onEditSubscription, onEditTransaction, onReviewed, onEditPlan, goalsHref }: OtterfundSpendingProps) {
   const currency = plan.currency || currencyProp;
   const money = (n: number) => fmt(n, currency);
+  // "this month" reads honestly only when the live month is showing; otherwise
+  // name the month being viewed. `scope` slots after a verb ("used it in May"),
+  // `scopeCap` stands alone as a caption ("May").
+  const monthName = MONTH_NAMES[period.month - 1];
+  const scope = isCurrentMonth ? "this month" : `in ${monthName}`;
+  const scopeCap = isCurrentMonth ? "This month" : monthName;
 
   // Drill-in drawer: the category slice the user opened + its resolved rows.
   const [openCat, setOpenCat] = useState<{ categoryId: string; name: string } | null>(null);
@@ -199,10 +208,10 @@ export function OtterfundSpending({ plan, accent, theme, period, subscriptions, 
       {/* ── hero · spent of budget ── */}
       <HeroBand
         theme={theme}
-        ariaLabel="Spending this month"
+        ariaLabel={`Spending ${scope}`}
         eyebrow={
           <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--color-of-muted)" }}>
-            Spending this month
+            Spending {scope}
           </div>
         }
         figure={
@@ -245,7 +254,7 @@ export function OtterfundSpending({ plan, accent, theme, period, subscriptions, 
       <Panel theme={theme} style={{ marginTop: 24 }}>
         <SectionHead title="Plan vs. actual" action={<span style={{ fontSize: 12.5, color: "var(--color-of-faint)" }}>{planMeta.name}</span>} />
         <p style={{ fontSize: 12.5, color: "var(--color-of-muted)", margin: "0 0 22px" }}>
-          How your income should split, next to how you actually used it this month.
+          How your income should split, next to how you actually used it {scope}.
         </p>
 
         <div style={{ display: "flex", gap: 32, flexWrap: "wrap", justifyContent: "center" }}>
@@ -267,7 +276,7 @@ export function OtterfundSpending({ plan, accent, theme, period, subscriptions, 
               <span style={EYEBROW}>Spent</span>
               <span className="of-num" style={{ fontSize: 19, fontWeight: 500 }}>{money(totalSpent)}</span>
             </DonutChart>
-            <span style={{ ...EYEBROW, fontSize: 11.5 }}>This month</span>
+            <span style={{ ...EYEBROW, fontSize: 11.5 }}>{scopeCap}</span>
           </div>
         </div>
 
@@ -413,6 +422,8 @@ export function OtterfundSpending({ plan, accent, theme, period, subscriptions, 
         loading={detailLoading}
         theme={theme}
         money={money}
+        scope={scope}
+        scopeCap={scopeCap}
         onClose={closeDetail}
         onEditTx={
           // The synthetic "Uncategorized" slice folds together rows with no
@@ -502,6 +513,8 @@ function CategoryDetailDrawer({
   loading,
   theme,
   money,
+  scope,
+  scopeCap,
   onClose,
   onEditTx,
 }: {
@@ -510,6 +523,9 @@ function CategoryDetailDrawer({
   loading: boolean;
   theme: OtterfundTheme;
   money: (n: number) => string;
+  /** Month scope copy from the host: "this month" / "in May" and "This month" / "May". */
+  scope: string;
+  scopeCap: string;
   onClose: () => void;
   /** Edit a row's transaction; omitted when the host wires no edit handler. */
   onEditTx?: (t: InsightDetailTx) => void;
@@ -570,7 +586,7 @@ function CategoryDetailDrawer({
               <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: "-0.01em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                 {name}
               </div>
-              <div style={{ fontSize: 12, color: "var(--color-of-faint)" }}>This month</div>
+              <div style={{ fontSize: 12, color: "var(--color-of-faint)" }}>{scopeCap}</div>
             </div>
           </div>
           <Button variant="ghost" size="icon" aria-label="Close" onClick={onClose} className="shrink-0 -mr-2">
@@ -586,7 +602,7 @@ function CategoryDetailDrawer({
             </div>
           ) : !detail || detail.count === 0 ? (
             <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.6, color: "var(--color-of-muted)" }}>
-              No transactions in this category this month.
+              No transactions in this category {scope}.
             </p>
           ) : (
             <>
