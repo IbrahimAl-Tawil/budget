@@ -54,6 +54,10 @@ const TransactionCreateInput = builder.inputType("TransactionCreateInput", {
     type: t.string(), // "credit" | "debit"
     accountId: t.id(),
     date: t.string(),
+    // Marks the new transaction as a recurring bill AND tracks it on the
+    // Subscriptions page; `cycle` is its billing cadence (defaults Monthly).
+    isRecurring: t.boolean(),
+    cycle: t.string(),
   }),
 });
 
@@ -80,6 +84,9 @@ builder.mutationField("createTransaction", (t) =>
       const userId = requireUser(ctx);
       if (!okString(input.name, LIMITS.NAME)) badRequest("Name is too long.");
       if (!okMoney(input.amount)) badRequest("Amount is out of range.");
+      if (input.cycle != null && input.cycle && !okEnum(input.cycle, SUBSCRIPTION_CYCLES)) {
+        badRequest("Pick a billing cycle.");
+      }
       const finalAmount =
         input.type === "credit" ? Math.abs(input.amount) : -Math.abs(input.amount);
 
@@ -114,8 +121,33 @@ builder.mutationField("createTransaction", (t) =>
           categoryId,
           accountId: input.accountId,
           source: "manual",
+          ...(input.isRecurring != null && {
+            isRecurring: input.isRecurring,
+            recurringFlag: input.isRecurring ? "confirmed" : "rejected",
+          }),
         },
       });
+
+      // Track a recurring bill on the Subscriptions page — same shared path the
+      // edit-transaction toggle uses. Best-effort so a subscription hiccup never
+      // fails the create itself.
+      if (input.isRecurring) {
+        try {
+          await setSubscriptionForTransaction(
+            userId,
+            {
+              name: input.name,
+              amount: finalAmount,
+              cycle: input.cycle || "Monthly",
+              categoryId,
+              accountId: input.accountId,
+            },
+            true,
+          );
+        } catch (err) {
+          console.error("subscription sync from transaction create failed:", err);
+        }
+      }
       return { ok: true, id: tx.id };
     },
   }),

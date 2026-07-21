@@ -10,7 +10,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { DateInput } from "@/components/otterfund/form";
 import { MerchantAvatar } from "@/components/otterfund/merchant-avatar";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Check, RefreshCw } from "lucide-react";
+import { SUBSCRIPTION_CYCLES } from "@/lib/constants";
 import { gqlClient, errMessage } from "@/lib/graphql/client";
 
 const CATEGORIES = /* GraphQL */ `query Categories { categories { name } }`;
@@ -63,8 +64,16 @@ export function AddTransactionModal({
   // Manual accounts only. `null` = not loaded yet (so we don't flash the
   // "add an account first" guard before the query resolves).
   const [manualAccounts, setManualAccounts] = useState<AccountOption[] | null>(null);
+  // "Recurring bill" toggle — tracks this on the Subscriptions page (mirrors the
+  // edit-transaction modal). The Subscription type forces it on (a subscription
+  // is always a recurring bill); an Expense may opt in. `cycle` is the cadence.
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [cycle, setCycle] = useState("Monthly");
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState("");
+
+  const isSubscriptionType = form.type === "subscription";
+  const recurring = isSubscriptionType || isRecurring;
 
   useEffect(() => {
     if (!open) return;
@@ -128,12 +137,17 @@ export function AddTransactionModal({
             amount: Number(form.amount),
             accountId: form.accountId,
             category: form.category,
-            type: form.type,
+            // A subscription is a form of bill — persisted as a debit like any
+            // expense; the type only differs by the recurring tracking it turns on.
+            type: form.type === "credit" ? "credit" : "debit",
             date: form.date,
+            ...(recurring && { isRecurring: true, cycle }),
           },
         });
 
         setForm(EMPTY_FORM);
+        setIsRecurring(false);
+        setCycle("Monthly");
         onClose();
         onAdded?.();
       } catch (e) {
@@ -294,10 +308,70 @@ export function AddTransactionModal({
                   >
                     <option value="debit">Expense</option>
                     <option value="credit">Income</option>
+                    <option value="subscription">Subscription</option>
                   </select>
                   <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-[var(--color-of-muted)]" />
                 </div>
               </div>
+
+              {/* Recurring bill — tracks this on the Subscriptions page. Locked on
+                  for the Subscription type (always a recurring bill); optional for
+                  an Expense. Hidden for Income. The cadence picker appears once on. */}
+              {form.type !== "credit" && (
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => { if (!isSubscriptionType) setIsRecurring((v) => !v); }}
+                    aria-pressed={recurring}
+                    disabled={isSubscriptionType}
+                    className="flex w-full items-start gap-3 rounded-xl border border-[var(--color-of-line)] px-3.5 py-3 text-left transition-colors hover:bg-[var(--color-of-hover)] disabled:cursor-default disabled:hover:bg-transparent"
+                  >
+                    <span
+                      className="mt-px flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-colors"
+                      style={{
+                        borderColor: recurring ? "var(--primary)" : "var(--color-of-line)",
+                        background: recurring ? "var(--primary)" : "transparent",
+                      }}
+                    >
+                      {recurring && (
+                        <Check size={13} strokeWidth={3} className="text-[var(--primary-foreground)]" />
+                      )}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="flex items-center gap-1.5 text-sm font-semibold text-[var(--color-of-ink)]">
+                        <RefreshCw size={13} strokeWidth={2.2} className="text-[var(--color-of-muted)]" />
+                        Recurring bill
+                      </span>
+                      <span className="block text-[12.5px] text-[var(--color-of-muted)] mt-0.5">
+                        {isSubscriptionType
+                          ? "Subscriptions are always tracked as a recurring bill on your Subscriptions."
+                          : "Track this as a recurring bill on your Subscriptions."}
+                      </span>
+                    </span>
+                  </button>
+                  {recurring && (
+                    <div className="mt-3 pl-8">
+                      <label className="block text-[11px] font-semibold tracking-[0.09em] uppercase text-[var(--color-of-faint)] mb-1.5">
+                        Billing cycle
+                      </label>
+                      <div className="relative">
+                        <select
+                          value={cycle}
+                          onChange={(e) => setCycle(e.target.value)}
+                          className="of-field-select"
+                        >
+                          {SUBSCRIPTION_CYCLES.map((c) => (
+                            <option key={c} value={c}>
+                              {c}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none text-[var(--color-of-muted)]" />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {error && (

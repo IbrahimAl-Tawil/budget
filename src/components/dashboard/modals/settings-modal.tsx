@@ -21,7 +21,7 @@ import { useOtterfundChrome } from "@/components/otterfund/chrome-context";
 import { createClient } from "@/lib/supabase/client";
 import { gqlClient } from "@/lib/graphql/client";
 import { BudgetPlanPicker } from "@/components/otterfund/budget-plan-picker";
-import { User, Wallet, ShieldAlert, ChevronDown, Database, Palette, Trash2, Check, Landmark, Unlink, RefreshCw, Loader2, Plus, CreditCard, ArrowLeftRight, Lock, ArrowRight } from "lucide-react";
+import { User, Wallet, ShieldAlert, ChevronDown, Database, Palette, Trash2, Check, Landmark, Unlink, RefreshCw, Loader2, Plus, CreditCard, ArrowLeftRight, Lock, ArrowRight, Compass } from "lucide-react";
 import { OtterFace } from "@/components/otterfund/logo";
 import { GuillocheFlow } from "@/components/otterfund/guilloche-flow";
 import { CURRENCIES, getBudgetPlan } from "@/lib/constants";
@@ -105,6 +105,9 @@ interface SettingsModalProps {
   initialTab?: string;
   /** Called when the active tab changes so the parent can reflect it in the URL. */
   onTabChange?: (tab: string) => void;
+  /** Replays the first-run product tour — the Profile tab hosts the entry point
+      (moved here from the profile menu). */
+  onTakeTour?: () => void;
 }
 
 const fieldLabelCls =
@@ -206,7 +209,7 @@ function ConnectionsUpsell({ theme, onUpgrade }: { theme: OtterfundTheme; onUpgr
   );
 }
 
-export function SettingsModal({ open, onClose, user, accent, onAccentChange, appearance, onAppearanceChange, onSaved, initialTab, onTabChange }: SettingsModalProps) {
+export function SettingsModal({ open, onClose, user, accent, onAccentChange, appearance, onAppearanceChange, onSaved, initialTab, onTabChange, onTakeTour }: SettingsModalProps) {
   const router = useRouter();
   const { connectBank, plan, promptUpgrade, openBillingPortal, portalBusy, theme, resolvedMode } = useOtterfundChrome();
   const [tab, setTab] = useState<SettingsTab>((initialTab as SettingsTab) ?? "profile");
@@ -544,6 +547,18 @@ export function SettingsModal({ open, onClose, user, accent, onAccentChange, app
                     <label className={fieldLabelCls}>Email</label>
                     <input value={user.email} disabled className="of-field opacity-60" />
                   </div>
+                </div>
+
+                {/* Product tour — replays the first-run walkthrough (moved here
+                    from the profile menu). */}
+                <div className="mt-7 max-w-[420px] border-t border-[var(--color-of-line-soft)] pt-6">
+                  <div className={fieldLabelCls}>Product tour</div>
+                  <p className="mb-3 text-[12.5px] text-[var(--color-of-muted)]">
+                    Replay the quick walkthrough of where everything lives.
+                  </p>
+                  <Button variant="outline" size="sm" onClick={() => onTakeTour?.()} disabled={!onTakeTour}>
+                    <Compass data-icon="inline-start" className="w-4 h-4" /> Take a tour
+                  </Button>
                 </div>
               </section>
             )}

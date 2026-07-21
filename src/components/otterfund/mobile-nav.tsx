@@ -14,7 +14,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Dialog } from "@base-ui/react/dialog";
 import Link from "next/link";
-import { Settings, LogOut, Compass, Pencil } from "lucide-react";
+import { Settings, LogOut, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { SidebarEditor } from "@/components/otterfund/sidebar-customizer";
@@ -57,7 +57,6 @@ export function MobileNav({
   planLabel,
   plan,
   onOpenSettings,
-  onTakeTour,
   onSignOut,
 }: {
   /** Visible nav items, in the user's order — the tappable nav rows. */
@@ -77,7 +76,6 @@ export function MobileNav({
   planLabel: string;
   plan: string;
   onOpenSettings: () => void;
-  onTakeTour: () => void;
   onSignOut: () => void;
 }) {
   // Controlled so we can force-close when the viewport grows past the desktop
@@ -293,24 +291,14 @@ export function MobileNav({
                 </div>
               </div>
               <div className="mt-1.5 flex flex-col gap-2">
-                <div className="flex gap-2">
-                  <Dialog.Close
-                    render={
-                      <Button variant="outline" size="sm" onClick={onOpenSettings} className="flex-1">
-                        <Settings data-icon="inline-start" size={16} strokeWidth={2} aria-hidden="true" />
-                        Settings
-                      </Button>
-                    }
-                  />
-                  <Dialog.Close
-                    render={
-                      <Button variant="outline" size="sm" onClick={onTakeTour} className="flex-1">
-                        <Compass data-icon="inline-start" size={16} strokeWidth={2} aria-hidden="true" />
-                        Take a tour
-                      </Button>
-                    }
-                  />
-                </div>
+                <Dialog.Close
+                  render={
+                    <Button variant="outline" size="sm" onClick={onOpenSettings} className="w-full">
+                      <Settings data-icon="inline-start" size={16} strokeWidth={2} aria-hidden="true" />
+                      Settings
+                    </Button>
+                  }
+                />
                 {/* stays in-sheet (not a Dialog.Close) — toggles the editor above */}
                 {!editing && (
                   <Button variant="outline" size="sm" onClick={() => setEditing(true)} className="w-full">

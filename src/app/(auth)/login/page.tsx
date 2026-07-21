@@ -8,6 +8,7 @@ import { Field, TextInput, PasswordInput } from "@/components/otterfund/form";
 import { Button } from "@/components/ui/button";
 import { GoogleAuthButton } from "@/components/auth/google-button";
 import { useTurnstile } from "@/components/auth/use-turnstile";
+import { Wordmark } from "@/components/otterfund/wordmark";
 
 // useSearchParams() must sit under a Suspense boundary or `next build` errors on
 // this route. The form is otherwise self-contained, so wrap the whole thing.
@@ -117,6 +118,29 @@ function LoginForm() {
       </form>
 
       <GoogleAuthButton label="Continue with Google" />
+
+      {/* Passive Terms + Privacy notice. Sign-in has no consent gate (the
+          account already exists), so this states acceptance rather than
+          requiring a checkbox like registration does. */}
+      <p className="mt-6 text-center text-[13px] leading-relaxed text-[var(--color-of-muted)]">
+        By signing in, you agree to <Wordmark />&rsquo;s{" "}
+        <Link
+          href="/terms"
+          target="_blank"
+          className="font-medium text-[var(--color-primary)] hover:underline"
+        >
+          Terms of Service
+        </Link>{" "}
+        and{" "}
+        <Link
+          href="/privacy"
+          target="_blank"
+          className="font-medium text-[var(--color-primary)] hover:underline"
+        >
+          Privacy Policy
+        </Link>
+        .
+      </p>
 
       <p className="mt-8 text-center text-sm text-[var(--color-of-muted)]">
         Don&apos;t have an account?{" "}

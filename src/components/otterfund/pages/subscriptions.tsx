@@ -377,7 +377,7 @@ export function OtterfundSubscriptions({ subscriptions, suggestions = [], theme,
             </div>
           ) : (
             <p style={{ margin: 0, fontSize: 13, color: "var(--color-of-muted)" }}>
-              No recurring subscriptions tracked yet. Open the Subscriptions tab to scan your transactions or add one.
+              No recurring bills tracked yet. Open the Subscriptions tab to scan your transactions or add one.
             </p>
           )}
         </Panel>
@@ -390,7 +390,7 @@ export function OtterfundSubscriptions({ subscriptions, suggestions = [], theme,
     <Statement>
       <HeroBand
         theme={theme}
-        ariaLabel="Recurring subscriptions"
+        ariaLabel="Recurring bills"
         asideAlign="start"
         eyebrow={
           <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--color-of-muted)" }}>

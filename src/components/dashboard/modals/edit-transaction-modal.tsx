@@ -242,8 +242,8 @@ export function EditTransactionModal({
             <DateInput value={date} onChange={(e) => setDate(e.target.value)} />
           </div>
 
-          {/* Recurring subscription — checking this tracks the merchant in the
-              Recurring subscriptions section; the cadence picker appears once on. */}
+          {/* Recurring bill — checking this tracks the merchant on the
+              Subscriptions page; the cadence picker appears once on. */}
           <div>
             <button
               type="button"
@@ -265,10 +265,10 @@ export function EditTransactionModal({
               <span className="min-w-0">
                 <span className="flex items-center gap-1.5 text-sm font-semibold text-[var(--color-of-ink)]">
                   <RefreshCw size={13} strokeWidth={2.2} className="text-[var(--color-of-muted)]" />
-                  Recurring subscription
+                  Recurring bill
                 </span>
                 <span className="block text-[12.5px] text-[var(--color-of-muted)] mt-0.5">
-                  Track this merchant in your Recurring subscriptions.
+                  Track this as a recurring bill on your Subscriptions.
                 </span>
               </span>
             </button>

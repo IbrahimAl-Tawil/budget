@@ -13,7 +13,7 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { gqlClient } from "@/lib/graphql/client";
-import { Palette, Bell, Settings, LogOut, Gauge, SlidersHorizontal, Compass } from "lucide-react";
+import { Palette, Bell, Settings, LogOut, Gauge, SlidersHorizontal } from "lucide-react";
 import { AddTransactionModal } from "@/components/dashboard/modals/add-transaction-modal";
 import { ImportModal } from "@/components/dashboard/modals/import-modal";
 import { EditTransactionModal } from "@/components/dashboard/modals/edit-transaction-modal";
@@ -893,10 +893,6 @@ export function OtterfundChrome({
                   <Settings size={15} strokeWidth={2} aria-hidden="true" />
                   <span>Settings</span>
                 </MenuItem>
-                <MenuItem onClick={() => startTour()}>
-                  <Compass size={15} strokeWidth={2} aria-hidden="true" />
-                  <span>Take a tour</span>
-                </MenuItem>
                 <MenuItem onClick={() => handleSignOut()} className="text-[var(--color-of-clay)]">
                   <LogOut size={15} strokeWidth={2} aria-hidden="true" />
                   <span>Log out</span>
@@ -934,7 +930,6 @@ export function OtterfundChrome({
                 planLabel={PLAN_META[plan].label}
                 plan={plan}
                 onOpenSettings={() => openSettings()}
-                onTakeTour={() => startTour()}
                 onSignOut={handleSignOut}
               />
               <div className="of-topbar-title" style={{ minWidth: 0 }}>
@@ -1013,6 +1008,7 @@ export function OtterfundChrome({
           appearance={appearance}
           onAppearanceChange={setAppearance}
           user={user}
+          onTakeTour={() => { closeSettings(); startTour(); }}
         />
         <ToastViewport toasts={toasts} onDismiss={dismissToast} theme={theme} />
       </div>
