@@ -118,6 +118,16 @@ export function AddTransactionModal({
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
       setForm((f) => ({ ...f, [k]: e.target.value }));
 
+  // Picking the Subscriptions category turns the recurring-bill toggle on by
+  // default — a subscription is recurring by nature. It stays editable (the user
+  // can switch it back off); we only auto-enable, never force it. Skipped for
+  // Income, where the recurring section isn't shown.
+  const setCategory = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const category = e.target.value;
+    setForm((f) => ({ ...f, category }));
+    if (category === "Subscriptions" && form.type !== "credit") setIsRecurring(true);
+  };
+
   const handleSubmit = () => {
     if (!form.name || !form.amount) {
       setError("Please fill in all fields");
@@ -286,7 +296,7 @@ export function AddTransactionModal({
                 <div className="relative">
                   <select
                     value={form.category}
-                    onChange={set("category")}
+                    onChange={setCategory}
                     className="of-field-select"
                   >
                     {displayCategories.map((c) => (

@@ -225,7 +225,14 @@ export function EditTransactionModal({
             <div className="relative">
               <select
                 value={category}
-                onChange={(e) => setCategory(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setCategory(value);
+                  // A subscription is recurring by nature — switching the
+                  // category to Subscriptions turns the recurring-bill toggle on
+                  // by default. It stays editable; we only auto-enable it.
+                  if (value === "Subscriptions") setIsRecurring(true);
+                }}
                 className="of-field-select"
               >
                 {displayCategories.map((c) => (

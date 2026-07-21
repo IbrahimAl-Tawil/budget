@@ -15,6 +15,7 @@ import { PlanBadgeIcon } from "@/components/otterfund/plan-badge-icon";
 import { Menu, MenuTrigger, MenuContent, MenuRadioGroup, MenuRadioItem } from "@/components/ui/menu";
 import { SchemePicker } from "@/components/otterfund/scheme-picker";
 import { AppearancePicker } from "@/components/otterfund/appearance-picker";
+import { MerchantAvatar } from "@/components/otterfund/merchant-avatar";
 import { braid } from "@/components/otterfund/guilloche";
 import { ConfirmButton } from "@/components/otterfund/confirm-button";
 import { useOtterfundChrome } from "@/components/otterfund/chrome-context";
@@ -36,6 +37,7 @@ const PLAID_ITEMS = /* GraphQL */ `
       status
       lastSyncedAt
       accountCount
+      domain
     }
   }
 `;
@@ -81,6 +83,7 @@ interface PlaidConnection {
   status: string;
   lastSyncedAt: string | null;
   accountCount: number;
+  domain: string | null;
 }
 
 interface SettingsModalProps {
@@ -689,12 +692,26 @@ export function SettingsModal({ open, onClose, user, accent, onAccentChange, app
                           style={{ borderTop: i === 0 ? "none" : "1px solid var(--color-of-line-soft)" }}
                         >
                           <div className="flex min-w-0 flex-1 items-center gap-[15px]">
-                            <div
-                              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[13px]"
-                              style={{ background: "var(--accent)", color: "var(--color-primary)" }}
-                            >
-                              <Landmark className="w-[19px] h-[19px]" strokeWidth={1.9} />
-                            </div>
+                            {c.domain ? (
+                              // Real bank logo (e.g. Scotiabank), same treatment
+                              // as accounts/transactions — falls back to a letter
+                              // tile if the logo can't load.
+                              <MerchantAvatar
+                                name={c.institutionName || "Bank"}
+                                domain={c.domain}
+                                bg="var(--accent)"
+                                ink="var(--color-primary)"
+                                size={44}
+                                fit="contain"
+                              />
+                            ) : (
+                              <div
+                                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[13px]"
+                                style={{ background: "var(--accent)", color: "var(--color-primary)" }}
+                              >
+                                <Landmark className="w-[19px] h-[19px]" strokeWidth={1.9} />
+                              </div>
+                            )}
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2">
                                 <span className="truncate text-[14.5px] font-semibold text-[var(--color-of-ink)]">

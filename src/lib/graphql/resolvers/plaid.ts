@@ -15,6 +15,7 @@ import { syncItem, syncAllActiveItems, safePlaidErr } from "@/lib/plaid/sync";
 import { detectAndStoreRecurring } from "@/lib/db/recurring";
 import { checkLinkQuota, recordLinkEvent } from "@/lib/plaid/guards";
 import { rateLimit, MINUTE, HOUR, SECOND } from "@/lib/rate-limit";
+import { dictionaryDomain } from "@/lib/merchant/resolve";
 
 const PlaidItemRef = builder
   .objectRef<{
@@ -23,6 +24,7 @@ const PlaidItemRef = builder
     status: string;
     lastSyncedAt: string | null;
     accountCount: number;
+    domain: string | null;
   }>("PlaidItem")
   .implement({
     fields: (t) => ({
@@ -31,6 +33,10 @@ const PlaidItemRef = builder
       status: t.exposeString("status"),
       lastSyncedAt: t.exposeString("lastSyncedAt", { nullable: true }),
       accountCount: t.exposeInt("accountCount"),
+      // Institution logo domain for the Connections tab. Sync resolves this once
+      // per item and stamps it on every account, so reuse it; fall back to the
+      // client-safe dictionary for items with no synced accounts yet.
+      domain: t.exposeString("domain", { nullable: true }),
     }),
   });
 
@@ -43,7 +49,10 @@ builder.queryField("plaidItems", (t) =>
       const items = await prisma.plaidItem.findMany({
         where: { userId },
         orderBy: { createdAt: "asc" },
-        include: { _count: { select: { accounts: true } } },
+        include: {
+          _count: { select: { accounts: true } },
+          accounts: { select: { domain: true }, take: 1 },
+        },
       });
       return items.map((i) => ({
         itemId: i.itemId,
@@ -51,6 +60,7 @@ builder.queryField("plaidItems", (t) =>
         status: i.status,
         lastSyncedAt: i.lastSyncedAt ? i.lastSyncedAt.toISOString() : null,
         accountCount: i._count.accounts,
+        domain: i.accounts[0]?.domain ?? dictionaryDomain(i.institutionName),
       }));
     },
   }),
