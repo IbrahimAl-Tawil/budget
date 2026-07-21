@@ -27,7 +27,8 @@ function groupOf(emoji: string): number {
 interface EmojiPickerProps {
   value: string;
   onChange: (emoji: string) => void;
-  /** Visible label rendered above the trigger. */
+  /** Visible label rendered above the trigger. Pass "" to render none (for
+      placeholder-only contexts like the onboarding goal rows). */
   label?: string;
 }
 
@@ -65,9 +66,11 @@ export function EmojiPicker({ value, onChange, label = "Emoji" }: EmojiPickerPro
 
   return (
     <div ref={rootRef} className="relative">
-      <label className="block text-[11px] font-semibold tracking-[0.09em] uppercase text-[var(--color-of-faint)] mb-1.5">
-        {label}
-      </label>
+      {label && (
+        <label className="block text-[11px] font-semibold tracking-[0.09em] uppercase text-[var(--color-of-faint)] mb-1.5">
+          {label}
+        </label>
+      )}
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}

@@ -50,7 +50,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
         user={{
           name: user.name ?? "",
           email: user.email ?? "",
-          monthlyIncome: overview?.monthlyIncome ?? 0,
+          // Stored setting, NOT overview.monthlyIncome (that's this month's
+          // detected income) — the settings form must show what the user set.
+          monthlyIncome: prefs.monthlyIncome,
           currency: overview?.currency ?? "CAD",
           budgetTarget: overview?.budgetTarget ?? 0,
           budgetPlan: prefs.budgetPlan ?? DEFAULT_BUDGET_PLAN_ID,

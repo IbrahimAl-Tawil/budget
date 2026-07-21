@@ -262,11 +262,13 @@
    under 16px. Fields are text-sm (14px) on desktop; at touch widths hold them
    at 16px so tapping into a field never triggers the zoom. 1024px (the app's
    tablet stop) rather than the phone stop because iPhones in LANDSCAPE are up
-   to ~932px CSS wide and Safari zooms there too. Both classes need the
-   override — `of-field-select` @applies of-field's STYLES but its elements
-   don't carry the of-field class. (Un-layered rule, so it wins over the
-   @utility layer.) */
-@media (max-width: 1024px) {
+   to ~932px CSS wide and Safari zooms there too. `pointer: coarse` limits the
+   floor to actual touch devices — a mouse-driven desktop browser sized to
+   tablet width keeps the normal 14px scale (only iOS zooms; only touch needs
+   this). Both classes need the override — `of-field-select` @applies
+   of-field's STYLES but its elements don't carry the of-field class.
+   (Un-layered rule, so it wins over the @utility layer.) */
+@media (max-width: 1024px) and (pointer: coarse) {
   .of-field,
   .of-field-select {
     font-size: 16px;

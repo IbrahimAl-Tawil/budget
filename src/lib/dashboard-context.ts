@@ -81,6 +81,10 @@ export const userPrefs = async (userId: string) => {
     currency: u?.currency ?? "CAD",
     budgetPlan: u?.budgetPlan ?? null,
     plan: u?.plan ?? "free",
+    // The CONFIGURED income (User column) for the settings form — distinct from
+    // overview.monthlyIncome, which is actual income detected from this month's
+    // transactions and is only for dashboard stats.
+    monthlyIncome: u?.monthlyIncome ?? 0,
   };
 };
 

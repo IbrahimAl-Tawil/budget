@@ -303,7 +303,7 @@ export function MobileNav({
                 {!editing && (
                   <Button variant="outline" size="sm" onClick={() => setEditing(true)} className="w-full">
                     <Pencil data-icon="inline-start" size={16} strokeWidth={2} aria-hidden="true" />
-                    Customize sidebar
+                    Customize menu
                   </Button>
                 )}
                 <Dialog.Close

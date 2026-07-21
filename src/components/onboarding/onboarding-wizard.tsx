@@ -88,13 +88,14 @@ const INTRO_STEPS = [
 const INTRO_INDEX: Record<"goals" | "referral" | "plan", number> = { goals: 0, referral: 1, plan: 2 };
 
 // "How did you hear about us?" choices — stored verbatim as the referral source.
+// A free-form field beside these catches everything else; whatever the user
+// types is stored as-is (a typed answer beats a "Something else" bucket).
 const REFERRAL_OPTIONS = [
   "Friend or family",
   "Social media",
   "Search engine",
   "YouTube",
   "A news article or blog",
-  "Something else",
 ];
 
 type AutoAnalysis = {
@@ -585,19 +586,12 @@ export function OnboardingWizard({
       <OnboardingBrandPanel userName={userName} steps={panelSteps} step={panelStep} />
 
       <main className="relative flex min-h-screen flex-col px-6 py-8 sm:px-10">
-        {/* compact brand header — the panel owns branding on lg+ */}
-        <div className="flex items-center justify-between lg:hidden">
+        {/* compact brand header — the panel owns branding on lg+. Back lives in
+            each screen's bottom action row on mobile (secondary variant), not here. */}
+        <div className="flex items-center lg:hidden">
           <Link href="/" aria-label="otterfund home" className="inline-flex items-center">
             <LogoMark size={38} />
           </Link>
-          {canGoBack && (
-            <button
-              onClick={goBack}
-              className="text-[13px] font-medium text-[var(--color-of-muted)] transition-colors hover:text-[var(--color-of-ink)]"
-            >
-              {backLabel}
-            </button>
-          )}
         </div>
 
         <div className={`flex flex-1 justify-center py-10 ${stage === "plan" ? "items-start" : "items-center"}`}>
@@ -605,12 +599,14 @@ export function OnboardingWizard({
               column than the single-field wizard steps. */}
           <div className={`w-full ${stage === "plan" ? "max-w-5xl" : "max-w-xl"}`}>
             {canGoBack && (
-              <button
+              <Button
+                variant="link"
+                size="sm"
                 onClick={goBack}
-                className="mb-7 hidden items-center gap-1.5 text-[13px] font-medium text-[var(--color-of-muted)] transition-colors hover:text-[var(--color-of-ink)] lg:inline-flex"
+                className="mb-7 inline-flex text-[13px]"
               >
                 <span aria-hidden>←</span> {backLabel}
-              </button>
+              </Button>
             )}
 
             {/* mobile step progress — the panel's tracker is hidden on small screens */}
@@ -670,7 +666,7 @@ export function OnboardingWizard({
                         type="button"
                         aria-pressed={on}
                         onClick={() => setReferral(on ? "" : opt)}
-                        className="flex items-center gap-2.5 rounded-xl border px-4 py-3 text-left text-[13.5px] font-medium transition-colors"
+                        className="flex items-center gap-2.5 rounded-xl border px-4 py-3 text-left text-[13.5px] pointer-coarse:max-lg:text-[16px] font-medium transition-colors"
                         style={
                           on
                             ? { borderColor: "var(--color-primary)", background: "var(--accent)", color: "var(--color-of-ink)" }
@@ -690,6 +686,19 @@ export function OnboardingWizard({
                       </button>
                     );
                   })}
+                  {/* Free-form answer — typing replaces any preset pick, and picking
+                      a preset clears it (one `referral` state holds either). Type
+                      matches the pills everywhere: 13.5px on fine pointers, and on
+                      touch under 1024px both rise to 16px (of-field's iOS no-zoom
+                      floor is un-layered so it beats this utility; the pills bump
+                      via pointer-coarse:max-lg). */}
+                  <TextInput
+                    value={REFERRAL_OPTIONS.includes(referral) ? "" : referral}
+                    onChange={(e) => setReferral(e.target.value)}
+                    placeholder="Somewhere else? Tell us"
+                    aria-label="Somewhere else"
+                    className="h-auto self-stretch py-3 text-[13.5px]"
+                  />
                 </div>
                 <div className="flex justify-end pt-1">
                   <Button size="sm" onClick={() => { setError(""); setStage("plan"); }} className="px-6">
@@ -758,6 +767,18 @@ export function OnboardingWizard({
                     );
                   })}
                 </div>
+                {/* Escape hatch: finish onboarding with what's entered so far
+                    (goals, referral, plan) and land on the dashboard. */}
+                <div className="mt-6 flex items-center justify-center">
+                  <button
+                    onClick={handleSubmit}
+                    disabled={loading}
+                    className="text-[13px] font-medium text-[var(--color-of-muted)] transition-colors hover:text-[var(--color-of-ink)] disabled:opacity-60"
+                  >
+                    {loading ? "Setting up..." : "Set up later"}
+                  </button>
+                </div>
+                {error && <p className="mt-2 text-center text-sm text-[var(--color-of-clay)] font-medium">{error}</p>}
               </div>
             ) : (
               <div key={`${mode}-${step}`} className="of-enter">
@@ -1082,8 +1103,8 @@ export function OnboardingWizard({
         {/* Navigation */}
         <div className="flex justify-between mt-8 gap-3">
           {step > 0 && !(mode === "auto" && step === 1) ? (
-            <Button variant="ghost" size="sm" onClick={() => setStep(step - 1)} className="px-6 text-[var(--color-of-muted)]">
-              Back
+            <Button variant="link" size="sm" onClick={() => setStep(step - 1)} className="text-[13px]">
+              <span aria-hidden>←</span> Back
             </Button>
           ) : (
             <div />
@@ -1246,7 +1267,9 @@ function GoalRows({
         {goals.map((g, i) => (
           <div key={i} className="flex gap-2.5 items-start p-3 rounded-xl bg-[oklch(98%_0.004_90)] border border-[var(--color-of-line)]">
             <div className="w-14 shrink-0">
-              <EmojiPicker value={g.emoji} onChange={(v) => onUpdate(i, "emoji", v)} />
+              {/* Label-free: these rows are placeholder-only, so an eyebrow on
+                  just this one control would look stranded. */}
+              <EmojiPicker value={g.emoji} onChange={(v) => onUpdate(i, "emoji", v)} label="" />
             </div>
             <div className="flex-1 space-y-2">
               <TextInput value={g.name} onChange={(e) => onUpdate(i, "name", e.target.value)} placeholder="e.g. Emergency fund" />

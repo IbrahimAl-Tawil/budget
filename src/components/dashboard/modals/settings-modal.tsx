@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { LEGAL } from "@/lib/legal";
 import { Tabs, type TabItem } from "@/components/otterfund/tabs";
 import { Wordmark } from "@/components/otterfund/wordmark";
 import { PlanBadgeIcon } from "@/components/otterfund/plan-badge-icon";
@@ -22,7 +23,7 @@ import { useOtterfundChrome } from "@/components/otterfund/chrome-context";
 import { createClient } from "@/lib/supabase/client";
 import { gqlClient } from "@/lib/graphql/client";
 import { BudgetPlanPicker } from "@/components/otterfund/budget-plan-picker";
-import { User, Wallet, ShieldAlert, ChevronDown, Database, Palette, Trash2, Check, Landmark, Unlink, RefreshCw, Loader2, Plus, CreditCard, ArrowLeftRight, Lock, ArrowRight, Compass } from "lucide-react";
+import { User, Wallet, ShieldAlert, ChevronDown, Database, Palette, Trash2, Check, Landmark, Unlink, RefreshCw, Loader2, Plus, CreditCard, ArrowLeftRight, Lock, ArrowRight } from "lucide-react";
 import { OtterFace } from "@/components/otterfund/logo";
 import { GuillocheFlow } from "@/components/otterfund/guilloche-flow";
 import { CURRENCIES, getBudgetPlan } from "@/lib/constants";
@@ -265,8 +266,14 @@ export function SettingsModal({ open, onClose, user, accent, onAccentChange, app
   const [name, setName] = useState(user.name);
   const [monthlyIncome, setMonthlyIncome] = useState(String(user.monthlyIncome));
   const [currency, setCurrency] = useState(user.currency);
-  const [budgetTarget, setBudgetTarget] = useState(String(user.budgetTarget));
   const [planId, setPlanId] = useState(user.budgetPlan);
+  // Budget target is DERIVED (plan spend % × income), never edited directly. It
+  // used to be an editable field, but every plan switch silently recomputed it
+  // and nothing besides budget alerts read the manual value, so hand edits only
+  // ever looked unsaved. The server re-derives on income change (settings.ts).
+  const activePlan = getBudgetPlan(planId);
+  const spendPct = activePlan.needs + activePlan.wants;
+  const derivedBudgetTarget = Math.round(((Number(monthlyIncome) || 0) * spendPct) / 100);
 
   // Inline autosave status: fields persist ~800ms after the last edit, so there
   // is no Save button. `nameError` is the only blocking validation (name is
@@ -290,14 +297,13 @@ export function SettingsModal({ open, onClose, user, accent, onAccentChange, app
       setName(user.name);
       setMonthlyIncome(String(user.monthlyIncome));
       setCurrency(user.currency);
-      setBudgetTarget(String(user.budgetTarget));
       setPlanId(user.budgetPlan);
       setSaveStatus("idle");
       setNameError("");
     } else if (!open && seededRef.current) {
       seededRef.current = false;
     }
-  }, [open, user.name, user.monthlyIncome, user.currency, user.budgetTarget, user.budgetPlan]);
+  }, [open, user.name, user.monthlyIncome, user.currency, user.budgetPlan]);
 
   // Cancel any pending autosave when the modal unmounts.
   useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
@@ -318,30 +324,19 @@ export function SettingsModal({ open, onClose, user, accent, onAccentChange, app
   const [deleting, setDeleting] = useState(false);
   const deleteUnlocked = confirmText.trim() === DELETE_PHRASE;
 
-  type ExportStatus = "idle" | "exporting" | "error";
-  const [exportStatus, setExportStatus] = useState<ExportStatus>("idle");
-
-  // Fetch the full data export and trigger a download. Surfaces a failure
-  // inline (rather than silently doing nothing) and always revokes the blob URL.
-  const handleExport = async () => {
-    setExportStatus("exporting");
-    try {
-      const res = await fetch("/api/settings/export");
-      if (!res.ok) throw new Error(`Export failed (${res.status})`);
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      try {
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "otterfund-export.json";
-        a.click();
-      } finally {
-        URL.revokeObjectURL(url);
-      }
-      setExportStatus("idle");
-    } catch {
-      setExportStatus("error");
-    }
+  // Data exports go through support by email now. The old self-serve JSON
+  // download put the full account record one click away; a drafted email keeps
+  // the request deliberate and lets support verify the requester first.
+  const requestDataExport = () => {
+    const subject = "Personal data export request";
+    const body = [
+      "Hey,",
+      "",
+      `Please send me an export of the personal data linked to my account (${user.email}).`,
+      "",
+      "Thank you!",
+    ].join("\n");
+    window.location.href = `mailto:${LEGAL.privacyEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
   const disarmDelete = () => {
@@ -370,7 +365,7 @@ export function SettingsModal({ open, onClose, user, accent, onAccentChange, app
   // Persist the current field values. Returns once the PATCH settles so the
   // status line can reflect the outcome. Refreshes the session only when the
   // name changed (the avatar/topbar read from the session, not the DB).
-  const persist = async (values: { name: string; monthlyIncome: string; currency: string; budgetTarget: string }) => {
+  const persist = async (values: { name: string; monthlyIncome: string; currency: string }) => {
     const trimmedName = values.name.trim();
     setSaveStatus("saving");
     try {
@@ -379,7 +374,6 @@ export function SettingsModal({ open, onClose, user, accent, onAccentChange, app
           name: trimmedName,
           monthlyIncome: Number(values.monthlyIncome) || 0,
           currency: values.currency,
-          budgetTarget: Number(values.budgetTarget) || 0,
         },
       });
       setSaveStatus("saved");
@@ -392,7 +386,7 @@ export function SettingsModal({ open, onClose, user, accent, onAccentChange, app
 
   // Debounce: ~800ms after the last edit, persist — unless the name is blank
   // (the one blocking rule), in which case we surface the error and hold off.
-  const scheduleSave = (next: { name: string; monthlyIncome: string; currency: string; budgetTarget: string }) => {
+  const scheduleSave = (next: { name: string; monthlyIncome: string; currency: string }) => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (!next.name.trim()) {
       setNameError("Give yourself a name.");
@@ -403,24 +397,20 @@ export function SettingsModal({ open, onClose, user, accent, onAccentChange, app
     debounceRef.current = setTimeout(() => persist(next), 800);
   };
 
-  const editName = (v: string) => { setName(v); scheduleSave({ name: v, monthlyIncome, currency, budgetTarget }); };
-  const editIncome = (v: string) => { setMonthlyIncome(v); scheduleSave({ name, monthlyIncome: v, currency, budgetTarget }); };
-  const editCurrency = (v: string) => { setCurrency(v); scheduleSave({ name, monthlyIncome, currency: v, budgetTarget }); };
-  const editBudget = (v: string) => { setBudgetTarget(v); scheduleSave({ name, monthlyIncome, currency, budgetTarget: v }); };
+  const editName = (v: string) => { setName(v); scheduleSave({ name: v, monthlyIncome, currency }); };
+  const editIncome = (v: string) => { setMonthlyIncome(v); scheduleSave({ name, monthlyIncome: v, currency }); };
+  const editCurrency = (v: string) => { setCurrency(v); scheduleSave({ name, monthlyIncome, currency: v }); };
 
   // Switching the plan is immediate (not debounced) — it recomputes the spend
-  // allowance + this month's category budgets server-side. We mirror the derived
-  // budget target locally so the field above reflects it without a reseed.
+  // allowance + this month's category budgets server-side. The derived budget
+  // target above re-renders from planId, so no local mirroring is needed.
   const changePlan = async (id: string) => {
     if (id === planId) return;
     const prevPlan = planId;
-    const prevBudget = budgetTarget;
-    // Cancel any pending debounced autosave so its stale budgetTarget can't land
-    // after — and overwrite — the plan-derived value the switch persists.
+    // Flush any pending debounced autosave first so it can't land after the
+    // plan switch with stale income.
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    const plan = getBudgetPlan(id);
     setPlanId(id);
-    setBudgetTarget(String(Math.round((Number(monthlyIncome) * (plan.needs + plan.wants)) / 100)));
     setSaveStatus("saving");
     try {
       // Flush the latest income/currency first so the server (which reads income
@@ -437,7 +427,6 @@ export function SettingsModal({ open, onClose, user, accent, onAccentChange, app
     } catch {
       // Roll the optimistic selection back so the picker matches what's saved.
       setPlanId(prevPlan);
-      setBudgetTarget(prevBudget);
       setSaveStatus("error");
     }
   };
@@ -560,7 +549,7 @@ export function SettingsModal({ open, onClose, user, accent, onAccentChange, app
                     Replay the quick walkthrough of where everything lives.
                   </p>
                   <Button variant="outline" size="sm" onClick={() => onTakeTour?.()} disabled={!onTakeTour}>
-                    <Compass data-icon="inline-start" className="w-4 h-4" /> Take a tour
+                    Take a tour
                   </Button>
                 </div>
               </section>
@@ -629,14 +618,20 @@ export function SettingsModal({ open, onClose, user, accent, onAccentChange, app
                     </div>
                     <div>
                       <label className={fieldLabelCls}>Budget target</label>
-                      <input
-                        type="number"
-                        value={budgetTarget}
-                        onChange={(e) => editBudget(e.target.value)}
-                        className="of-field"
-                      />
+                      {/* Read-only: derived from the plan, not stored input. */}
+                      <div className="of-num flex h-11 items-center px-1 text-[17px] text-[var(--color-of-ink)]">
+                        {new Intl.NumberFormat("en-CA", {
+                          style: "currency",
+                          currency,
+                          minimumFractionDigits: 0,
+                        }).format(derivedBudgetTarget)}
+                        <span className="ml-2 text-[12px] font-medium text-[var(--color-of-faint)]">/mo</span>
+                      </div>
                     </div>
                   </div>
+                  <p className="-mt-2 text-[12px] leading-relaxed text-[var(--color-of-muted)]">
+                    Your budget target is {spendPct}% of income, set by the {activePlan.name} below. Pick a different plan to change it.
+                  </p>
                   <div>
                     <label className={fieldLabelCls}>Currency</label>
                     <div className="relative">
@@ -802,27 +797,13 @@ export function SettingsModal({ open, onClose, user, accent, onAccentChange, app
                   className="rounded-2xl p-6"
                   style={{ background: "var(--color-of-surface)", border: "1px solid var(--color-of-line)" }}
                 >
-                  <SectionHead icon={Database} title="Your data" desc="Export all of your user data." />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleExport}
-                    disabled={exportStatus === "exporting"}
-                  >
-                    {exportStatus === "exporting" ? (
-                      <>
-                        <Loader2 data-icon="inline-start" className="w-4 h-4 animate-spin" />
-                        Exporting…
-                      </>
-                    ) : (
-                      "Export data"
-                    )}
+                  <SectionHead icon={Database} title="Your data" desc="Request a copy of your personal data." />
+                  <Button variant="outline" size="sm" onClick={requestDataExport}>
+                    Request my data
                   </Button>
-                  {exportStatus === "error" && (
-                    <p className="mt-3 text-[12.5px] font-medium text-[var(--color-of-clay)]">
-                      Couldn’t export your data. Please try again.
-                    </p>
-                  )}
+                  <p className="mt-3 max-w-[420px] text-[12.5px] leading-relaxed text-[var(--color-of-muted)]">
+                    This opens an email draft to support. You&rsquo;ll hear back with your export within 2 days.
+                  </p>
                 </section>
 
                 {/* Danger zone — delete only */}

@@ -139,7 +139,7 @@ export function SidebarCustomizer({
         render={
           <button
             type="button"
-            className="of-rail-btn flex h-[36px] w-[36px] items-center justify-center rounded-[11px] outline-none transition-[background,color] duration-150 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40"
+            className="of-rail-btn flex h-[36px] w-[36px] cursor-pointer items-center justify-center rounded-[11px] outline-none transition-[background,color] duration-150 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/40"
             style={{ color: "var(--color-of-rail-icon)" }}
           >
             <Pencil size={16} strokeWidth={1.8} aria-hidden="true" />

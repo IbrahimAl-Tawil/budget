@@ -19,7 +19,8 @@ const SettingsUpdateInput = builder.inputType("SettingsUpdateInput", {
     name: t.string(),
     monthlyIncome: t.float(),
     currency: t.string(),
-    budgetTarget: t.float(),
+    // budgetTarget is intentionally NOT accepted: it's derived (plan spend % ×
+    // income), recomputed below on income change and in updateBudgetPlan.
     accent: t.string(),
     appearance: t.string(),
   }),
@@ -46,16 +47,21 @@ builder.mutationField("updateSettings", (t) =>
       if (!okMoney(input.monthlyIncome) || (input.monthlyIncome != null && input.monthlyIncome < 0)) {
         badRequest("Monthly income is out of range.");
       }
-      if (!okMoney(input.budgetTarget) || (input.budgetTarget != null && input.budgetTarget < 0)) {
-        badRequest("Budget target is out of range.");
+      // Income changed → re-derive the budget target from the stored plan so
+      // budget alerts always work from a figure consistent with the plan split.
+      let derivedBudgetTarget: number | undefined;
+      if (input.monthlyIncome != null) {
+        const u = await prisma.user.findUnique({ where: { id: userId }, select: { budgetPlan: true } });
+        const plan = getBudgetPlan(u?.budgetPlan ?? "");
+        derivedBudgetTarget = Math.round((input.monthlyIncome * (plan.needs + plan.wants)) / 100);
       }
       await prisma.user.update({
         where: { id: userId },
         data: {
           ...(input.name != null && { name: input.name }),
           ...(input.monthlyIncome != null && { monthlyIncome: input.monthlyIncome }),
+          ...(derivedBudgetTarget != null && { budgetTarget: derivedBudgetTarget }),
           ...(input.currency != null && { currency: input.currency }),
-          ...(input.budgetTarget != null && { budgetTarget: input.budgetTarget }),
           ...(input.accent !== undefined && { accent: input.accent }),
           ...(input.appearance != null && { appearance: input.appearance }),
         },
