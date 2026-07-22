@@ -38,6 +38,9 @@ export interface RunAdvisorTurnInput {
   /** Fixed title for a newly-created conversation (e.g. "Telegram"). When omitted,
       an AI title is generated from the first message — the in-app default. */
   newConversationTitle?: string;
+  /** Where the answer will be shown. "chat" gets phone-native formatting for
+      Telegram/WhatsApp; defaults to "app" (rich Markdown for the web UI). */
+  surface?: "app" | "chat";
 }
 
 export type AdvisorTurnResult =
@@ -103,7 +106,9 @@ export async function runAdvisorTurn(input: RunAdvisorTurnInput): Promise<Adviso
     history = h;
   }
 
-  const { answer, sources, usage, model } = await askAdvisor(userId, message, history);
+  const { answer, sources, usage, model } = await askAdvisor(userId, message, history, {
+    surface: input.surface,
+  });
 
   // Persist only after a successful answer, so a failed call leaves no empty
   // conversation behind.

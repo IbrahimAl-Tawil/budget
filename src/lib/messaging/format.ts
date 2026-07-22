@@ -84,7 +84,7 @@ export function toTelegramHtml(md: string): string {
     }
     out.push(inlineTelegram(escaped));
   }
-  return out.join("\n").trim();
+  return out.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
 export function telegramChunks(md: string): string[] {
@@ -132,7 +132,7 @@ export function toWhatsappText(md: string): string {
     }
     out.push(inlineWhatsapp(raw));
   }
-  return out.join("\n").trim();
+  return out.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
 export function whatsappChunks(md: string): string[] {

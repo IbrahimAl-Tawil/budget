@@ -77,6 +77,27 @@ const SYSTEM = `You are otterfund's budget advisor: a professional, level-headed
 ## Tone
 Warm, direct, and concise: a trusted advisor, not a salesperson. No hype, no emoji spam, no pushing financial products.`;
 
+// Extra formatting rules appended to the system prompt when the answer is
+// delivered in a phone chat app (Telegram/WhatsApp) rather than the web UI. Chat
+// apps can't render Markdown tables or headings, so steer the model to
+// phone-native output. Intentionally overrides the "prefer tables" guidance in
+// SYSTEM, for this surface only.
+const CHAT_FORMAT = `
+
+## Delivery surface: phone chat app
+This reply is sent in a phone messaging app (Telegram or WhatsApp), NOT the web app. Format it to read cleanly on a narrow phone screen:
+- Do NOT use Markdown tables or headings (#). They do not render in chat and become unreadable noise. This overrides any earlier instruction to use tables.
+- Open with the direct answer in one or two short sentences.
+- Present any breakdown as one short line per item in the form "Label: **value**", with the figure in bold, e.g. "- Dining: **$420** (18%)". A leading "- " is fine.
+- Keep the whole message short and skimmable: a handful of lines, not an essay. Bold only the figures that matter.
+- No ASCII tables, no code blocks, no column alignment.`;
+
+export interface AskAdvisorOptions {
+  /** Where the answer will be shown. "chat" (Telegram/WhatsApp) gets phone-native
+      formatting; "app" (default) keeps the rich Markdown the in-app renderer shows. */
+  surface?: "app" | "chat";
+}
+
 /** Read-only tools. All are scoped to the caller's userId server-side. */
 const TOOLS: Anthropic.Tool[] = [
   {
@@ -379,12 +400,14 @@ export async function askAdvisor(
   userId: string,
   message: string,
   history: AdvisorTurn[] = [],
+  opts: AskAdvisorOptions = {},
 ): Promise<{ answer: string; sources: AdvisorSource[]; usage: TokenUsage; model: string }> {
   const user = await getUserRow(userId);
   const ctx: ToolCtx = { userId, currency: user?.currency || "CAD" };
   // System prompt with today's date baked in — computed once so every model
-  // call this turn (tool loop + forced-final) sees the same current date.
-  const system = datedSystem();
+  // call this turn (tool loop + forced-final) sees the same current date. On the
+  // chat surface, append phone-native formatting rules (no tables/headings).
+  const system = datedSystem() + (opts.surface === "chat" ? CHAT_FORMAT : "");
   // Token usage summed across every model call this turn (the tool loop below
   // plus the forced-final), attributed to the advisor chat for cost tracking.
   const usage = emptyUsage();

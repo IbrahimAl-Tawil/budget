@@ -81,6 +81,8 @@ export async function handleInbound(adapter: MessagingAdapter, msg: InboundMessa
     message: text,
     conversationId: conn.conversationId,
     monthlyLimit: entitlementsFor(plan).aiMonthlyMessages,
+    // Phone-native formatting (no tables/headings) so it reads cleanly in the chat app.
+    surface: "chat",
     // First texted turn opens a rolling conversation titled by channel, so the
     // thread is recognizable in the in-app advisor sidebar (unified history).
     newConversationTitle: conn.conversationId ? undefined : PROVIDER_TITLE[provider],
